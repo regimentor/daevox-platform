@@ -4,9 +4,11 @@ import test from 'node:test';
 import { Application } from '../lib/framework/Application.js';
 import { HttpControllerBase } from '../lib/framework/HttpControllerBase.js';
 import {
+  ApplicationStateError,
   DuplicateHttpControllerError,
   HttpRouteConflictError,
   InvalidHttpControllerError,
+  InvalidHttpOptionsError,
   InvalidHttpRouteError,
   InvalidJobOptionsError,
 } from '../lib/framework/errors.js';
@@ -31,6 +33,37 @@ test('Application регистрирует HTTP-контроллер и возв
   const app = new Application();
 
   assert.equal(app.registerHttpController(controller()), app);
+});
+
+test('Application запрещает регистрацию и повторный запуск после начала listen', async () => {
+  const app = new Application();
+  const listening = app.listen({ port: 0 });
+
+  assert.throws(() => app.registerHttpController(controller()), ApplicationStateError);
+  await assert.rejects(app.listen({ port: 0 }), ApplicationStateError);
+  await listening;
+  await app.close();
+});
+
+test('Application.close до listen необратимо закрывает приложение', async () => {
+  const app = new Application();
+  await app.close();
+
+  assert.throws(() => app.registerHttpController(controller()), ApplicationStateError);
+  await assert.rejects(app.listen({ port: 0 }), ApplicationStateError);
+});
+
+test('Application.close освобождает ресурсы при ошибке запуска', async () => {
+  const occupied = new Application();
+  const address = await occupied.listen({ port: 0 });
+  const app = new Application();
+  const listening = app.listen({ port: address.port });
+  const closing = app.close();
+
+  await assert.rejects(listening, { code: 'EADDRINUSE' });
+  await closing;
+  await occupied.close();
+  await assert.rejects(app.listen({ port: 0 }), ApplicationStateError);
 });
 
 test('Application отклоняет повторную регистрацию того же класса', () => {
@@ -221,6 +254,20 @@ test('неуспешная регистрация не изменяет сост
 test('Application проверяет вложенную конфигурацию jobs', () => {
   for (const jobs of [null, [], { poolSize: 0 }, { queueSize: -1 }, { unknown: true }]) {
     assert.throws(() => new Application({ jobs }), InvalidJobOptionsError);
+  }
+});
+
+test('Application строго проверяет вложенную конфигурацию http', () => {
+  for (const http of [
+    null,
+    [],
+    { bodyLimit: -1 },
+    { bodyLimit: 1.5 },
+    { shutdownTimeout: -1 },
+    { onError: true },
+    { unknown: true },
+  ]) {
+    assert.throws(() => new Application({ http }), InvalidHttpOptionsError);
   }
 });
 

@@ -36,17 +36,23 @@ export class UsersController extends HttpControllerBase {
   ];
 
   async list(ctx) {
-    return { users: [] };
+    return { status: 200, body: { users: [] } };
   }
 
   async getById(ctx) {
-    return { id: ctx.params.id };
+    return { status: 200, body: { id: ctx.params.id } };
   }
 }
 
-const app = new Application();
+const app = new Application({
+  http: {
+    bodyLimit: 1024 * 1024,
+    shutdownTimeout: 30_000,
+  },
+});
 app.registerHttpController(UsersController);
-app.run(3000);
+const address = await app.listen({ port: 3000 });
+console.log(`Listening on http://${address.address}:${address.port}`);
 ```
 
 `Application` принимает класс, напрямую наследующий `HttpControllerBase`. Класс HTTP-контроллера объявляет собственные статические поля `prefix` и `routes`, а каждый указанный HTTP-обработчик должен быть собственным методом его прототипа.
@@ -73,3 +79,35 @@ app.run(3000);
 `HttpRouter` является внутренним компонентом и не входит в пользовательский публичный API. До появления библиотечной точки входа классы публичного API импортируются напрямую из `lib/framework/`.
 
 Принятые архитектурные решения и их обоснования находятся в [`docs/adr/`](docs/adr/).
+
+## HTTP-ответ
+
+HTTP-обработчик возвращает объект со статусом и необязательными WHATWG-заголовками и телом:
+
+```js
+return {
+  status: 200,
+  headers: new Headers({ 'x-result': 'success' }),
+  body: { ok: true },
+};
+```
+
+Поддерживаются JSON-значения, строки, `Buffer` и `Uint8Array`.
+
+## Example запуска задачи по HTTP
+
+Запустите приложение:
+
+```sh
+npm run example:jobs-http
+```
+
+В другом терминале отправьте запрос:
+
+```sh
+curl -i -X POST http://127.0.0.1:3000/jobs/sum \
+  -H 'content-type: application/json' \
+  -d '{"values":[1,2,3]}'
+```
+
+Успешный ответ содержит `{"sum":6}`.

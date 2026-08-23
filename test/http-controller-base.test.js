@@ -10,6 +10,22 @@ test('HttpControllerBase нельзя создать напрямую', () => {
 
 test('прямого наследника HttpControllerBase можно создать', () => {
   class UsersController extends HttpControllerBase {}
+  const jobRunner = { run() {}, close() {} };
 
-  assert.ok(new UsersController() instanceof HttpControllerBase);
+  const controller = new UsersController({ jobRunner });
+
+  assert.ok(controller instanceof HttpControllerBase);
+  assert.equal(controller.jobRunner, jobRunner);
+  assert.throws(() => {
+    controller.jobRunner = undefined;
+  }, TypeError);
+});
+
+test('HttpControllerBase принимает объект ровно с jobRunner', () => {
+  class UsersController extends HttpControllerBase {}
+  const jobRunner = { run() {}, close() {} };
+
+  for (const options of [undefined, null, {}, { jobRunner, extra: true }]) {
+    assert.throws(() => new UsersController(options), InvalidHttpControllerError);
+  }
 });
