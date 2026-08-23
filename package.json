@@ -1,0 +1,25 @@
+{
+  "name": "daevox-node-framework",
+  "version": "0.0.1",
+  "description": "",
+  "keywords": [],
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint . --deny-warnings",
+    "lint:fix": "oxlint . --fix --deny-warnings",
+    "test": "node --test test/*.test.js",
+    "typecheck": "node --check src/index.js && node --check src/main.js"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.64.0",
+    "oxlint": "^1.79.0"
+  },
+  "engines": {
+    "node": ">= 26",
+    "npm": ">= 12"
+  }
+}
