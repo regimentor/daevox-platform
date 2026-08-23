@@ -8,6 +8,7 @@ import {
   HttpRouteConflictError,
   InvalidHttpControllerError,
   InvalidHttpRouteError,
+  InvalidJobOptionsError,
 } from '../lib/framework/errors.js';
 
 function UnrelatedController() {}
@@ -215,4 +216,27 @@ test('неуспешная регистрация не изменяет сост
 
   UsersController.routes = [{ method: 'GET', path: '/:id', handler: 'getById' }];
   assert.equal(app.registerHttpController(UsersController), app);
+});
+
+test('Application проверяет вложенную конфигурацию jobs', () => {
+  for (const jobs of [null, [], { poolSize: 0 }, { queueSize: -1 }, { unknown: true }]) {
+    assert.throws(() => new Application({ jobs }), InvalidJobOptionsError);
+  }
+});
+
+test('Application не раскрывает JobRunner или WorkerPool публичными свойствами', async () => {
+  const app = new Application({ jobs: { poolSize: 1, queueSize: 0 } });
+
+  assert.deepEqual(Object.keys(app), []);
+  assert.equal('jobRunner' in app, false);
+  assert.equal('workerPool' in app, false);
+  await app.close();
+});
+
+test('Application.close идемпотентно закрывает принадлежащие ресурсы', async () => {
+  const app = new Application();
+  const closing = app.close();
+
+  assert.equal(app.close(), closing);
+  await closing;
 });
