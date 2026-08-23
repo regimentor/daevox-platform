@@ -16,7 +16,10 @@
 ## Публичный API
 
 ```js
-export class UsersController {
+import { Application } from './lib/framework/Application.js';
+import { HttpControllerBase } from './lib/framework/HttpControllerBase.js';
+
+export class UsersController extends HttpControllerBase {
   static prefix = '/users';
 
   static routes = [
@@ -42,15 +45,15 @@ export class UsersController {
 }
 
 const app = new Application();
-app.registerController(UsersController);
+app.registerHttpController(UsersController);
 app.run(3000);
 ```
 
-Фреймворк не требует базового класса контроллера. `Application` принимает класс структурно: по статическим полям `prefix` и `routes`, а также по доступным методам экземпляра.
+`Application` принимает класс, напрямую наследующий `HttpControllerBase`. Класс HTTP-контроллера объявляет собственные статические поля `prefix` и `routes`, а каждый указанный HTTP-обработчик должен быть собственным методом его прототипа.
 
 Нормализованное определение маршрута имеет следующий вид:
 
-```ts
+```js
 {
   method: "GET",
   path: "/users/:id",
@@ -61,10 +64,12 @@ app.run(3000);
 
 ## Архитектура
 
-Фреймворк разделяет ответственность между тремя компонентами:
+`Application` служит общей точкой композиции для транспортов фреймворка. HTTP-слой разделяет ответственность между следующими компонентами:
 
-1. `Application` владеет жизненным циклом HTTP-сервера.
-2. `Router` регистрирует и сопоставляет маршруты.
+1. `Application` владеет жизненным циклом приложения и приватным экземпляром `HttpRouter`.
+2. `HttpRouter` регистрирует и сопоставляет HTTP-маршруты.
 3. `Job Runner` выполняет асинхронные задачи в пуле Worker.
+
+`HttpRouter` является внутренним компонентом и не входит в пользовательский публичный API. До появления библиотечной точки входа классы публичного API импортируются напрямую из `lib/framework/`.
 
 Принятые архитектурные решения и их обоснования находятся в [`docs/adr/`](docs/adr/).
