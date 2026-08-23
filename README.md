@@ -1,41 +1,39 @@
 # Daevox Node Framework
 
-Небольшой HTTP-фреймворк для Node.js 26.
+Небольшой HTTP-фреймворк для Node.js 26 без runtime-зависимостей. Он объединяет декларативные HTTP-контроллеры, нормализацию запросов и ответов и выполнение фоновых задач в пуле `worker_threads`.
 
-## Цели
+## Возможности
 
-- Низкоуровневый HTTP runtime на `node:http`.
-- Декларативная регистрация контроллеров.
-- Маршрутизация и нормализация запросов и ответов.
-- Отмена операций через `AbortController` и `AbortSignal`.
-- Тайм-ауты, корректное завершение работы и backpressure.
-- Воспроизводимые benchmarks HTTP runtime.
+- HTTP runtime на `node:http`.
+- Декларативная регистрация HTTP-контроллеров и параметризованных HTTP-маршрутов.
+- JSON-запросы и нормализованные JSON, текстовые и бинарные HTTP-ответы.
+- Отмена операций через `AbortSignal`.
+- Ограничение размера тела запроса и корректное завершение работы.
+- Фоновые задачи с очередью, тайм-аутами и изоляцией в Worker.
+- Нулевые runtime-зависимости.
 
 Проект должен оставаться понятным: прямой код и небольшие модули предпочтительнее универсальных слоёв абстракций.
 
-## Публичный API
+## Требования
+
+- Node.js 26 или новее.
+- npm 12 или новее.
+
+## Быстрый старт
 
 ```js
 import { Application } from './lib/framework/Application.js';
 import { HttpControllerBase } from './lib/framework/HttpControllerBase.js';
 
-export class UsersController extends HttpControllerBase {
+class UsersController extends HttpControllerBase {
   static prefix = '/users';
 
   static routes = [
-    {
-      method: 'GET',
-      path: '/',
-      handler: 'list',
-    },
-    {
-      method: 'GET',
-      path: '/:id',
-      handler: 'getById',
-    },
+    { method: 'GET', path: '/', handler: 'list' },
+    { method: 'GET', path: '/:id', handler: 'getById' },
   ];
 
-  async list(ctx) {
+  async list() {
     return { status: 200, body: { users: [] } };
   }
 
@@ -44,43 +42,62 @@ export class UsersController extends HttpControllerBase {
   }
 }
 
-const app = new Application({
+const application = new Application({
   http: {
     bodyLimit: 1024 * 1024,
     shutdownTimeout: 30_000,
   },
 });
-app.registerHttpController(UsersController);
-const address = await app.listen({ port: 3000 });
+
+application.registerHttpController(UsersController);
+const address = await application.listen({ port: 3000 });
 console.log(`Listening on http://${address.address}:${address.port}`);
 ```
 
-`Application` принимает класс, напрямую наследующий `HttpControllerBase`. Класс HTTP-контроллера объявляет собственные статические поля `prefix` и `routes`, а каждый указанный HTTP-обработчик должен быть собственным методом его прототипа.
+До появления библиотечной точки входа классы публичного API импортируются напрямую из `lib/framework/`.
 
-Нормализованное определение маршрута имеет следующий вид:
+## HTTP-контроллеры и маршруты
+
+`Application.registerHttpController()` принимает класс, напрямую наследующий `HttpControllerBase`. Класс объявляет собственные статические поля `prefix` и `routes`, а каждый указанный HTTP-обработчик должен быть собственным методом его прототипа.
+
+Объявление HTTP-маршрута содержит ровно три поля:
+
+```js
+{ method: 'GET', path: '/:id', handler: 'getById' }
+```
+
+После регистрации оно нормализуется с учётом префикса HTTP-контроллера:
 
 ```js
 {
-  method: "GET",
-  path: "/users/:id",
-  handler: "getById",
+  method: 'GET',
+  path: '/users/:id',
+  handler: 'getById',
   controller: UsersController,
 }
 ```
 
-## Архитектура
+HTTP-контроллеры можно регистрировать только до вызова `listen()`. Для каждого найденного HTTP-маршрута приложение создаёт новый экземпляр HTTP-контроллера.
 
-`Application` служит общей точкой композиции для транспортов фреймворка. HTTP-слой разделяет ответственность между следующими компонентами:
+### Контекст HTTP-запроса
 
-1. `Application` владеет жизненным циклом приложения и приватным экземпляром `HttpRouter`.
-2. `HttpRouter` регистрирует и сопоставляет HTTP-маршруты.
-3. `Job Runner` выполняет асинхронные задачи в пуле Worker.
+HTTP-обработчик получает объект `ctx`:
 
-`HttpRouter` является внутренним компонентом и не входит в пользовательский публичный API. До появления библиотечной точки входа классы публичного API импортируются напрямую из `lib/framework/`.
+```js
+{
+  method,  // HTTP-метод
+  path,    // путь запроса
+  params,  // параметры HTTP-маршрута
+  query,   // URLSearchParams
+  headers, // WHATWG Headers
+  body,    // разобранное JSON-тело или undefined
+  signal,  // AbortSignal запроса
+}
+```
 
-Принятые архитектурные решения и их обоснования находятся в [`docs/adr/`](docs/adr/).
+Непустое тело запроса должно иметь media type `application/json` или `*+json` и кодировку UTF-8. Максимальный размер задаётся опцией `http.bodyLimit`.
 
-## HTTP-ответ
+### HTTP-ответы и ошибки
 
 HTTP-обработчик возвращает объект со статусом и необязательными WHATWG-заголовками и телом:
 
@@ -92,9 +109,77 @@ return {
 };
 ```
 
-Поддерживаются JSON-значения, строки, `Buffer` и `Uint8Array`.
+Поддерживаются JSON-совместимые значения, строки, `Buffer` и `Uint8Array`. Заголовок `content-type` выбирается автоматически, если HTTP-обработчик не указал его явно. Заголовки `content-length`, `transfer-encoding` и `connection` устанавливаются транспортом и не могут быть заданы HTTP-обработчиком.
 
-## Example запуска задачи по HTTP
+Для ожидаемой ошибки HTTP-обработчик может выбросить `HttpError`:
+
+```js
+import { HttpError } from './lib/framework/errors.js';
+
+throw new HttpError(422, {
+  body: { error: 'email is required' },
+});
+```
+
+Неожиданные ошибки преобразуются в ответ `500`. Опция `http.onError(error, ctx)` позволяет записать их в журнал, не раскрывая детали клиенту.
+
+## Фоновые задачи
+
+Фоновая задача должна напрямую наследовать `Job`, экспортироваться по умолчанию из собственного ESM-модуля, объявлять `static metaUrl = import.meta.url` и иметь собственный метод `run()`:
+
+```js
+import { Job } from './lib/framework/Job.js';
+
+export default class SumJob extends Job {
+  static metaUrl = import.meta.url;
+
+  run({ values }) {
+    return { sum: values.reduce((sum, value) => sum + value, 0) };
+  }
+}
+```
+
+Экземпляр HTTP-контроллера получает принадлежащий приложению исполнитель задач как `this.jobRunner`:
+
+```js
+const result = await this.jobRunner.run(SumJob, ctx.body, {
+  signal: ctx.signal,
+  timeout: 5_000,
+});
+
+return { status: 200, body: result };
+```
+
+Payload и результат задачи должны поддерживать алгоритм structured clone. Transferable-объекты пока не поддерживаются.
+
+Пул настраивается при создании приложения:
+
+```js
+const application = new Application({
+  jobs: {
+    poolSize: 4,
+    queueSize: 1000,
+    defaultTimeout: 10_000,
+    terminationGracePeriod: 1_000,
+    shutdownTimeout: 30_000,
+  },
+});
+```
+
+## Жизненный цикл
+
+`Application.listen()` можно вызвать один раз. `Application.close()` прекращает приём новых HTTP-запросов, ожидает активные запросы в пределах `http.shutdownTimeout`, а затем закрывает пул Worker. После закрытия приложение нельзя запустить повторно.
+
+```js
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.once(signal, async () => {
+    await application.close();
+    process.exitCode = 0;
+  });
+}
+```
+
+## Пример HTTP-запуска задачи
 
 Запустите приложение:
 
@@ -111,3 +196,24 @@ curl -i -X POST http://127.0.0.1:3000/jobs/sum \
 ```
 
 Успешный ответ содержит `{"sum":6}`.
+
+## Разработка
+
+```sh
+npm install
+npm test
+npm run check
+```
+
+`npm run check` последовательно выполняет проверку синтаксиса, линтинг, проверку форматирования и тесты.
+
+## Архитектура
+
+`Application` служит общей точкой композиции для транспортов фреймворка и владеет жизненным циклом HTTP runtime и исполнителя задач.
+
+1. `Application` регистрирует HTTP-контроллеры, запускает HTTP transport и координирует завершение работы.
+2. Внутренний `HttpRouter` регистрирует и сопоставляет HTTP-маршруты.
+3. Внутренний `Job Runner` принимает классы задач и передаёт их в Worker Pool.
+4. Внутренний Worker Pool управляет потоками Worker, очередью и завершением задач.
+
+`HttpRouter`, `Job Runner` и Worker Pool не входят в пользовательский публичный API. Принятые архитектурные решения и их обоснования находятся в [`docs/adr/`](docs/adr/).
