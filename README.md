@@ -56,6 +56,8 @@ console.log(`Listening on http://${address.address}:${address.port}`);
 ```
 
 До появления библиотечной точки входа классы публичного API импортируются напрямую из `lib/framework/`.
+Подробные контракты публичных и внутренних сущностей собраны в [API-документации](docs/API.md);
+HTML-версия находится в [`docs/api/`](docs/api/).
 
 ## HTTP-контроллеры и маршруты
 
@@ -278,12 +280,20 @@ npm run test:e2e
 npm run test:checks
 npm run test:coverage
 npm run check
+npm run docs:build
+npm run docs:check
+npm run docs:serve
 ```
 
 `npm test` последовательно запускает unit-тесты из `test/unit/` и e2e-тесты из `test/e2e/`.
 `npm run test:checks` отдельно проверяет harness'ы benchmark, fuzz, mutation, soak и stress,
 не запуская сами длительные профили. Coverage включает только unit- и e2e-тесты.
-`npm run check` выполняет независимые статические проверки: синтаксис, линтинг и форматирование.
+`npm run check` выполняет независимые статические проверки: синтаксис, линтинг, форматирование и
+актуальность сгенерированной API-документации.
+
+`npm run docs:build` детерминированно пересобирает коммитимые `docs/API.md` и `docs/api/` из
+двуязычных JSDoc-комментариев в `lib/framework/`. `npm run docs:check` проверяет JSDoc и актуальность
+обоих артефактов без их изменения. `npm run docs:serve` запускает локальный просмотр HTML-версии.
 
 ## Архитектура
 

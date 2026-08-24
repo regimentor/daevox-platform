@@ -13,7 +13,11 @@
   "scripts": {
     "benchmark:full": "node test/benchmark/run.js --mode full",
     "benchmark:smoke": "node test/benchmark/run.js --mode smoke",
-    "check": "npm run typecheck && npm run lint && npm run format:check",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run docs:check",
+    "docs:build": "node scripts/docs.js build",
+    "docs:check": "node scripts/docs.js check",
+    "docs:lint": "documentation lint lib/framework/*.js --shallow",
+    "docs:serve": "serve docs/api",
     "example:jobs-http": "node examples/jobs-http/main.js",
     "example:websocket": "node examples/websocket/main.js",
     "fuzz:corpus": "node test/fuzz/run.js",
@@ -40,8 +44,10 @@
     "typecheck": "node --check src/index.js && node --check src/main.js"
   },
   "devDependencies": {
+    "documentation": "^14.0.3",
     "oxfmt": "^0.64.0",
-    "oxlint": "^1.79.0"
+    "oxlint": "^1.79.0",
+    "serve": "^14.2.6"
   },
   "engines": {
     "node": ">= 26",

@@ -8,6 +8,7 @@
     "es2024": true,
     "node": true
   },
+  "ignorePatterns": ["docs/api/"],
   "rules": {
     "eqeqeq": "error",
     "unicorn/no-empty-file": "off"
