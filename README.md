@@ -1,10 +1,11 @@
 # Daevox Node Framework
 
-Небольшой HTTP-фреймворк для Node.js 26 без runtime-зависимостей. Он объединяет декларативные HTTP-контроллеры, нормализацию запросов и ответов и выполнение фоновых задач в пуле `worker_threads`.
+Небольшой транспортный фреймворк для Node.js 26 без runtime-зависимостей. Он объединяет декларативные HTTP- и WebSocket-контроллеры, нормализацию HTTP-запросов и ответов и выполнение фоновых задач в пуле `worker_threads`.
 
 ## Возможности
 
 - HTTP runtime на `node:http`.
+- Встроенный WebSocket-протокол `daevox.v1` с декларативными контроллерами и событиями.
 - Декларативная регистрация HTTP-контроллеров и параметризованных HTTP-маршрутов.
 - JSON-запросы и нормализованные JSON, текстовые и бинарные HTTP-ответы.
 - Отмена операций через `AbortSignal`.
@@ -123,6 +124,66 @@ throw new HttpError(422, {
 
 Неожиданные ошибки преобразуются в ответ `500`. Опция `http.onError(error, ctx)` позволяет записать их в журнал, не раскрывая детали клиенту.
 
+## WebSocket-протокол daevox.v1
+
+Все WebSocket-соединения используют единый endpoint `/websocket` и обязаны предложить subprotocol `daevox.v1`. Каждое text-сообщение является точным JSON-envelope `{ controller, event, body }`; binary-сообщения не поддерживаются.
+
+`Application.registerWebSocketController()` принимает класс, напрямую наследующий `WebSocketControllerBase`. Контроллер объявляет собственные `static name` и `static events`:
+
+```js
+import { WebSocketControllerBase } from './lib/framework/WebSocketControllerBase.js';
+
+class NotificationsController extends WebSocketControllerBase {
+  static name = 'notifications';
+  static events = [
+    { name: 'subscribe', handler: 'subscribe' },
+    { name: 'mark_read', handler: 'markRead' },
+  ];
+
+  async subscribe(ctx) {
+    return { subscribed: ctx.body.topic };
+  }
+
+  async markRead() {}
+}
+
+application.registerWebSocketController(NotificationsController);
+```
+
+Handler получает `{ body, clientId, sessionId, signal }`. Для каждого сообщения создаётся новый экземпляр найденного контроллера. Возвращённый plain object автоматически отправляется с исходными `controller/event`; `undefined` означает отсутствие ответа.
+
+```json
+{ "controller": "notifications", "event": "subscribe", "body": { "topic": "news" } }
+```
+
+Ответ:
+
+```json
+{ "controller": "notifications", "event": "subscribe", "body": { "subscribed": "news" } }
+```
+
+Endpoint, lifecycle hooks, максимальный размер входящего и исходящего сообщения и обработчик ошибок задаются в конфигурации:
+
+```js
+const application = new Application({
+  websocket: {
+    path: '/websocket',
+    maxPayload: 1024 * 1024,
+    async onConnect(ctx) {
+      console.log(ctx.clientId, ctx.sessionId);
+    },
+    async onDisconnect(ctx) {
+      console.log(ctx.code, ctx.reason);
+    },
+    onError(error, ctx) {
+      console.error(error, ctx?.sessionId);
+    },
+  },
+});
+```
+
+Фреймворк создаёт новые `clientId` и `sessionId` для каждой сессии. Авторизация, объединение сессий пользователя и server push в `daevox.v1` отсутствуют. Адресуемые ошибки возвращаются в `body.error.code`: `INVALID_MESSAGE`, `UNKNOWN_CONTROLLER`, `UNKNOWN_EVENT`, `HANDLER_ERROR` или `INVALID_RESPONSE`. Они представлены публичным `WebSocketProtocolError` и также передаются в `websocket.onError`.
+
 ## Фоновые задачи
 
 Фоновая задача должна напрямую наследовать `Job`, экспортироваться по умолчанию из собственного ESM-модуля, объявлять `static metaUrl = import.meta.url` и иметь собственный метод `run()`:
@@ -197,6 +258,16 @@ curl -i -X POST http://127.0.0.1:3000/jobs/sum \
 
 Успешный ответ содержит `{"sum":6}`.
 
+## Пример WebSocket-приложения
+
+Запустите приложение:
+
+```sh
+npm run example:websocket
+```
+
+Откройте `http://127.0.0.1:3000`. Страница подключается к `/websocket` с subprotocol `daevox.v1`, отправляет событие `events/echo` и показывает необязательный реактивный ответ с исходным адресом.
+
 ## Разработка
 
 ```sh
@@ -209,11 +280,12 @@ npm run check
 
 ## Архитектура
 
-`Application` служит общей точкой композиции для транспортов фреймворка и владеет жизненным циклом HTTP runtime и исполнителя задач.
+`Application` служит общей точкой композиции для транспортов фреймворка и владеет жизненным циклом HTTP/WebSocket runtime и исполнителя задач.
 
-1. `Application` регистрирует HTTP-контроллеры, запускает HTTP transport и координирует завершение работы.
+1. `Application` регистрирует HTTP- и WebSocket-контроллеры, запускает оба транспорта на одном `node:http` server и координирует завершение работы.
 2. Внутренний `HttpRouter` регистрирует и сопоставляет HTTP-маршруты.
-3. Внутренний `Job Runner` принимает классы задач и передаёт их в Worker Pool.
-4. Внутренний Worker Pool управляет потоками Worker, очередью и завершением задач.
+3. Внутренние WebSocket transport и session store обслуживают единый endpoint и протокол `daevox.v1`.
+4. Внутренний `Job Runner` принимает классы задач и передаёт их в Worker Pool.
+5. Внутренний Worker Pool управляет потоками Worker, очередью и завершением задач.
 
 `HttpRouter`, `Job Runner` и Worker Pool не входят в пользовательский публичный API. Принятые архитектурные решения и их обоснования находятся в [`docs/adr/`](docs/adr/).

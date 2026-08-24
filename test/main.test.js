@@ -11,3 +11,23 @@ test('точка входа запускает приложение', async () =
   assert.equal(stderr, '');
   assert.equal(stdout, 'hello world\n');
 });
+
+test('точка входа сообщает об ошибке запуска и завершает процесс', async (t) => {
+  const startupError = new Error('startup failed');
+  let errorReported;
+  const reported = new Promise((resolve) => {
+    errorReported = resolve;
+  });
+  t.mock.method(console, 'log', () => {
+    throw startupError;
+  });
+  const consoleError = t.mock.method(console, 'error', (error) => errorReported(error));
+  const processExit = t.mock.method(process, 'exit', () => {});
+
+  await import('../src/index.js');
+
+  assert.equal(await reported, startupError);
+  assert.equal(consoleError.mock.callCount(), 1);
+  assert.equal(processExit.mock.callCount(), 1);
+  assert.equal(processExit.mock.calls[0].arguments[0], 1);
+});

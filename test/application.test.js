@@ -12,6 +12,7 @@ import {
   InvalidHttpRouteError,
   InvalidJobOptionsError,
 } from '../lib/framework/errors.js';
+import { WebSocketControllerBase } from '../lib/framework/WebSocketControllerBase.js';
 
 function UnrelatedController() {}
 
@@ -41,6 +42,23 @@ test('Application запрещает регистрацию и повторны�
 
   assert.throws(() => app.registerHttpController(controller()), ApplicationStateError);
   await assert.rejects(app.listen({ port: 0 }), ApplicationStateError);
+  await listening;
+  await app.close();
+});
+
+test('Application запрещает регистрацию WebSocket-контроллера после начала listen', async () => {
+  class NotificationsController extends WebSocketControllerBase {
+    static name = 'notifications';
+    static events = [{ name: 'subscribe', handler: 'subscribe' }];
+    subscribe() {}
+  }
+  const app = new Application();
+  const listening = app.listen({ port: 0 });
+
+  assert.throws(
+    () => app.registerWebSocketController(NotificationsController),
+    ApplicationStateError,
+  );
   await listening;
   await app.close();
 });
