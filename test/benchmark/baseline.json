@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-24T19:24:32.705Z",
+  "mode": "full",
+  "environment": {
+    "architecture": "arm64",
+    "availableParallelism": 14,
+    "cpuCount": 14,
+    "cpuModel": "Apple M3 Max",
+    "node": "v26.7.0",
+    "platform": "darwin",
+    "release": "25.6.0",
+    "fingerprint": "{\"architecture\":\"arm64\",\"availableParallelism\":14,\"cpuCount\":14,\"cpuModel\":\"Apple M3 Max\",\"node\":\"v26.7.0\",\"platform\":\"darwin\",\"release\":\"25.6.0\"}"
+  },
+  "config": {
+    "injectedDelayMs": 0,
+    "phases": {
+      "cooldownMs": 250,
+      "measureMs": 3000,
+      "warmupMs": 1000
+    },
+    "thresholds": {
+      "errorRateIncrease": 0.01,
+      "latencyIncrease": 0.35,
+      "throughputDrop": 0.25
+    }
+  },
+  "profiles": {
+    "http-json": {
+      "config": {
+        "concurrency": 8,
+        "messageBytes": 128
+      },
+      "metrics": {
+        "attempts": 80656,
+        "cpu": {
+          "systemMs": 523.891,
+          "totalPercent": 103.04355029644594,
+          "userMs": 2567.624
+        },
+        "errorRate": 0,
+        "errors": [],
+        "eventLoopLagMs": {
+          "max": 10.371071,
+          "p50": 10.002431,
+          "p95": 10.100735,
+          "p99": 10.133503
+        },
+        "latencyMs": {
+          "p50": 0.28687500000023647,
+          "p95": 0.33845799999994597,
+          "p99": 0.38570800000024974
+        },
+        "measuredMs": 3000.202333,
+        "rssBytes": {
+          "end": 129564672,
+          "max": 129564672,
+          "start": 109019136
+        },
+        "successes": 80656,
+        "throughputPerSecond": 26883.520192236312
+      },
+      "pid": 49025,
+      "profile": "http-json"
+    },
+    "http-body-limit": {
+      "config": {
+        "concurrency": 4,
+        "messageBytes": 65520
+      },
+      "metrics": {
+        "attempts": 32796,
+        "cpu": {
+          "systemMs": 599.993,
+          "totalPercent": 109.11507541217472,
+          "userMs": 2673.708
+        },
+        "errorRate": 0,
+        "errors": [],
+        "eventLoopLagMs": {
+          "max": 10.330111,
+          "p50": 10.002431,
+          "p95": 10.117119,
+          "p99": 10.182655
+        },
+        "latencyMs": {
+          "p50": 0.342583999999988,
+          "p95": 0.4729589999999462,
+          "p99": 0.6050000000000182
+        },
+        "measuredMs": 3000.227959,
+        "rssBytes": {
+          "end": 189677568,
+          "max": 189677568,
+          "start": 117145600
+        },
+        "successes": 32796,
+        "throughputPerSecond": 10931.16938051973
+      },
+      "pid": 49027,
+      "profile": "http-body-limit"
+    },
+    "websocket": {
+      "config": {
+        "concurrency": 8,
+        "messageBytes": 256
+      },
+      "metrics": {
+        "attempts": 169280,
+        "cpu": {
+          "systemMs": 1164.14,
+          "totalPercent": 101.84802676287615,
+          "userMs": 1891.353
+        },
+        "errorRate": 0,
+        "errors": [],
+        "eventLoopLagMs": {
+          "max": 10.092543,
+          "p50": 10.002431,
+          "p95": 10.059775,
+          "p99": 10.084351
+        },
+        "latencyMs": {
+          "p50": 0.13599999999996726,
+          "p95": 0.17604199999959746,
+          "p99": 0.23629200000004857
+        },
+        "measuredMs": 3000.05125,
+        "rssBytes": {
+          "end": 116031488,
+          "max": 116031488,
+          "start": 105037824
+        },
+        "successes": 169280,
+        "throughputPerSecond": 56425.702727578406
+      },
+      "pid": 49030,
+      "profile": "websocket"
+    },
+    "job": {
+      "config": {
+        "concurrency": 8,
+        "cpuIterations": 25000,
+        "poolSize": 2
+      },
+      "metrics": {
+        "attempts": 55848,
+        "cpu": {
+          "systemMs": 1024.679,
+          "totalPercent": 200.1739524123642,
+          "userMs": 4980.935
+        },
+        "errorRate": 0,
+        "errors": [],
+        "eventLoopLagMs": {
+          "max": 10.452991,
+          "p50": 10.002431,
+          "p95": 10.076159,
+          "p99": 10.346495
+        },
+        "latencyMs": {
+          "p50": 0.40000000000009095,
+          "p95": 0.5488750000004075,
+          "p99": 1.0195830000000115
+        },
+        "measuredMs": 3000.197542,
+        "rssBytes": {
+          "end": 220413952,
+          "max": 220413952,
+          "start": 196362240
+        },
+        "successes": 55848,
+        "throughputPerSecond": 18614.77426675393,
+        "queueLatencyMs": {
+          "p50": 0.176792,
+          "p95": 0.23125,
+          "p99": 0.4015
+        },
+        "executionLatencyMs": {
+          "p50": 0.03275,
+          "p95": 0.037542,
+          "p99": 0.047041
+        }
+      },
+      "pid": 49031,
+      "profile": "job"
+    }
+  },
+  "regression": {
+    "status": "baseline-updated",
+    "reasons": []
+  }
+}

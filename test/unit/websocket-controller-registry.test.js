@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { Application } from '../lib/framework/Application.js';
-import { WebSocketControllerBase } from '../lib/framework/WebSocketControllerBase.js';
+import { Application } from '../../lib/framework/Application.js';
+import { WebSocketControllerBase } from '../../lib/framework/WebSocketControllerBase.js';
 import {
   DuplicateWebSocketControllerError,
   InvalidWebSocketControllerError,
   WebSocketControllerConflictError,
   InvalidWebSocketOptionsError,
-} from '../lib/framework/errors.js';
+} from '../../lib/framework/errors.js';
 
 function noop() {}
 

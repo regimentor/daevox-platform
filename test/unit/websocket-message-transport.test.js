@@ -3,10 +3,10 @@ import { EventEmitter } from 'node:events';
 import net from 'node:net';
 import test from 'node:test';
 
-import { Application } from '../lib/framework/Application.js';
-import { WebSocketControllerBase } from '../lib/framework/WebSocketControllerBase.js';
-import { WebSocketProtocolError } from '../lib/framework/errors.js';
-import { WebSocketTransport } from '../lib/framework/WebSocketTransport.js';
+import { Application } from '../../lib/framework/Application.js';
+import { WebSocketControllerBase } from '../../lib/framework/WebSocketControllerBase.js';
+import { WebSocketProtocolError } from '../../lib/framework/errors.js';
+import { WebSocketTransport } from '../../lib/framework/WebSocketTransport.js';
 
 function opened(url, protocol = 'daevox.v1') {
   return new Promise((resolve, reject) => {
@@ -97,6 +97,14 @@ function maskedControlFrame(opcode, payload) {
   const mask = Buffer.from([1, 2, 3, 4]);
   const bytes = Buffer.from(payload);
   const header = Buffer.from([0x80 | opcode, 0x80 | bytes.byteLength]);
+  for (let index = 0; index < bytes.byteLength; index += 1) bytes[index] ^= mask[index % 4];
+  return Buffer.concat([header, mask, bytes]);
+}
+
+function maskedFragment(opcode, payload, final) {
+  const mask = Buffer.from([1, 2, 3, 4]);
+  const bytes = Buffer.from(payload);
+  const header = Buffer.from([(final ? 0x80 : 0) | opcode, 0x80 | bytes.byteLength]);
   for (let index = 0; index < bytes.byteLength; index += 1) bytes[index] ^= mask[index % 4];
   return Buffer.concat([header, mask, bytes]);
 }
@@ -417,6 +425,40 @@ test('невалидный UTF-8 в text frame закрывает сессию �
     assert.equal(closeFrame[0] & 0x0f, 8);
     assert.equal(closeFrame.readUInt16BE(2), 1007);
     assert.equal(handled, false);
+  } finally {
+    socket.destroy();
+    await app.close();
+  }
+});
+
+test('fragmented WebSocket-сообщение собирается из нескольких continuation frames', async () => {
+  const app = new Application();
+  app.registerWebSocketController(notificationsController());
+  const address = await app.listen({ port: 0 });
+  const socket = await rawWebSocket(address);
+
+  try {
+    const message = Buffer.from(
+      JSON.stringify({ controller: 'notifications', event: 'subscribe', body: {} }),
+    );
+    const firstBoundary = Math.floor(message.byteLength / 3);
+    const secondBoundary = firstBoundary * 2;
+    const response = nextData(socket);
+    socket.write(
+      Buffer.concat([
+        maskedFragment(1, message.subarray(0, firstBoundary), false),
+        maskedFragment(0, message.subarray(firstBoundary, secondBoundary), false),
+        maskedFragment(0, message.subarray(secondBoundary), true),
+      ]),
+    );
+
+    const responseFrame = await response;
+    assert.equal(responseFrame[0] & 0x0f, 1);
+    assert.deepEqual(JSON.parse(responseFrame.subarray(2).toString()), {
+      controller: 'notifications',
+      event: 'subscribe',
+      body: { subscribed: true },
+    });
   } finally {
     socket.destroy();
     await app.close();

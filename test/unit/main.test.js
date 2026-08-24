@@ -24,7 +24,7 @@ test('точка входа сообщает об ошибке запуска и
   const consoleError = t.mock.method(console, 'error', (error) => errorReported(error));
   const processExit = t.mock.method(process, 'exit', () => {});
 
-  await import('../src/index.js');
+  await import('../../src/index.js');
 
   assert.equal(await reported, startupError);
   assert.equal(consoleError.mock.callCount(), 1);

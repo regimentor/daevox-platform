@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { HttpRouter } from '../lib/framework/HttpRouter.js';
+import { HttpRouter } from '../../lib/framework/HttpRouter.js';
 import {
   HttpRouteConflictError,
   InvalidHttpPathEncodingError,
   InvalidHttpRouteError,
-} from '../lib/framework/errors.js';
+} from '../../lib/framework/errors.js';
 
 class UsersController {
   list() {}

@@ -4,8 +4,8 @@ import test from 'node:test';
 import {
   decodeWebSocketMessage,
   encodeWebSocketMessage,
-} from '../lib/framework/webSocketProtocol.js';
-import { WebSocketProtocolError } from '../lib/framework/errors.js';
+} from '../../lib/framework/webSocketProtocol.js';
+import { WebSocketProtocolError } from '../../lib/framework/errors.js';
 
 test('daevox.v1 декодирует точный JSON-envelope', () => {
   const message = decodeWebSocketMessage(

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { Job } from '../lib/framework/Job.js';
-import { JobRunner } from '../lib/framework/JobRunner.js';
-import { InvalidJobError } from '../lib/framework/errors.js';
+import { Job } from '../../lib/framework/Job.js';
+import { JobRunner } from '../../lib/framework/JobRunner.js';
+import { InvalidJobError } from '../../lib/framework/errors.js';
 import {
   InvalidJobOptionsError,
   JobAbortedError,
@@ -13,11 +13,11 @@ import {
   JobRunnerClosedError,
   JobTimedOutError,
   WorkerTerminatedError,
-} from '../lib/framework/errors.js';
-import ControlJob from './fixtures/jobs/control-job.js';
-import EchoJob from './fixtures/jobs/echo-job.js';
-import StatefulJob from './fixtures/jobs/stateful-job.js';
-import ProtocolJob from './fixtures/jobs/protocol-job.js';
+} from '../../lib/framework/errors.js';
+import ControlJob from '../fixtures/jobs/control-job.js';
+import EchoJob from '../fixtures/jobs/echo-job.js';
+import StatefulJob from '../fixtures/jobs/stateful-job.js';
+import ProtocolJob from '../fixtures/jobs/protocol-job.js';
 
 function UnrelatedJob() {}
 
@@ -130,7 +130,7 @@ test('JobRunner безопасно обрывает циклическую це�
 
 test('Worker окончательно проверяет default-export модуля задачи', async (t) => {
   class DeclaredJob extends Job {
-    static metaUrl = new URL('./fixtures/jobs/invalid-default-job.js', import.meta.url).href;
+    static metaUrl = new URL('../fixtures/jobs/invalid-default-job.js', import.meta.url).href;
     run() {}
   }
   const runner = new JobRunner();
@@ -155,15 +155,24 @@ test('JobRunner различает ошибки structured clone payload и ре
 });
 
 test('WorkerPool ограничивает очередь и запускает ожидающие задачи FIFO', async (t) => {
-  const runner = new JobRunner({ poolSize: 1, queueSize: 1 });
+  const runner = new JobRunner({ poolSize: 1, queueSize: 2 });
   t.after(() => runner.close());
+  const completionOrder = [];
+  const recordCompletion = (promise) =>
+    promise.then((result) => {
+      completionOrder.push(result.value);
+      return result;
+    });
 
-  const first = runner.run(ControlJob, { type: 'wait', ms: 30, value: 'first' });
-  const second = runner.run(ControlJob, { type: 'wait', ms: 0, value: 'second' });
+  const first = recordCompletion(runner.run(ControlJob, { type: 'wait', ms: 30, value: 'first' }));
+  const second = recordCompletion(runner.run(ControlJob, { type: 'wait', ms: 0, value: 'second' }));
+  const third = recordCompletion(runner.run(ControlJob, { type: 'wait', ms: 0, value: 'third' }));
 
-  await assert.rejects(runner.run(EchoJob, 'third'), JobQueueFullError);
+  await assert.rejects(runner.run(EchoJob, 'fourth'), JobQueueFullError);
   assert.deepEqual(await first, { aborted: false, value: 'first' });
   assert.deepEqual(await second, { aborted: false, value: 'second' });
+  assert.deepEqual(await third, { aborted: false, value: 'third' });
+  assert.deepEqual(completionOrder, ['first', 'second', 'third']);
 });
 
 test('JobRunner отменяет ожидающую и выполняющуюся задачу', async (t) => {

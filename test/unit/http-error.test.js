@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { HttpError } from '../lib/framework/errors.js';
+import { HttpError } from '../../lib/framework/errors.js';
 
 test('HttpError хранит валидный публичный HTTP-ответ и cause', () => {
   const cause = new Error('source');

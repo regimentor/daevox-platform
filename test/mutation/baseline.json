@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "recordedWith": "v26.7.0",
+  "mutants": 19,
+  "killed": 16,
+  "survived": 0,
+  "timeout": 3,
+  "noCoverage": 0,
+  "score": 100,
+  "gate": 80,
+  "nextGate": 85,
+  "timeoutMs": 5000
+}

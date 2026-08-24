@@ -273,10 +273,17 @@ npm run example:websocket
 ```sh
 npm install
 npm test
+npm run test:unit
+npm run test:e2e
+npm run test:checks
+npm run test:coverage
 npm run check
 ```
 
-`npm run check` последовательно выполняет проверку синтаксиса, линтинг, проверку форматирования и тесты.
+`npm test` последовательно запускает unit-тесты из `test/unit/` и e2e-тесты из `test/e2e/`.
+`npm run test:checks` отдельно проверяет harness'ы benchmark, fuzz, mutation, soak и stress,
+не запуская сами длительные профили. Coverage включает только unit- и e2e-тесты.
+`npm run check` выполняет независимые статические проверки: синтаксис, линтинг и форматирование.
 
 ## Архитектура
 

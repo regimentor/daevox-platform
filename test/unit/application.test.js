@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { Application } from '../lib/framework/Application.js';
-import { HttpControllerBase } from '../lib/framework/HttpControllerBase.js';
+import { Application } from '../../lib/framework/Application.js';
+import { HttpControllerBase } from '../../lib/framework/HttpControllerBase.js';
 import {
   ApplicationStateError,
   DuplicateHttpControllerError,
@@ -11,8 +11,8 @@ import {
   InvalidHttpOptionsError,
   InvalidHttpRouteError,
   InvalidJobOptionsError,
-} from '../lib/framework/errors.js';
-import { WebSocketControllerBase } from '../lib/framework/WebSocketControllerBase.js';
+} from '../../lib/framework/errors.js';
+import { WebSocketControllerBase } from '../../lib/framework/WebSocketControllerBase.js';
 
 function UnrelatedController() {}
 

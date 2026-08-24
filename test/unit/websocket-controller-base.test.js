@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { WebSocketControllerBase } from '../lib/framework/WebSocketControllerBase.js';
-import { InvalidWebSocketControllerError } from '../lib/framework/errors.js';
+import { WebSocketControllerBase } from '../../lib/framework/WebSocketControllerBase.js';
+import { InvalidWebSocketControllerError } from '../../lib/framework/errors.js';
 
 test('WebSocketControllerBase нельзя создать напрямую', () => {
   assert.throws(() => new WebSocketControllerBase(), InvalidWebSocketControllerError);

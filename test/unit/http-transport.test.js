@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import http from 'node:http';
 import test from 'node:test';
 
-import { Application } from '../lib/framework/Application.js';
-import { HttpControllerBase } from '../lib/framework/HttpControllerBase.js';
-import { HttpError } from '../lib/framework/errors.js';
-import { JobsController } from '../examples/jobs-http/JobsController.js';
+import { Application } from '../../lib/framework/Application.js';
+import { HttpControllerBase } from '../../lib/framework/HttpControllerBase.js';
+import { HttpError } from '../../lib/framework/errors.js';
+import { JobsController } from '../../examples/jobs-http/JobsController.js';
 
 function request(address, options = {}) {
   return new Promise((resolve, reject) => {
@@ -265,6 +266,64 @@ test('Application.close по timeout отменяет оставшийся HTTP-
   assert.equal(wasAborted, true);
 });
 
+test('сброс соединения при чтении HTTP-запроса уничтожает HTTP-ответ', async (t) => {
+  let handleRequest;
+  const server = new EventEmitter();
+  server.address = () => ({ address: '127.0.0.1', family: 'IPv4', port: 3000 });
+  server.close = (callback) => callback();
+  server.listen = (_options, callback) => callback();
+  t.mock.method(http, 'createServer', (listener) => {
+    handleRequest = listener;
+    return server;
+  });
+
+  const unexpectedErrors = [];
+  class BodyController extends HttpControllerBase {
+    static prefix = '/body';
+    static routes = [{ method: 'POST', path: '/', handler: 'accept' }];
+    accept() {
+      return { status: 204 };
+    }
+  }
+  const app = new Application({ http: { onError: (error) => unexpectedErrors.push(error) } });
+  app.registerHttpController(BodyController);
+  await app.listen({ port: 0 });
+
+  const incomingRequest = new EventEmitter();
+  incomingRequest.url = '/body';
+  incomingRequest.method = 'POST';
+  incomingRequest.headers = { 'content-type': 'application/json' };
+  incomingRequest.aborted = false;
+  incomingRequest[Symbol.asyncIterator] = () => ({
+    async next() {
+      const error = new Error('connection reset');
+      error.code = 'ECONNRESET';
+      throw error;
+    },
+  });
+  let markDestroyed;
+  const destroyed = new Promise((resolve) => {
+    markDestroyed = resolve;
+  });
+  const response = new EventEmitter();
+  response.headersSent = false;
+  response.destroyed = false;
+  response.destroy = () => {
+    response.destroyed = true;
+    response.emit('close');
+    markDestroyed();
+  };
+
+  try {
+    handleRequest(incomingRequest, response);
+    await destroyed;
+    assert.equal(response.destroyed, true);
+    assert.deepEqual(unexpectedErrors, []);
+  } finally {
+    await app.close();
+  }
+});
+
 test('jobs-http HTTP-контроллер запускает SumJob в Worker', async () => {
   const app = new Application({ jobs: { poolSize: 1 } });
   app.registerHttpController(JobsController);
@@ -316,6 +375,45 @@ test('HTTP transport нормализует строковые и бинарны
     const bytes = await request(address, { path: '/responses/bytes' });
     assert.equal(bytes.headers['content-type'], 'application/octet-stream');
     assert.deepEqual(Buffer.from(bytes.body, 'binary'), Buffer.from([0, 1, 2]));
+  } finally {
+    await app.close();
+  }
+});
+
+test('HTTP transport принимает только граничные статусы 200 и 599', async () => {
+  class StatusController extends HttpControllerBase {
+    static prefix = '/status';
+    static routes = [
+      { method: 'GET', path: '/minimum', handler: 'minimum' },
+      { method: 'GET', path: '/maximum', handler: 'maximum' },
+      { method: 'GET', path: '/below', handler: 'below' },
+      { method: 'GET', path: '/above', handler: 'above' },
+    ];
+    minimum() {
+      return { status: 200 };
+    }
+    maximum() {
+      return { status: 599 };
+    }
+    below() {
+      return { status: 199 };
+    }
+    above() {
+      return { status: 600 };
+    }
+  }
+  const observed = [];
+  const app = new Application({ http: { onError: (error) => observed.push(error) } });
+  app.registerHttpController(StatusController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    assert.equal((await request(address, { path: '/status/minimum' })).status, 200);
+    assert.equal((await request(address, { path: '/status/maximum' })).status, 599);
+    assert.equal((await request(address, { path: '/status/below' })).status, 500);
+    assert.equal((await request(address, { path: '/status/above' })).status, 500);
+    assert.equal(observed.length, 2);
+    assert.ok(observed.every((error) => error instanceof TypeError));
   } finally {
     await app.close();
   }
