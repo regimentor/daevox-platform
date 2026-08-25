@@ -334,6 +334,22 @@ test('WebSocket handshake проверяет Origin и Authentication до onCon
 
   try {
     let handshake = await rawHandshake(address, {
+      headers: { Origin: 'null' },
+    });
+    sockets.push(handshake.socket);
+    assert.match(handshake.data.toString(), /^HTTP\/1\.1 403 Forbidden\r\n/);
+    assert.equal(attempts.length, 0);
+    assert.equal(connections.length, 0);
+
+    handshake = await rawHandshake(address, {
+      headers: { Origin: 'not an origin' },
+    });
+    sockets.push(handshake.socket);
+    assert.match(handshake.data.toString(), /^HTTP\/1\.1 403 Forbidden\r\n/);
+    assert.equal(attempts.length, 0);
+    assert.equal(connections.length, 0);
+
+    handshake = await rawHandshake(address, {
       headers: { Origin: 'https://evil.example.com' },
     });
     sockets.push(handshake.socket);
@@ -571,6 +587,57 @@ test('AuthSession, истёкшая в onConnect, не получает 101 и m
     assert.equal(connectCalls, 1);
     assert.equal(disconnectCalls, 0);
   } finally {
+    await app.close();
+  }
+});
+
+test('разрыв WebSocket handshake во время onConnect отменяет connect без membership', async () => {
+  let connectContext;
+  let markConnectStarted;
+  const connectStarted = new Promise((resolve) => {
+    markConnectStarted = resolve;
+  });
+  let markConnectFinished;
+  const connectFinished = new Promise((resolve) => {
+    markConnectFinished = resolve;
+  });
+  let disconnectCalls = 0;
+  const errors = [];
+  const app = new Application({
+    websocket: {
+      authentication: false,
+      async onConnect(ctx) {
+        connectContext = ctx;
+        markConnectStarted();
+        await new Promise((resolve) =>
+          ctx.signal.addEventListener('abort', resolve, { once: true }),
+        );
+        markConnectFinished();
+      },
+      onDisconnect() {
+        disconnectCalls += 1;
+      },
+      onError: (error) => errors.push(error),
+    },
+  });
+  const address = await app.listen({ port: 0 });
+  const socket = net.connect(address.port, address.address, () => {
+    socket.write(
+      'GET /websocket HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Protocol: daevox.v1\r\n\r\n',
+    );
+  });
+
+  try {
+    await connectStarted;
+    socket.resetAndDestroy();
+    await connectFinished;
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(connectContext.signal.aborted, true);
+    assert.equal(disconnectCalls, 0);
+    assert.deepEqual(errors, []);
+  } finally {
+    socket.destroy();
     await app.close();
   }
 });

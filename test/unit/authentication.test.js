@@ -65,6 +65,14 @@ test('createAuthentication синхронно и атомарно проверя
     { strategies: { strategy: validStrategy }, scenarios: { default: validScenario }, extra: true },
     { strategies: {}, scenarios: { default: validScenario } },
     { strategies: { strategy: validStrategy }, scenarios: {} },
+    { strategies: null, scenarios: { default: validScenario } },
+    {
+      strategies: Object.defineProperty({}, 'strategy', {
+        value: validStrategy,
+        enumerable: false,
+      }),
+      scenarios: { default: validScenario },
+    },
     { strategies: { 'bad name': validStrategy }, scenarios: { default: validScenario } },
     { strategies: { strategy: null }, scenarios: { default: validScenario } },
     { strategies: { strategy: { authenticate: true } }, scenarios: { default: validScenario } },
@@ -300,7 +308,18 @@ test('ядро отклоняет лишние result-поля, неверный
     { status: 'rejected', code: 'INVALID', challenge: 'Bearer\r\nInjected: true' },
     { status: 'authenticated', session: session({ expiresAt: Date.now() - 1 }) },
     { status: 'authenticated', session: session({ principal: [] }) },
+    { status: 'authenticated', session: session({ principal: new Date() }) },
     { status: 'authenticated', session: session({ principal: { invalid: undefined } }) },
+    {
+      status: 'authenticated',
+      session: session({
+        principal: Object.defineProperty({}, 'secret', {
+          get: () => 'hidden',
+          enumerable: true,
+        }),
+      }),
+    },
+    { status: 'unknown' },
     {
       status: 'authenticated',
       session: session({

@@ -232,6 +232,34 @@ const socket = new WebSocket(
 
 `consume` обязан атомарно удалить ticket; replay и expiry возвращают `rejected`. Server push остаётся локальным, ephemeral и best-effort: authorization policy, distributed fan-out, retries, durable delivery и acknowledgements приложение реализует отдельно.
 
+### Полный authentication flow
+
+Отдельный пример показывает пользовательское in-memory хранилище с регистрацией, проверкой
+пароля через `scrypt`, входом и выходом, HttpOnly cookie-сессиями, выпуском и отзывом Bearer-токена,
+а также обменом Bearer-токена на одноразовый WebSocket ticket:
+
+```sh
+npm run example:authentication
+```
+
+Откройте `http://127.0.0.1:3000` и последовательно выполните шаги на странице. Пример намеренно не
+является production identity provider: данные теряются при перезапуске, cookie работает через
+локальный HTTP без `Secure`, а уже установленная WebSocket-сессия сохраняет подтверждённую при
+handshake `AuthSession` до закрытия соединения или `expiresAt`. Authorization ролей и permissions
+остаётся отдельной политикой приложения.
+
+Для JWT-варианта запустите отдельный пример:
+
+```sh
+npm run example:jwt-authentication
+```
+
+Он выпускает подписанный HS256 JWT после проверки demo-credentials, проверяет Bearer через
+пользовательский callback `bearerToken`, валидирует подпись, `alg`, `iss`, `aud`, `iat` и `exp`,
+поддерживает отзыв по `jti` и обменивает JWT на одноразовый WebSocket ticket. Signing key случайно
+создаётся при каждом запуске, поэтому это учебный пример, а не готовая конфигурация production
+identity provider. JWT подписан, но не зашифрован: claims нельзя использовать для секретных данных.
+
 ## WebSocket-протокол daevox.v1
 
 Все WebSocket-соединения используют единый endpoint `/websocket` и обязаны предложить subprotocol `daevox.v1`. Каждое text-сообщение является точным JSON-envelope `{ controller, event, body }`; binary-сообщения не поддерживаются.
