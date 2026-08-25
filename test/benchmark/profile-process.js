@@ -122,7 +122,7 @@ async function createHttpOperation(profile, config, injectedDelayMs) {
   const value = 'x'.repeat(config.messageBytes);
   class BenchmarkController extends HttpControllerBase {
     static prefix = '/benchmark';
-    static routes = [{ method: 'POST', path: '/', handler: 'run' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'run', authentication: false }];
     async run(ctx) {
       if (injectedDelayMs > 0) await delay(injectedDelayMs);
       return { status: 200, body: { size: ctx.body.value.length } };
@@ -131,6 +131,7 @@ async function createHttpOperation(profile, config, injectedDelayMs) {
   const body = JSON.stringify({ value });
   const application = new Application({
     http: { bodyLimit: profile === 'http-body-limit' ? 65_536 : 1024 },
+    websocket: { authentication: false },
   });
   application.registerHttpController(BenchmarkController);
   const address = await application.listen({ port: 0 });
@@ -149,7 +150,7 @@ async function createWebSocketOperation(config, injectedDelayMs) {
       return { size: ctx.body.value.length };
     }
   }
-  const application = new Application();
+  const application = new Application({ websocket: { authentication: false } });
   application.registerWebSocketController(BenchmarkController);
   const address = await application.listen({ port: 0 });
   const url = `ws://${address.address}:${address.port}/websocket`;
@@ -169,7 +170,7 @@ async function createWebSocketOperation(config, injectedDelayMs) {
 async function createJobOperation(config, injectedDelayMs) {
   class JobController extends HttpControllerBase {
     static prefix = '/benchmark-job';
-    static routes = [{ method: 'POST', path: '/', handler: 'run' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'run', authentication: false }];
     async run() {
       const submittedAtNs = process.hrtime.bigint();
       const result = await this.jobRunner.run(CpuBenchmarkJob, {
@@ -187,7 +188,10 @@ async function createJobOperation(config, injectedDelayMs) {
       };
     }
   }
-  const application = new Application({ jobs: { poolSize: config.poolSize } });
+  const application = new Application({
+    jobs: { poolSize: config.poolSize },
+    websocket: { authentication: false },
+  });
   application.registerHttpController(JobController);
   const address = await application.listen({ port: 0 });
   return {

@@ -48,7 +48,7 @@ test('npm tarball содержит публичный API без тестов и
   assert.ok(packagedPaths.every((packagedPath) => !packagedPath.startsWith('.scratch/')));
 });
 
-test('внешнее приложение устанавливает tarball и использует HTTP, WebSocket и задачу', async (t) => {
+test('внешнее приложение устанавливает tarball и использует опубликованные HTTP и WebSocket API', async (t) => {
   const temporaryDirectory = await mkdtemp(path.join(tmpdir(), 'daevox-e2e-consumer-'));
   const npmCacheDirectory = path.join(temporaryDirectory, 'npm-cache');
   const packageDirectory = path.join(temporaryDirectory, 'package');
@@ -102,5 +102,33 @@ test('внешнее приложение устанавливает tarball и 
     httpError: { status: 422, body: { error: 'values must be finite numbers' } },
     websocketError: { code: 'UNKNOWN_EVENT' },
     websocket: { message: 'hello from tarball' },
+  });
+
+  const { stdout: authenticationOutput } = await execFileAsync('node', ['authentication.js'], {
+    cwd: consumerDirectory,
+    env: childEnvironment,
+    timeout: 10_000,
+  });
+
+  assert.deepEqual(JSON.parse(authenticationOutput), {
+    cookie: {
+      anonymous: { hasAuthSession: false, hasWebSocket: false },
+      authenticated: { authSessionId: 'browser-session', hasWebSocket: true },
+    },
+    rejection: {
+      status: 401,
+      challenge: 'Bearer',
+      body: { error: { code: 'INVALID_TOKEN' } },
+    },
+    origin: { status: 403, body: { error: { code: 'ORIGIN_NOT_ALLOWED' } } },
+    push: {
+      result: { matched: 2, queued: 2, dropped: 0 },
+      first: { controller: 'events', event: 'changed', body: { revision: 7 } },
+      second: { controller: 'events', event: 'changed', body: { revision: 7 } },
+      isolated: { controller: 'events', event: 'echo', body: { marker: 'isolated' } },
+    },
+    expiry: { code: 4001, reason: 'Authentication expired' },
+    matchedZero: { matched: 0, queued: 0, dropped: 0 },
+    closed: true,
   });
 });

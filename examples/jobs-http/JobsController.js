@@ -4,7 +4,7 @@ import SumJob from './SumJob.js';
 
 export class JobsController extends HttpControllerBase {
   static prefix = '/jobs';
-  static routes = [{ method: 'POST', path: '/sum', handler: 'sum' }];
+  static routes = [{ method: 'POST', path: '/sum', handler: 'sum', authentication: false }];
 
   async sum(ctx) {
     const values = ctx.body?.values;

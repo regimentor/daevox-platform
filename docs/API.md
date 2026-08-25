@@ -5,359 +5,515 @@
 - [WebSocketSessionStore][1]
   - [add][2]
     - [Parameters][3]
-  - [remove][4]
+  - [connectionsForAuthSession][4]
     - [Parameters][5]
-  - [closeAll][6]
+  - [authSessionForSession][6]
     - [Parameters][7]
-- [WebSocketSessionRecord][8]
-  - [Properties][9]
-- [InvalidHttpControllerError][10]
-- [HTTP\_TOKEN][11]
-- [sessions][12]
-- [WIRE\_NAME][13]
-- [WIRE\_NAME][14]
-- [HttpControllerBase][15]
-  - [Parameters][16]
-- [ControllerOptions][17]
-  - [Properties][18]
-- [Job][19]
-- [JobContext][20]
-  - [Properties][21]
-- [JobRun][22]
+  - [remove][8]
+    - [Parameters][9]
+  - [closeAll][10]
+    - [Parameters][11]
+- [WebSocketSessionRecord][12]
+  - [Properties][13]
+- [InvalidHttpControllerError][14]
+- [HTTP\_TOKEN][15]
+- [COOKIE\_NAME][16]
+- [WIRE\_NAME][17]
+- [WIRE\_NAME][18]
+- [WIRE\_NAME][19]
+- [CATALOG\_NAME][20]
+- [authSessionMembership][21]
+- [HttpControllerBase][22]
   - [Parameters][23]
-- [WebSocketControllerBase][24]
-  - [Parameters][25]
-- [OPTION\_KEYS][26]
-- [InvalidHttpRouteError][27]
-- [PARAMETER\_NAME][28]
-- [GUID][29]
-- [ownDataValue][30]
-  - [Parameters][31]
-- [ownDataValue][32]
-  - [Parameters][33]
-- [ownDataValue][34]
-  - [Parameters][35]
-- [CONFIG\_KEYS][36]
-- [hasExactlyOwnKeys][37]
-  - [Parameters][38]
-- [restoreError][39]
+- [ControllerOptions][24]
+  - [Properties][25]
+- [Job][26]
+- [JobContext][27]
+  - [Properties][28]
+- [JobRun][29]
+  - [Parameters][30]
+- [WebSocketControllerBase][31]
+  - [Parameters][32]
+- [OPTION\_KEYS][33]
+- [COOKIE\_VALUE][34]
+- [InvalidHttpRouteError][35]
+- [PARAMETER\_NAME][36]
+- [sessions][37]
+- [GUID][38]
+- [ownDataValue][39]
   - [Parameters][40]
-- [ROUTE\_KEYS][41]
-- [UTF8\_DECODER][42]
-- [UTF8\_DECODER][43]
-- [DuplicateHttpControllerError][44]
-- [isPlainObject][45]
+- [ownDataValue][41]
+  - [Parameters][42]
+- [ownDataValue][43]
+  - [Parameters][44]
+- [isExactPushEnvelope][45]
   - [Parameters][46]
-- [invalid][47]
-  - [Parameters][48]
-- [invalid][49]
+- [REJECTION\_CODE][47]
+- [CONFIG\_KEYS][48]
+- [hasExactlyOwnKeys][49]
   - [Parameters][50]
-- [DECLARATION\_KEYS][51]
-- [HTTP\_OPTION\_KEYS][52]
-- [HttpRouteConflictError][53]
-- [serializeError][54]
-  - [Parameters][55]
-- [serialize][56]
-  - [Parameters][57]
-- [invalidRoute][58]
+- [restoreError][51]
+  - [Parameters][52]
+- [TOKEN68][53]
+- [ROUTE\_KEYS][54]
+- [UTF8\_DECODER][55]
+- [UTF8\_DECODER][56]
+- [DuplicateHttpControllerError][57]
+- [isPlainObject][58]
   - [Parameters][59]
-- [WebSocketControllerRegistry][60]
-  - [register][61]
-    - [Parameters][62]
-  - [resolve][63]
-    - [Parameters][64]
-- [WebSocketEventDeclaration][65]
-  - [Properties][66]
-- [WebSocketControllerEntry][67]
-  - [Properties][68]
-- [WebSocketControllerResolution][69]
-  - [Properties][70]
-- [WorkerPool][71]
-  - [Parameters][72]
-  - [run][73]
-    - [Parameters][74]
-  - [close][75]
-- [SerializedWorkerError][76]
-  - [Properties][77]
-- [WorkerTask][78]
-  - [Properties][79]
-- [WorkerEntry][80]
-  - [Properties][81]
-- [WorkerRunMessage][82]
-  - [Properties][83]
-- [WorkerCancelMessage][84]
-  - [Properties][85]
-- [WorkerResponseMessage][86]
-  - [Properties][87]
-- [isHttpToken][88]
-  - [Parameters][89]
-- [controllers][90]
-- [controllers][91]
-- [controllers][92]
-- [closed][93]
-- [closed][94]
-- [closed][95]
-- [InvalidHttpPathEncodingError][96]
-- [isCompatible][97]
-  - [Parameters][98]
-- [WEBSOCKET\_OPTION\_KEYS][99]
-- [config][100]
-- [config][101]
-- [nextId][102]
-- [isTimeout][103]
-  - [Parameters][104]
-- [frame][105]
-  - [Parameters][106]
-- [InvalidHttpOptionsError][107]
-- [parsePath][108]
-  - [Parameters][109]
-- [queue][110]
-- [decodePathSegments][111]
+- [HTTP\_METHOD][60]
+- [invalid][61]
+  - [Parameters][62]
+- [invalid][63]
+  - [Parameters][64]
+- [AuthenticationPresetCallbackError][65]
+- [AUTHENTICATION\_SCENARIO\_NAME][66]
+- [AUTHENTICATION\_SCENARIO\_NAME][67]
+- [DECLARATION\_KEYS][68]
+- [MAX\_TIMER\_DELAY][69]
+- [AUTHENTICATION\_KEYS][70]
+- [HttpRouteConflictError][71]
+- [serializeError][72]
+  - [Parameters][73]
+- [WebSocketControllerRegistry][74]
+  - [register][75]
+    - [Parameters][76]
+  - [resolve][77]
+    - [Parameters][78]
+- [WebSocketEventDeclaration][79]
+  - [Properties][80]
+- [WebSocketControllerEntry][81]
+  - [Properties][82]
+- [WebSocketControllerResolution][83]
+  - [Properties][84]
+- [WorkerPool][85]
+  - [Parameters][86]
+  - [run][87]
+    - [Parameters][88]
+  - [close][89]
+- [SerializedWorkerError][90]
+  - [Properties][91]
+- [WorkerTask][92]
+  - [Properties][93]
+- [WorkerEntry][94]
+  - [Properties][95]
+- [WorkerRunMessage][96]
+  - [Properties][97]
+- [WorkerCancelMessage][98]
+  - [Properties][99]
+- [WorkerResponseMessage][100]
+  - [Properties][101]
+- [isHttpToken][102]
+  - [Parameters][103]
+- [STRATEGY\_KEYS][104]
+- [controllers][105]
+- [controllers][106]
+- [controllers][107]
+- [closed][108]
+- [closed][109]
+- [closed][110]
+- [rejectHandshake][111]
   - [Parameters][112]
-- [InfrastructureHttpError][113]
-  - [Parameters][114]
-- [workers][115]
-- [InvalidWebSocketControllerError][116]
-- [validateExport][117]
-  - [Parameters][118]
-- [normalizeConfig][119]
-  - [Parameters][120]
-- [InvalidWebSocketOptionsError][121]
-- [WebSocketConnection][122]
-  - [Parameters][123]
-  - [start][124]
-    - [Parameters][125]
-  - [send][126]
-    - [Parameters][127]
-  - [close][128]
-    - [Parameters][129]
-- [invalidHttpOptions][130]
+- [InvalidHttpPathEncodingError][113]
+- [isCompatible][114]
+  - [Parameters][115]
+- [invalidRoute][116]
+  - [Parameters][117]
+- [APPLICATION\_OPTION\_KEYS][118]
+- [config][119]
+- [config][120]
+- [hasExactDataKeys][121]
+  - [Parameters][122]
+- [hasExactDataKeys][123]
+  - [Parameters][124]
+- [SCENARIO\_KEYS][125]
+- [createWebSocketRequestSender][126]
+  - [Parameters][127]
+- [HttpRequestWebSocketSender][128]
+  - [Properties][129]
+- [WebSocketPushSend][130]
   - [Parameters][131]
-- [buffer][132]
-- [DuplicateWebSocketControllerError][133]
-- [compileRoute][134]
-  - [Parameters][135]
-- [decodeWebSocketMessage][136]
+- [WebSocketPushResult][132]
+  - [Properties][133]
+- [HTTP\_OPTION\_KEYS][134]
+- [nextId][135]
+- [isTimeout][136]
   - [Parameters][137]
-- [normalizeHttpOptions][138]
-  - [Parameters][139]
-- [fragmentedChunks][140]
-- [WebSocketControllerConflictError][141]
-- [fragmentedLength][142]
-- [handleMessage][143]
+- [InvalidHttpOptionsError][138]
+- [HTTP\_INPUT\_KEYS][139]
+- [queue][140]
+- [decodePathSegments][141]
+  - [Parameters][142]
+- [validateOrigin][143]
   - [Parameters][144]
-- [validateJobClass][145]
-  - [Parameters][146]
-- [WebSocketProtocolError][147]
+- [workers][145]
+- [InvalidAuthenticationOptionsError][146]
+- [parsePath][147]
   - [Parameters][148]
-- [fragmentedOpcode][149]
-- [maxPayload][150]
-- [onClose][151]
-- [onMessage][152]
-- [onMessage][153]
+- [WEBSOCKET\_INPUT\_KEYS][149]
+- [validateExport][150]
+  - [Parameters][151]
+- [WEBSOCKET\_OPTION\_KEYS][152]
+- [callPresetCallback][153]
   - [Parameters][154]
-- [onProtocolError][155]
-- [normalizeWebSocketOptions][156]
-  - [Parameters][157]
-- [ApplicationStateError][158]
-- [socket][159]
-- [HttpError][160]
-  - [Parameters][161]
-- [validateOptions][162]
-  - [Parameters][163]
-- [encodeWebSocketMessage][164]
-  - [Parameters][165]
-- [compareSpecificity][166]
-  - [Parameters][167]
-- [JobRunner][168]
+- [normalizeConfig][155]
+  - [Parameters][156]
+- [InvalidAuthenticationResultError][157]
+  - [Parameters][158]
+  - [Properties][159]
+- [AUTHENTICATION\_INSTANCES][160]
+- [InfrastructureHttpError][161]
+  - [Parameters][162]
+- [bearerToken][163]
+  - [Parameters][164]
+- [isWebSocketMessageBody][165]
+  - [Parameters][166]
+- [AUTHENTICATION\_SCENARIOS][167]
+- [AuthenticationStrategyError][168]
   - [Parameters][169]
-  - [run][170]
-    - [Parameters][171]
-  - [close][172]
-- [JobRunnerConfig][173]
-  - [Properties][174]
-- [NormalizedJobRunnerConfig][175]
-  - [Properties][176]
-- [JobRunOptions][177]
-  - [Properties][178]
-- [NormalizedJobRunOptions][179]
-  - [Properties][180]
-- [closePromise][181]
-- [closePromise][182]
-- [HttpRouter][183]
-  - [registerAll][184]
-    - [Parameters][185]
-  - [match][186]
-    - [Parameters][187]
-  - [methodsFor][188]
-    - [Parameters][189]
-- [HttpRoutePatternSegment][190]
-  - [Properties][191]
-- [CompiledHttpRoute][192]
-  - [Properties][193]
-- [HttpRouteMatch][194]
-  - [Properties][195]
-- [routes][196]
-- [encodeWebSocketError][197]
-  - [Parameters][198]
-- [WebSocketProtocolMessage][199]
-  - [Properties][200]
-- [workerPool][201]
-- [controllerError][202]
-  - [Parameters][203]
-- [InvalidJobError][204]
-- [createWorker][205]
-- [InvalidJobOptionsError][206]
-- [routeError][207]
-  - [Parameters][208]
-- [JobDataCloneError][209]
-- [pathSegments][210]
-  - [Parameters][211]
-- [start][212]
-  - [Parameters][213]
-- [JobQueueFullError][214]
-- [JobAbortedError][215]
-- [fail][216]
-  - [Parameters][217]
-- [serializeSegment][218]
-  - [Parameters][219]
-- [JobTimedOutError][220]
-- [read][221]
-  - [Parameters][222]
-- [JobExecutionError][223]
-- [composePath][224]
-  - [Parameters][225]
-- [WorkerTerminatedError][226]
-- [JobRunnerClosedError][227]
-- [HttpErrorResponse][228]
-  - [Properties][229]
-- [WebSocketProtocolErrorOptions][230]
-  - [Properties][231]
-- [WebSocketErrorCode][232]
-- [cancel][233]
-  - [Parameters][234]
-- [validateControllerClass][235]
-  - [Parameters][236]
-- [settle][237]
-  - [Parameters][238]
-- [normalizeRoute][239]
-  - [Parameters][240]
-- [release][241]
-  - [Parameters][242]
-- [onExit][243]
+  - [Properties][170]
+- [compileRoute][171]
+  - [Parameters][172]
+- [invalidOptions][173]
+  - [Parameters][174]
+- [authenticate][175]
+  - [Parameters][176]
+- [authenticate][177]
+  - [Parameters][178]
+- [authenticate][179]
+  - [Parameters][180]
+- [serialize][181]
+  - [Parameters][182]
+- [handleMessage][183]
+  - [Parameters][184]
+- [validateJobClass][185]
+  - [Parameters][186]
+- [decodeWebSocketMessage][187]
+  - [Parameters][188]
+- [invalidHttpOptions][189]
+  - [Parameters][190]
+- [AuthenticationAbortedError][191]
+- [normalizeHttpOptions][192]
+  - [Parameters][193]
+- [InvalidWebSocketPushError][194]
+- [frame][195]
+  - [Parameters][196]
+- [WebSocketPushPayloadTooLargeError][197]
+- [catalogEntries][198]
+  - [Parameters][199]
+- [InvalidWebSocketControllerError][200]
+- [validateOptions][201]
+  - [Parameters][202]
+- [cookieSession][203]
+  - [Parameters][204]
+- [WebSocketConnection][205]
+  - [Parameters][206]
+  - [start][207]
+    - [Parameters][208]
+  - [send][209]
+    - [Parameters][210]
+  - [close][211]
+    - [Parameters][212]
+- [InvalidWebSocketOptionsError][213]
+- [normalizeWebSocketOptions][214]
+  - [Parameters][215]
+- [blocked][216]
+- [encodeWebSocketMessage][217]
+  - [Parameters][218]
+- [DuplicateWebSocketControllerError][219]
+- [JobRunner][220]
+  - [Parameters][221]
+  - [run][222]
+    - [Parameters][223]
+  - [close][224]
+- [JobRunnerConfig][225]
+  - [Properties][226]
+- [NormalizedJobRunnerConfig][227]
+  - [Properties][228]
+- [JobRunOptions][229]
+  - [Properties][230]
+- [NormalizedJobRunOptions][231]
+  - [Properties][232]
+- [buffer][233]
+- [compareSpecificity][234]
+  - [Parameters][235]
+- [normalizeStrategy][236]
+  - [Parameters][237]
+- [WebSocketControllerConflictError][238]
+- [closePromise][239]
+- [closePromise][240]
+- [fragmentedChunks][241]
+- [fragmentedLength][242]
+- [WebSocketProtocolError][243]
   - [Parameters][244]
-- [deliverMessage][245]
-  - [Parameters][246]
-- [Application][247]
-  - [Parameters][248]
-  - [registerWebSocketController][249]
-    - [Parameters][250]
-  - [registerHttpController][251]
-    - [Parameters][252]
-  - [listen][253]
-    - [Parameters][254]
-  - [close][255]
-- [ApplicationOptions][256]
+- [workerPool][245]
+- [fragmentedOpcode][246]
+- [HttpRouter][247]
+  - [registerAll][248]
+    - [Parameters][249]
+  - [match][250]
+    - [Parameters][251]
+  - [methodsFor][252]
+    - [Parameters][253]
+- [HttpRoutePatternSegment][254]
+  - [Properties][255]
+- [CompiledHttpRoute][256]
   - [Properties][257]
-- [HttpOptions][258]
+- [HttpRouteMatch][258]
   - [Properties][259]
-- [NormalizedHttpOptions][260]
-  - [Properties][261]
-- [WebSocketOptions][262]
-  - [Properties][263]
-- [NormalizedWebSocketOptions][264]
-  - [Properties][265]
-- [HttpRouteDeclaration][266]
+- [maxPayload][260]
+- [normalizeScenario][261]
+  - [Parameters][262]
+- [routes][263]
+- [encodeWebSocketError][264]
+  - [Parameters][265]
+- [WebSocketProtocolMessage][266]
   - [Properties][267]
-- [HttpControllerMetadata][268]
-  - [Properties][269]
-- [NormalizedHttpRoute][270]
-  - [Properties][271]
-- [HttpRequestContext][272]
-  - [Properties][273]
-- [HttpResponse][274]
-  - [Properties][275]
-- [HttpErrorHandler][276]
-  - [Parameters][277]
-- [ListenOptions][278]
-  - [Properties][279]
-- [WebSocketLifecycleContext][280]
-  - [Properties][281]
-- [WebSocketDisconnectContext][282]
-  - [Properties][283]
-- [WebSocketHandlerContext][284]
-  - [Properties][285]
-- [WebSocketConnectHandler][286]
-  - [Parameters][287]
-- [WebSocketDisconnectHandler][288]
-  - [Parameters][289]
-- [WebSocketErrorHandler][290]
-  - [Parameters][291]
-- [ActiveHttpRequest][292]
-  - [Properties][293]
-- [httpRouter][294]
-- [httpControllers][295]
-- [terminateBrokenWorker][296]
+- [maxWriteQueueBytes][268]
+- [createWorker][269]
+- [onClose][270]
+- [ApplicationStateError][271]
+- [onMessage][272]
+- [onMessage][273]
+  - [Parameters][274]
+- [oneTimeWebSocketTicket][275]
+  - [Parameters][276]
+- [BearerTokenOptions][277]
+  - [Properties][278]
+- [BearerTokenVerifier][279]
+  - [Parameters][280]
+- [AuthenticationPresetMetadata][281]
+  - [Properties][282]
+- [OneTimeWebSocketTicketOptions][283]
+  - [Properties][284]
+- [OneTimeWebSocketTicketConsumer][285]
+  - [Parameters][286]
+- [WebSocketTicketMetadata][287]
+  - [Properties][288]
+- [CookieSessionOptions][289]
+  - [Properties][290]
+- [CookieSelector][291]
+  - [Properties][292]
+- [CookieSessionResolver][293]
+  - [Parameters][294]
+- [onProtocolError][295]
+- [HttpError][296]
   - [Parameters][297]
-- [jobRunner][298]
-- [jobRunner][299]
-- [isValidCloseCode][300]
+- [socket][298]
+- [socketListeners][299]
+- [start][300]
   - [Parameters][301]
-- [httpOptions][302]
-- [terminateEntry][303]
-  - [Parameters][304]
-- [httpServer][305]
-- [listenPromise][306]
-- [finish][307]
-  - [Parameters][308]
-- [state][309]
-- [activeRequests][310]
-- [activeWaiters][311]
-- [WebSocketTransport][312]
-  - [Parameters][313]
-  - [attach][314]
-    - [Parameters][315]
-  - [waitForDisconnects][316]
-- [WebSocketOutboundMessage][317]
-  - [Properties][318]
-- [WebSocketConnectionOptions][319]
-  - [Properties][320]
-- [WebSocketCloseListener][321]
-  - [Parameters][322]
-- [WebSocketMessageListener][323]
+- [snapshotInput][302]
+  - [Parameters][303]
+- [writeQueue][304]
+- [writeQueueBytes][305]
+- [onDrain][306]
+- [InvalidJobError][307]
+- [strategyInput][308]
+  - [Parameters][309]
+- [InvalidJobOptionsError][310]
+- [controllerError][311]
+  - [Parameters][312]
+- [JobDataCloneError][313]
+- [cloneJson][314]
+  - [Parameters][315]
+- [cancel][316]
+  - [Parameters][317]
+- [JobQueueFullError][318]
+- [routeError][319]
+  - [Parameters][320]
+- [JobAbortedError][321]
+- [JobTimedOutError][322]
+- [pathSegments][323]
   - [Parameters][324]
-- [WebSocketProtocolFailureListener][325]
+- [settle][325]
   - [Parameters][326]
-- [WebSocketTransportDependencies][327]
-  - [Properties][328]
-- [WebSocketSessionContext][329]
-  - [Properties][330]
-- [webSocketControllers][331]
-- [webSocketControllerClasses][332]
-- [disconnectPromises][333]
-- [webSocketOptions][334]
-- [webSocketSessions][335]
-- [onError][336]
-- [webSocketTransport][337]
-- [options][338]
-- [sessionStore][339]
-- [upgrade][340]
-  - [Parameters][341]
-- [handleHttpRequest][342]
-  - [Parameters][343]
-- [writeHttpResult][344]
+- [enqueue][327]
+  - [Parameters][328]
+- [JobExecutionError][329]
+- [WorkerTerminatedError][330]
+- [release][331]
+  - [Parameters][332]
+- [serializeSegment][333]
+  - [Parameters][334]
+- [flush][335]
+- [normalizeSession][336]
+  - [Parameters][337]
+- [JobRunnerClosedError][338]
+- [HttpErrorResponse][339]
+  - [Properties][340]
+- [WebSocketProtocolErrorOptions][341]
+  - [Properties][342]
+- [WebSocketErrorCode][343]
+- [composePath][344]
   - [Parameters][345]
-- [report][346]
+- [write][346]
   - [Parameters][347]
-- [isJsonMediaType][348]
+- [onExit][348]
   - [Parameters][349]
-- [handleMessageError][350]
+- [normalizeResult][350]
   - [Parameters][351]
-- [reportUnexpected][352]
+- [terminate][352]
   - [Parameters][353]
-- [waitForActiveRequests][354]
-- [writeJson][355]
-  - [Parameters][356]
+- [terminateBrokenWorker][354]
+  - [Parameters][355]
+- [validateControllerClass][356]
+  - [Parameters][357]
+- [terminateEntry][358]
+  - [Parameters][359]
+- [invalidResult][360]
+  - [Parameters][361]
+- [fail][362]
+  - [Parameters][363]
+- [throwIfAborted][364]
+  - [Parameters][365]
+- [normalizeRoute][366]
+  - [Parameters][367]
+- [read][368]
+  - [Parameters][369]
+- [Authentication][370]
+  - [Parameters][371]
+  - [authenticate][372]
+    - [Parameters][373]
+- [scenarios][374]
+- [strategies][375]
+- [Application][376]
+  - [Parameters][377]
+  - [registerWebSocketController][378]
+    - [Parameters][379]
+  - [registerHttpController][380]
+    - [Parameters][381]
+  - [listen][382]
+    - [Parameters][383]
+  - [close][384]
+- [ApplicationOptions][385]
+  - [Properties][386]
+- [HttpOptions][387]
+  - [Properties][388]
+- [NormalizedHttpOptions][389]
+  - [Properties][390]
+- [WebSocketOptions][391]
+  - [Properties][392]
+- [NormalizedWebSocketOptions][393]
+  - [Properties][394]
+- [HttpRouteDeclaration][395]
+  - [Properties][396]
+- [HttpControllerMetadata][397]
+  - [Properties][398]
+- [NormalizedHttpRoute][399]
+  - [Properties][400]
+- [HttpRequestContext][401]
+  - [Properties][402]
+- [HttpResponse][403]
+  - [Properties][404]
+- [HttpErrorHandler][405]
+  - [Parameters][406]
+- [HttpAuthenticationErrorContext][407]
+  - [Properties][408]
+- [ListenOptions][409]
+  - [Properties][410]
+- [WebSocketLifecycleContext][411]
+  - [Properties][412]
+- [WebSocketDisconnectContext][413]
+  - [Properties][414]
+- [WebSocketHandlerContext][415]
+  - [Properties][416]
+- [WebSocketConnectHandler][417]
+  - [Parameters][418]
+- [WebSocketDisconnectHandler][419]
+  - [Parameters][420]
+- [WebSocketErrorHandler][421]
+  - [Parameters][422]
+- [WebSocketErrorContext][423]
+  - [Properties][424]
+- [ActiveHttpRequest][425]
+  - [Properties][426]
+- [httpRouter][427]
+- [httpControllers][428]
+- [jobRunner][429]
+- [jobRunner][430]
+- [authentication][431]
+- [authentication][432]
+- [httpOptions][433]
+- [httpServer][434]
+- [createAuthentication][435]
+  - [Parameters][436]
+- [listenPromise][437]
+- [state][438]
+- [activeRequests][439]
+- [activeWaiters][440]
+- [isAuthentication][441]
+  - [Parameters][442]
+- [deliverMessage][443]
+  - [Parameters][444]
+- [webSocketControllers][445]
+- [webSocketControllerClasses][446]
+- [hasAuthenticationScenario][447]
+  - [Parameters][448]
+- [AuthenticationOptions][449]
+  - [Properties][450]
+- [AuthenticationStrategy][451]
+  - [Properties][452]
+- [AuthenticationScenario][453]
+  - [Properties][454]
+- [AuthenticationStrategyHandler][455]
+  - [Parameters][456]
+- [AuthenticationStrategyInput][457]
+  - [Properties][458]
+- [AuthenticationInputSnapshot][459]
+- [AuthSession][460]
+  - [Properties][461]
+- [AuthenticationResult][462]
+  - [Properties][463]
+- [webSocketOptions][464]
+- [webSocketSessions][465]
+- [webSocketTransport][466]
+- [isValidCloseCode][467]
+  - [Parameters][468]
+- [finish][469]
+  - [Parameters][470]
+- [WebSocketTransport][471]
+  - [Parameters][472]
+  - [attach][473]
+    - [Parameters][474]
+  - [waitForDisconnects][475]
+- [WebSocketOutboundMessage][476]
+  - [Properties][477]
+- [WebSocketConnectionOptions][478]
+  - [Properties][479]
+- [WebSocketSocketListeners][480]
+  - [Properties][481]
+- [WebSocketCloseListener][482]
+  - [Parameters][483]
+- [WebSocketMessageListener][484]
+  - [Parameters][485]
+- [WebSocketProtocolFailureListener][486]
+  - [Parameters][487]
+- [WebSocketTransportDependencies][488]
+  - [Properties][489]
+- [WebSocketSessionContext][490]
+  - [Properties][491]
+- [disconnectPromises][492]
+- [onError][493]
+- [options][494]
+- [sessionStore][495]
+- [upgrade][496]
+  - [Parameters][497]
+- [handleHttpRequest][498]
+  - [Parameters][499]
+- [writeHttpResult][500]
+  - [Parameters][501]
+- [isJsonMediaType][502]
+  - [Parameters][503]
+- [reportUnexpected][504]
+  - [Parameters][505]
+- [waitForActiveRequests][506]
+- [writeJson][507]
+  - [Parameters][508]
+- [report][509]
+  - [Parameters][510]
+- [handleMessageError][511]
+  - [Parameters][512]
 
 ## WebSocketSessionStore
 
@@ -369,11 +525,35 @@ Stores an active session. / Сохраняет активную сессию.
 
 #### Parameters
 
-- `clientId` **[string][357]** Client identifier. / Идентификатор клиента.
-- `connection` **[WebSocketConnection][122]** Transport connection. / Транспортное соединение.
-- `sessionId` **[string][357]** Session identifier. / Идентификатор сессии.
+- `clientId` **[string][513]** Client identifier. / Идентификатор клиента.
+- `connection` **[WebSocketConnection][205]** Transport connection. / Транспортное соединение.
+- `sessionId` **[string][513]** Session identifier. / Идентификатор сессии.
+- `authSession` **[AuthSession][460]?** Confirmed authentication session. / Подтверждённая сессия
+  аутентификации.
 
-Returns **[string][357]** Stored session identifier. / Сохранённый идентификатор.
+Returns **[string][513]** Stored session identifier. / Сохранённый идентификатор.
+
+### connectionsForAuthSession
+
+Returns a stable snapshot of connections for one exact AuthSession identifier.
+Возвращает стабильный snapshot соединений точной AuthSession.
+
+#### Parameters
+
+- `authSessionId` **[string][513]** Authentication-session identifier. / Идентификатор AuthSession.
+
+Returns **[Array][514]<[WebSocketConnection][205]>** Frozen connection snapshot. / Замороженный snapshot соединений.
+
+### authSessionForSession
+
+Returns the confirmed AuthSession attached to a transport session.
+Возвращает подтверждённую AuthSession транспортной сессии.
+
+#### Parameters
+
+- `sessionId` **[string][513]** Transport-session identifier. / Идентификатор транспортной сессии.
+
+Returns **([AuthSession][460] | [undefined][515])** Attached session. / Связанная сессия.
 
 ### remove
 
@@ -381,9 +561,9 @@ Removes a session. / Удаляет сессию.
 
 #### Parameters
 
-- `sessionId` **[string][357]** Session identifier. / Идентификатор сессии.
+- `sessionId` **[string][513]** Session identifier. / Идентификатор сессии.
 
-Returns **[boolean][358]** Whether a session was removed. / Была ли сессия удалена.
+Returns **[boolean][516]** Whether a session was removed. / Была ли сессия удалена.
 
 ### closeAll
 
@@ -391,8 +571,8 @@ Starts closing every active session. / Начинает закрытие все�
 
 #### Parameters
 
-- `code` **[number][359]** Close code. / Код закрытия. (optional, default `1001`)
-- `reason` **[string][357]** Close reason. / Причина закрытия. (optional, default `'Server shutting down'`)
+- `code` **[number][517]** Close code. / Код закрытия. (optional, default `1001`)
+- `reason` **[string][513]** Close reason. / Причина закрытия. (optional, default `'Server shutting down'`)
 
 Returns **void**&#x20;
 
@@ -401,13 +581,15 @@ Returns **void**&#x20;
 Active WebSocket-session record.
 Запись активной WebSocket-сессии.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `clientId` **[string][357]** Client identifier. / Идентификатор клиента.
-- `sessionId` **[string][357]** Session identifier. / Идентификатор сессии.
-- `connection` **[WebSocketConnection][122]** Transport connection. / Транспортное соединение.
+- `clientId` **[string][513]** Client identifier. / Идентификатор клиента.
+- `sessionId` **[string][513]** Session identifier. / Идентификатор сессии.
+- `connection` **[WebSocketConnection][205]** Transport connection. / Транспортное соединение.
+- `authSession` **[AuthSession][460]?** Confirmed authentication session. / Подтверждённая сессия
+  аутентификации.
 
 ## InvalidHttpControllerError
 
@@ -419,48 +601,70 @@ Invalid HTTP-controller declaration. / Некорректное объявлен
 
 RFC-compatible HTTP token syntax. / Синтаксис HTTP-токена, совместимый с RFC.
 
-Type: [RegExp][361]
+Type: [RegExp][519]
 
-## sessions
+## COOKIE\_NAME
 
-Type: [Map][362]<[string][357], [WebSocketSessionRecord][8]>
+RFC token syntax used by cookie names. / Синтаксис RFC token для имён cookie.
+
+Type: [RegExp][519]
+
+## WIRE\_NAME
+
+Valid controller and event wire-name syntax.
+Допустимый синтаксис сетевых имён контроллеров и событий.
+
+Type: [RegExp][519]
 
 ## WIRE\_NAME
 
 Valid controller and event wire-name syntax. / Допустимый синтаксис сетевых имён контроллеров и событий.
 
-Type: [RegExp][361]
+Type: [RegExp][519]
 
 ## WIRE\_NAME
 
 Valid controller and event wire-name syntax. / Допустимый синтаксис сетевых имён контроллеров и событий.
 
-Type: [RegExp][361]
+Type: [RegExp][519]
+
+## CATALOG\_NAME
+
+Valid Authentication catalog-name syntax. / Допустимый синтаксис имён каталога Authentication.
+
+Type: [RegExp][519]
+
+## authSessionMembership
+
+Session identifiers grouped by confirmed AuthSession.
+Идентификаторы сессий, сгруппированные по подтверждённой AuthSession.
+
+Type: [Map][520]<[string][513], [Set][521]<[string][513]>>
 
 ## HttpControllerBase
 
-Base class for HTTP controllers registered with an [Application][247].
-Базовый класс HTTP-контроллеров, регистрируемых в [Application][247].
+Base class for HTTP controllers registered with an [Application][376].
+Базовый класс HTTP-контроллеров, регистрируемых в [Application][376].
 
 Subclasses must declare their own static `prefix` and `routes` fields and must be registered
-through [Application#registerHttpController][363]. A fresh instance is created per request.
+through [Application#registerHttpController][522]. A fresh instance is created per request.
 Подклассы должны объявить собственные статические поля `prefix` и `routes` и регистрироваться
-через [Application#registerHttpController][363]. Для каждого запроса создаётся новый экземпляр.
+через [Application#registerHttpController][522]. Для каждого запроса создаётся новый экземпляр.
 
 ### Parameters
 
-- `options` **[ControllerOptions][17]** Controller dependencies. / Зависимости HTTP-контроллера.
+- `options` **[ControllerOptions][24]** Controller dependencies. / Зависимости HTTP-контроллера.
 
 ## ControllerOptions
 
 Dependencies supplied to a transport controller instance.
 Зависимости, передаваемые экземпляру транспортного контроллера.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `jobRunner` **[JobRunner][168]** Application-owned job runner. / Принадлежащий приложению
+- `jobRunner` **[JobRunner][220]** Application-owned job runner. / Принадлежащий приложению
   исполнитель задач.
 
 ## Job
@@ -478,7 +682,7 @@ A direct subclass must be the default export of its ESM module, declare its own
 Context passed to a job's `run` method as its second argument.
 Контекст, передаваемый вторым аргументом в метод `run` задачи.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
@@ -490,15 +694,15 @@ Type: [Object][360]
 Executes a user-defined background job.
 Выполняет пользовательскую фоновую задачу.
 
-Type: [Function][364]
+Type: [Function][523]
 
 ### Parameters
 
 - `payload` **any** Structured-clone-compatible input. / Входные данные, совместимые со
   structured clone.
-- `context` **[JobContext][20]** Execution context. / Контекст выполнения.
+- `context` **[JobContext][27]** Execution context. / Контекст выполнения.
 
-Returns **(any | [Promise][365]\<any>)** Structured-clone-compatible result. / Результат, совместимый со
+Returns **(any | [Promise][524]\<any>)** Structured-clone-compatible result. / Результат, совместимый со
 structured clone.
 
 ## WebSocketControllerBase
@@ -513,13 +717,19 @@ every resolved protocol message.
 
 ### Parameters
 
-- `options` **[ControllerOptions][17]** Controller dependencies. / Зависимости контроллера.
+- `options` **[ControllerOptions][24]** Controller dependencies. / Зависимости контроллера.
 
 ## OPTION\_KEYS
 
 Supported per-run option keys. / Поддерживаемые ключи запуска задачи.
 
-Type: [Set][366]<[string][357]>
+Type: [Set][521]<[string][513]>
+
+## COOKIE\_VALUE
+
+Valid unquoted RFC cookie-octet sequence. / Допустимая непустая RFC cookie-octet последовательность.
+
+Type: [RegExp][519]
 
 ## InvalidHttpRouteError
 
@@ -531,13 +741,17 @@ Invalid HTTP-route declaration or definition. / Некорректное объ�
 
 Valid parameter-name syntax. / Допустимый синтаксис имени параметра.
 
-Type: [RegExp][361]
+Type: [RegExp][519]
+
+## sessions
+
+Type: [Map][520]<[string][513], [WebSocketSessionRecord][12]>
 
 ## GUID
 
 RFC 6455 handshake GUID. / GUID handshake из RFC 6455.
 
-Type: [string][357]
+Type: [string][513]
 
 ## ownDataValue
 
@@ -545,7 +759,7 @@ Reads an own data-property without invoking accessors. / Читает собст
 
 ### Parameters
 
-- `object` **[Object][360]** Owner. / Владелец.
+- `object` **[Object][518]** Owner. / Владелец.
 - `property` **PropertyKey** Property key. / Ключ свойства.
 
 Returns **any** Stored value or `undefined`. / Значение или `undefined`.
@@ -556,7 +770,7 @@ Reads an own data-property without invoking accessors. / Читает собст
 
 ### Parameters
 
-- `object` **[Object][360]** Owner. / Владелец.
+- `object` **[Object][518]** Owner. / Владелец.
 - `property` **PropertyKey** Property key. / Ключ свойства.
 
 Returns **any** Stored value or `undefined`. / Значение или `undefined`.
@@ -567,16 +781,33 @@ Reads an own data-property without invoking accessors. / Читает собст
 
 ### Parameters
 
-- `object` **[Object][360]** Owner. / Владелец.
+- `object` **[Object][518]** Owner. / Владелец.
 - `property` **PropertyKey** Property key. / Ключ свойства.
 
 Returns **any** Stored value or `undefined`. / Сохранённое значение или `undefined`.
+
+## isExactPushEnvelope
+
+Tests whether a value is an exact push envelope with safe data properties.
+Проверяет, является ли значение точным push envelope с безопасными data properties.
+
+### Parameters
+
+- `envelope` **any** Candidate envelope. / Проверяемый envelope.
+
+Returns **[boolean][516]** Whether the outer envelope is valid. / Валиден ли внешний envelope.
+
+## REJECTION\_CODE
+
+Valid rejected-result code syntax. / Допустимый синтаксис кода rejected-результата.
+
+Type: [RegExp][519]
 
 ## CONFIG\_KEYS
 
 Supported job-runner configuration keys. / Поддерживаемые ключи конфигурации исполнителя задач.
 
-Type: [Set][366]<[string][357]>
+Type: [Set][521]<[string][513]>
 
 ## hasExactlyOwnKeys
 
@@ -584,10 +815,10 @@ Tests that an object has exactly the expected own string keys. / Проверя�
 
 ### Parameters
 
-- `object` **[Object][360]** Candidate object. / Проверяемый объект.
-- `expectedKeys` **[Array][367]<[string][357]>** Expected keys. / Ожидаемые ключи.
+- `object` **[Object][518]** Candidate object. / Проверяемый объект.
+- `expectedKeys` **[Array][514]<[string][513]>** Expected keys. / Ожидаемые ключи.
 
-Returns **[boolean][358]** Match result. / Результат проверки.
+Returns **[boolean][516]** Match result. / Результат проверки.
 
 ## restoreError
 
@@ -595,27 +826,33 @@ Restores a serialized worker error and its cause chain. / Восстанавли
 
 ### Parameters
 
-- `data` **[SerializedWorkerError][76]** Serialized error. / Сериализованная ошибка.
+- `data` **[SerializedWorkerError][90]** Serialized error. / Сериализованная ошибка.
 
-Returns **[Error][368]** Restored error. / Восстановленная ошибка.
+Returns **[Error][525]** Restored error. / Восстановленная ошибка.
+
+## TOKEN68
+
+RFC token68 credential syntax. / Синтаксис credential RFC token68.
+
+Type: [RegExp][519]
 
 ## ROUTE\_KEYS
 
 Exact normalized-route fields. / Точные поля нормализованного HTTP-маршрута.
 
-Type: [Array][367]<[string][357]>
+Type: [Array][514]<[string][513]>
 
 ## UTF8\_DECODER
 
 Strict UTF-8 decoder for text frames and close reasons. / Строгий декодер UTF-8 для text frames и причин закрытия.
 
-Type: [TextDecoder][369]
+Type: [TextDecoder][526]
 
 ## UTF8\_DECODER
 
 Strict decoder for UTF-8 HTTP request bodies. / Строгий декодер UTF-8 для тел HTTP-запросов.
 
-Type: [TextDecoder][369]
+Type: [TextDecoder][526]
 
 ## DuplicateHttpControllerError
 
@@ -631,7 +868,13 @@ Tests whether a value is a plain object. / Проверяет, является 
 
 - `value` **any** Candidate value. / Проверяемое значение.
 
-Returns **[boolean][358]** Validation result. / Результат проверки.
+Returns **[boolean][516]** Validation result. / Результат проверки.
+
+## HTTP\_METHOD
+
+Valid uppercase HTTP method syntax. / Допустимый синтаксис HTTP-метода в верхнем регистре.
+
+Type: [RegExp][519]
 
 ## invalid
 
@@ -639,11 +882,11 @@ Throws a normalized WebSocket-controller error. / Выбрасывает нор�
 
 ### Parameters
 
-- `message` **[string][357]** Error text. / Текст ошибки.
+- `message` **[string][513]** Error text. / Текст ошибки.
 
 <!---->
 
-- Throws **[InvalidWebSocketControllerError][116]** Always. / Всегда.
+- Throws **[InvalidWebSocketControllerError][200]** Always. / Всегда.
 
 ## invalid
 
@@ -651,23 +894,49 @@ Throws an invalid-job-options error. / Выбрасывает ошибку па�
 
 ### Parameters
 
-- `message` **[string][357]** Error text. / Текст ошибки.
+- `message` **[string][513]** Error text. / Текст ошибки.
 
 <!---->
 
-- Throws **[InvalidJobOptionsError][206]** Always. / Всегда.
+- Throws **[InvalidJobOptionsError][310]** Always. / Всегда.
+
+## AuthenticationPresetCallbackError
+
+**Extends Error**
+
+Credential-free failure used when a user preset callback fails.
+Ошибка без credential для сбоя пользовательского callback preset.
+
+## AUTHENTICATION\_SCENARIO\_NAME
+
+Valid Authentication scenario-name syntax. / Допустимый синтаксис имени scenario Authentication.
+
+Type: [RegExp][519]
+
+## AUTHENTICATION\_SCENARIO\_NAME
+
+Valid Authentication scenario-name syntax. / Допустимый синтаксис имени scenario Authentication.
+
+Type: [RegExp][519]
 
 ## DECLARATION\_KEYS
 
 Exact fields accepted in an HTTP-route declaration. / Точные поля объявления HTTP-маршрута.
 
-Type: [Array][367]<[string][357]>
+Type: [Array][514]<[string][513]>
 
-## HTTP\_OPTION\_KEYS
+## MAX\_TIMER\_DELAY
 
-Supported HTTP configuration keys. / Поддерживаемые ключи конфигурации HTTP.
+Maximum delay supported by Node.js timers. / Максимальная задержка таймеров Node.js.
 
-Type: [Set][366]<[string][357]>
+Type: [number][517]
+
+## AUTHENTICATION\_KEYS
+
+Exact top-level Authentication configuration keys.
+Точные ключи верхнеуровневой конфигурации Authentication.
+
+Type: [Array][514]<[string][513]>
 
 ## HttpRouteConflictError
 
@@ -682,30 +951,9 @@ Serializes an arbitrary thrown value and its error cause chain. / Сериали
 ### Parameters
 
 - `error` **any** Thrown value. / Выброшенное значение.
-- `seen` **[WeakSet][370]<[Error][368]>?** Visited errors. / Посещённые ошибки. (optional, default `new WeakSet()`)
+- `seen` **[WeakSet][527]<[Error][525]>?** Visited errors. / Посещённые ошибки. (optional, default `new WeakSet()`)
 
-Returns **[SerializedWorkerError][76]** Transferable representation. / Передаваемое представление.
-
-## serialize
-
-Serializes application text into an outbound message descriptor. / Сериализует прикладной текст в описание исходящего сообщения.
-
-### Parameters
-
-- `data` **[string][357]** Text data. / Текстовые данные.
-
-Returns **[WebSocketOutboundMessage][317]** Message descriptor. / Описание сообщения.
-
-## invalidRoute
-
-Creates an invalid-route error with an optional cause. / Создаёт ошибку HTTP-маршрута с необязательной причиной.
-
-### Parameters
-
-- `message` **[string][357]** Error text. / Текст ошибки.
-- `cause` **[Error][368]?** Original error. / Исходная ошибка.
-
-Returns **[InvalidHttpRouteError][27]** Created error. / Созданная ошибка.
+Returns **[SerializedWorkerError][90]** Transferable representation. / Передаваемое представление.
 
 ## WebSocketControllerRegistry
 
@@ -717,7 +965,7 @@ Validates and registers one WebSocket-controller class. / Проверяет и 
 
 #### Parameters
 
-- `WebSocketController` **[Function][364]** Direct controller subclass. / Прямой подкласс контроллера.
+- `WebSocketController` **[Function][523]** Direct controller subclass. / Прямой подкласс контроллера.
 
 Returns **void**&#x20;
 
@@ -727,46 +975,46 @@ Resolves a protocol address to a controller and optional handler. / Разреш
 
 #### Parameters
 
-- `controllerName` **[string][357]** Controller wire name. / Сетевое имя контроллера.
-- `eventName` **[string][357]** Event wire name. / Сетевое имя события.
+- `controllerName` **[string][513]** Controller wire name. / Сетевое имя контроллера.
+- `eventName` **[string][513]** Event wire name. / Сетевое имя события.
 
-Returns **([WebSocketControllerResolution][69] | null)** Resolution or `null`. / Результат или `null`.
+Returns **([WebSocketControllerResolution][83] | null)** Resolution or `null`. / Результат или `null`.
 
 ## WebSocketEventDeclaration
 
 Declarative WebSocket event metadata.
 Декларативные метаданные WebSocket-события.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `name` **[string][357]** Event wire name. / Сетевое имя события.
-- `handler` **[string][357]** Own controller method name. / Имя собственного метода контроллера.
+- `name` **[string][513]** Event wire name. / Сетевое имя события.
+- `handler` **[string][513]** Own controller method name. / Имя собственного метода контроллера.
 
 ## WebSocketControllerEntry
 
 Registered WebSocket-controller metadata.
 Метаданные зарегистрированного WebSocket-контроллера.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `controller` **[Function][364]** Controller class. / Класс контроллера.
-- `events` **[Map][362]<[string][357], [string][357]>** Handler names by event. / Имена обработчиков по событиям.
+- `controller` **[Function][523]** Controller class. / Класс контроллера.
+- `events` **[Map][520]<[string][513], [string][513]>** Handler names by event. / Имена обработчиков по событиям.
 
 ## WebSocketControllerResolution
 
 WebSocket-controller lookup result.
 Результат поиска WebSocket-контроллера.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `controller` **[Function][364]** Controller class. / Класс контроллера.
-- `handler` **[string][357]?** Handler method name when the event exists. / Имя метода события.
+- `controller` **[Function][523]** Controller class. / Класс контроллера.
+- `handler` **[string][513]?** Handler method name when the event exists. / Имя метода события.
 
 ## WorkerPool
 
@@ -774,7 +1022,7 @@ Internal pool that schedules jobs across reusable worker threads. / Внутре
 
 ### Parameters
 
-- `config` **[NormalizedJobRunnerConfig][175]** Pool limits and timeouts. / Ограничения и тайм-ауты.
+- `config` **[NormalizedJobRunnerConfig][227]** Pool limits and timeouts. / Ограничения и тайм-ауты.
 
 ### run
 
@@ -782,54 +1030,54 @@ Schedules one structured-clone-compatible job. / Планирует одну з�
 
 #### Parameters
 
-- `metaUrl` **[string][357]** Job module URL. / URL модуля задачи.
+- `metaUrl` **[string][513]** Job module URL. / URL модуля задачи.
 - `payload` **any** Job input. / Входные данные.
-- `options` **[NormalizedJobRunOptions][179]** Cancellation and timeout. / Отмена и тайм-аут.
+- `options` **[NormalizedJobRunOptions][231]** Cancellation and timeout. / Отмена и тайм-аут.
 
   - `options.signal` &#x20;
   - `options.timeout` &#x20;
 
-Returns **[Promise][365]\<any>** Job result. / Результат задачи.
+Returns **[Promise][524]\<any>** Job result. / Результат задачи.
 
 ### close
 
 Drains or aborts work within the shutdown timeout, then terminates workers. / Завершает или отменяет работу в пределах тайм-аута, затем останавливает работников.
 
-Returns **[Promise][365]\<void>** Shutdown completion. / Завершение закрытия.
+Returns **[Promise][524]\<void>** Shutdown completion. / Завершение закрытия.
 
 ## SerializedWorkerError
 
 Serialized error transferred from a worker.
 Сериализованная ошибка, передаваемая из Worker.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `name` **[string][357]?** Error name. / Имя ошибки.
-- `message` **[string][357]** Error message. / Сообщение ошибки.
-- `stack` **[string][357]?** Error stack. / Стек ошибки.
-- `cause` **[SerializedWorkerError][76]?** Serialized cause. / Сериализованная причина.
+- `name` **[string][513]?** Error name. / Имя ошибки.
+- `message` **[string][513]** Error message. / Сообщение ошибки.
+- `stack` **[string][513]?** Error stack. / Стек ошибки.
+- `cause` **[SerializedWorkerError][90]?** Serialized cause. / Сериализованная причина.
 
 ## WorkerTask
 
 Internal state of one scheduled job.
 Внутреннее состояние одной запланированной задачи.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `id` **[number][359]** Task identifier. / Идентификатор задачи.
-- `metaUrl` **[string][357]** Job module URL. / URL модуля задачи.
+- `id` **[number][517]** Task identifier. / Идентификатор задачи.
+- `metaUrl` **[string][513]** Job module URL. / URL модуля задачи.
 - `payload` **any** Cloned job input. / Клонированные входные данные.
 - `signal` **AbortSignal?** Cancellation signal. / Сигнал отмены.
-- `resolve` **[Function][364]** Promise resolver. / Функция разрешения Promise.
-- `reject` **[Function][364]** Promise rejecter. / Функция отклонения Promise.
-- `settled` **[boolean][358]** Whether the promise settled. / Завершён ли Promise.
+- `resolve` **[Function][523]** Promise resolver. / Функция разрешения Promise.
+- `reject` **[Function][523]** Promise rejecter. / Функция отклонения Promise.
+- `settled` **[boolean][516]** Whether the promise settled. / Завершён ли Promise.
 - `state` **(`"new"` | `"queued"` | `"running"`)** Scheduling state. / Состояние планирования.
-- `entry` **[WorkerEntry][80]?** Assigned worker. / Назначенный работник.
-- `abortListener` **[Function][364]?** Abort listener. / Обработчик отмены.
+- `entry` **[WorkerEntry][94]?** Assigned worker. / Назначенный работник.
+- `abortListener` **[Function][523]?** Abort listener. / Обработчик отмены.
 - `timeoutHandle` **Timeout?** Timeout timer. / Таймер тайм-аута.
 - `graceHandle` **Timeout?** Cancellation grace timer. / Таймер льготного периода.
 
@@ -838,28 +1086,28 @@ Type: [Object][360]
 Internal state of one reusable worker.
 Внутреннее состояние одного переиспользуемого работника.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `worker` **[Worker][371]** Worker thread. / Поток Worker.
-- `task` **[WorkerTask][78]?** Assigned task. / Назначенная задача.
-- `terminating` **[boolean][358]** Whether termination started. / Началась ли остановка.
-- `finished` **[Promise][365]\<void>** Active-task completion. / Завершение активной задачи.
-- `finish` **[Function][364]?** Completion resolver. / Функция завершения.
+- `worker` **[Worker][528]** Worker thread. / Поток Worker.
+- `task` **[WorkerTask][92]?** Assigned task. / Назначенная задача.
+- `terminating` **[boolean][516]** Whether termination started. / Началась ли остановка.
+- `finished` **[Promise][524]\<void>** Active-task completion. / Завершение активной задачи.
+- `finish` **[Function][523]?** Completion resolver. / Функция завершения.
 
 ## WorkerRunMessage
 
 Parent-to-worker run message.
 Сообщение запуска от родителя к Worker.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
 - `type` **`"run"`** Message type. / Тип сообщения.
-- `id` **[number][359]** Task identifier. / Идентификатор задачи.
-- `metaUrl` **[string][357]** Job module URL. / URL модуля задачи.
+- `id` **[number][517]** Task identifier. / Идентификатор задачи.
+- `metaUrl` **[string][513]** Job module URL. / URL модуля задачи.
 - `payload` **any** Job input. / Входные данные.
 
 ## WorkerCancelMessage
@@ -867,26 +1115,26 @@ Type: [Object][360]
 Parent-to-worker cancellation message.
 Сообщение отмены от родителя к Worker.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
 - `type` **`"cancel"`** Message type. / Тип сообщения.
-- `id` **[number][359]** Task identifier. / Идентификатор задачи.
+- `id` **[number][517]** Task identifier. / Идентификатор задачи.
 
 ## WorkerResponseMessage
 
 Worker-to-parent completion message.
 Сообщение завершения от Worker к родителю.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `id` **[number][359]** Task identifier. / Идентификатор задачи.
+- `id` **[number][517]** Task identifier. / Идентификатор задачи.
 - `status` **(`"success"` | `"clone-error"` | `"error"`)** Completion status. / Статус завершения.
 - `result` **any?** Successful result. / Успешный результат.
-- `error` **[SerializedWorkerError][76]?** Serialized failure. / Сериализованная ошибка.
+- `error` **[SerializedWorkerError][90]?** Serialized failure. / Сериализованная ошибка.
 
 ## isHttpToken
 
@@ -896,33 +1144,54 @@ Tests a value against HTTP token syntax. / Проверяет значение �
 
 - `value` **any** Candidate value. / Проверяемое значение.
 
-Returns **[boolean][358]** Validation result. / Результат проверки.
+Returns **[boolean][516]** Validation result. / Результат проверки.
+
+## STRATEGY\_KEYS
+
+Exact custom-strategy keys. / Точные ключи custom strategy.
+
+Type: [Array][514]<[string][513]>
 
 ## controllers
 
-Type: [Map][362]<[string][357], [WebSocketControllerEntry][67]>
+Type: [Map][520]<[string][513], [WebSocketControllerEntry][81]>
 
 ## controllers
 
 Abort controllers for running jobs by task identifier. / Контроллеры отмены выполняемых задач по идентификатору.
 
-Type: [Map][362]<[number][359], AbortController>
+Type: [Map][520]<[number][517], AbortController>
 
 ## controllers
 
-Type: [WebSocketControllerRegistry][60]
+Type: [WebSocketControllerRegistry][74]
 
 ## closed
 
-Type: [boolean][358]
+Type: [boolean][516]
 
 ## closed
 
-Type: [boolean][358]
+Type: [boolean][516]
 
 ## closed
 
-Type: [boolean][358]
+Type: [boolean][516]
+
+## rejectHandshake
+
+Writes and closes a JSON HTTP handshake refusal.
+Записывает и закрывает JSON-отказ HTTP handshake.
+
+### Parameters
+
+- `socket` **Socket** Handshake socket. / Socket handshake.
+- `status` **[number][517]** HTTP status. / HTTP-статус.
+- `reason` **[string][513]** HTTP reason phrase. / Reason phrase HTTP.
+- `code` **[string][513]** Public error code. / Публичный код ошибки.
+- `challenge` **[string][513]?** WWW-Authenticate challenge. / Challenge WWW-Authenticate.
+
+Returns **void**&#x20;
 
 ## InvalidHttpPathEncodingError
 
@@ -937,27 +1206,130 @@ Recursively checks strict JSON compatibility without cycles or accessors. / Ре
 ### Parameters
 
 - `value` **any** Candidate value. / Проверяемое значение.
-- `ancestors` **[WeakSet][370]<[Object][360]>?** Current ancestors. / Текущие предки. (optional, default `new WeakSet()`)
+- `ancestors` **[WeakSet][527]<[Object][518]>?** Current ancestors. / Текущие предки. (optional, default `new WeakSet()`)
 
-Returns **[boolean][358]** Compatibility result. / Результат проверки.
+Returns **[boolean][516]** Compatibility result. / Результат проверки.
 
-## WEBSOCKET\_OPTION\_KEYS
+## invalidRoute
 
-Supported WebSocket configuration keys. / Поддерживаемые ключи конфигурации WebSocket.
+Creates an invalid-route error with an optional cause. / Создаёт ошибку HTTP-маршрута с необязательной причиной.
 
-Type: [Set][366]<[string][357]>
+### Parameters
+
+- `message` **[string][513]** Error text. / Текст ошибки.
+- `cause` **[Error][525]?** Original error. / Исходная ошибка.
+
+Returns **[InvalidHttpRouteError][35]** Created error. / Созданная ошибка.
+
+## APPLICATION\_OPTION\_KEYS
+
+Exact top-level Application configuration keys. / Точные ключи конфигурации Application.
+
+Type: [Set][521]<[string][513]>
 
 ## config
 
-Type: [NormalizedJobRunnerConfig][175]
+Type: [NormalizedJobRunnerConfig][227]
 
 ## config
 
-Type: [NormalizedJobRunnerConfig][175]
+Type: [NormalizedJobRunnerConfig][227]
+
+## hasExactDataKeys
+
+Tests whether a value has exactly the required own data properties.
+Проверяет точное наличие обязательных собственных data-свойств.
+
+### Parameters
+
+- `value` **any** Candidate object. / Проверяемый объект.
+- `keys` **[Array][514]<[string][513]>** Required keys. / Обязательные ключи.
+
+Returns **[boolean][516]** Whether the shape is exact. / Является ли форма точной.
+
+## hasExactDataKeys
+
+Tests an object for exact own data-property keys.
+Проверяет точный набор собственных data-свойств объекта.
+
+### Parameters
+
+- `value` **any** Candidate object. / Проверяемый объект.
+- `keys` **[Array][514]<[string][513]>** Allowed keys. / Допустимые ключи.
+- `optional` **[Array][514]<[string][513]>** Optional keys. / Необязательные ключи. (optional, default `[]`)
+
+Returns **[boolean][516]** Whether the object has the exact shape. / Соответствует ли объект форме.
+
+## SCENARIO\_KEYS
+
+Exact scenario keys. / Точные ключи scenario.
+
+Type: [Array][514]<[string][513]>
+
+## createWebSocketRequestSender
+
+Creates the request-scoped WebSocket server-push capability for one confirmed AuthSession.
+Создаёт request-scoped capability WebSocket server push для одной подтверждённой AuthSession.
+
+### Parameters
+
+- `authSessionId` **[string][513]** Confirmed authentication-session identifier. / Идентификатор
+  подтверждённой сессии аутентификации.
+- `sessionStore` **[WebSocketSessionStore][1]** Application-owned session catalog. / Принадлежащий
+  приложению каталог сессий.
+- `maxPayload` **[number][517]** Maximum encoded message bytes. / Максимальный размер кодированного
+  сообщения в байтах.
+
+Returns **[HttpRequestWebSocketSender][128]** Frozen request-scoped sender. / Замороженный
+request-scoped sender.
+
+## HttpRequestWebSocketSender
+
+Request-scoped WebSocket server-push capability.
+Request-scoped capability WebSocket server push.
+
+Type: [Object][518]
+
+### Properties
+
+- `send` **[WebSocketPushSend][130]** Sends one protocol envelope to the current AuthSession. /
+  Отправляет один envelope протокола текущей AuthSession.
+
+## WebSocketPushSend
+
+Sends one WebSocket protocol envelope.
+Отправляет один envelope WebSocket-протокола.
+
+Type: [Function][523]
+
+### Parameters
+
+- `envelope` **[WebSocketProtocolMessage][266]** Exact protocol envelope. / Точный envelope протокола.
+
+Returns **[WebSocketPushResult][132]** Local enqueue result. / Результат локальной постановки в очередь.
+
+## WebSocketPushResult
+
+Local WebSocket server-push enqueue result.
+Результат локальной постановки WebSocket server push в очередь.
+
+Type: [Object][518]
+
+### Properties
+
+- `matched` **[number][517]** Matched local connections. / Найденные локальные соединения.
+- `queued` **[number][517]** Connections that accepted the frame. / Соединения, принявшие frame.
+- `dropped` **[number][517]** Connections that rejected the frame. / Соединения, отклонившие frame.
+
+## HTTP\_OPTION\_KEYS
+
+Supported HTTP configuration keys. / Поддерживаемые ключи конфигурации HTTP.
+
+Type: [Set][521]<[string][513]>
 
 ## nextId
 
-Type: [number][359]
+Type: [number][517]
 
 ## isTimeout
 
@@ -967,18 +1339,7 @@ Checks a non-negative finite millisecond timeout. / Проверяет неот�
 
 - `value` **any** Candidate. / Проверяемое значение.
 
-Returns **[boolean][358]** Validation result. / Результат проверки.
-
-## frame
-
-Builds one unmasked server-to-client WebSocket frame. / Формирует один немаскированный WebSocket frame от сервера клиенту.
-
-### Parameters
-
-- `opcode` **[number][359]** Frame opcode. / Opcode frame.
-- `payload` **[Buffer][372]?** Frame payload. / Payload frame. (optional, default `Buffer.alloc(0)`)
-
-Returns **[Buffer][372]** Encoded frame. / Кодированный frame.
+Returns **[boolean][516]** Validation result. / Результат проверки.
 
 ## InvalidHttpOptionsError
 
@@ -986,20 +1347,15 @@ Returns **[Buffer][372]** Encoded frame. / Кодированный frame.
 
 Invalid HTTP configuration. / Некорректная конфигурация HTTP.
 
-## parsePath
+## HTTP\_INPUT\_KEYS
 
-Parses a declared or requested absolute path. / Разбирает объявленный или запрошенный абсолютный путь.
+Exact HTTP strategy-input keys. / Точные ключи HTTP input strategy.
 
-### Parameters
-
-- `path` **[string][357]** Path to parse. / Разбираемый путь.
-- `matchInput` **[boolean][358]** Whether the path came from a request. / Получен ли путь из запроса. (optional, default `false`)
-
-Returns **[Array][367]<[string][357]>** Decoded segments. / Декодированные сегменты.
+Type: [Array][514]<[string][513]>
 
 ## queue
 
-Type: [Array][367]<[WorkerTask][78]>
+Type: [Array][514]<[WorkerTask][92]>
 
 ## decodePathSegments
 
@@ -1007,13 +1363,116 @@ Decodes safe non-empty segments from an absolute path. / Декодирует б
 
 ### Parameters
 
-- `path` **[string][357]** Path to decode. / Декодируемый путь.
+- `path` **[string][513]** Path to decode. / Декодируемый путь.
 
 <!---->
 
-- Throws **([URIError][373] | [TypeError][374])** For invalid encoding or forbidden segments. / При некорректном кодировании или запрещённых сегментах.
+- Throws **([URIError][529] | [TypeError][530])** For invalid encoding or forbidden segments. / При некорректном кодировании или запрещённых сегментах.
 
-Returns **[Array][367]<[string][357]>** Decoded segments. / Декодированные сегменты.
+Returns **[Array][514]<[string][513]>** Decoded segments. / Декодированные сегменты.
+
+## validateOrigin
+
+Validates an optional exact Origin header against the configured allowlist.
+Проверяет необязательный точный заголовок Origin по настроенному allowlist.
+
+### Parameters
+
+- `request` **IncomingMessage** Upgrade request. / Upgrade-запрос.
+- `allowedOrigins` **[Array][514]<[string][513]>** Allowed canonical origins. / Разрешённые canonical origins.
+
+## workers
+
+Type: [Set][521]<[WorkerEntry][94]>
+
+## InvalidAuthenticationOptionsError
+
+**Extends TypeError**
+
+Invalid Authentication configuration, selector, or preset options.
+Некорректная конфигурация, selector или параметры preset Authentication.
+
+## parsePath
+
+Parses a declared or requested absolute path. / Разбирает объявленный или запрошенный абсолютный путь.
+
+### Parameters
+
+- `path` **[string][513]** Path to parse. / Разбираемый путь.
+- `matchInput` **[boolean][516]** Whether the path came from a request. / Получен ли путь из запроса. (optional, default `false`)
+
+Returns **[Array][514]<[string][513]>** Decoded segments. / Декодированные сегменты.
+
+## WEBSOCKET\_INPUT\_KEYS
+
+Exact WebSocket strategy-input keys. / Точные ключи WebSocket input strategy.
+
+Type: [Array][514]<[string][513]>
+
+## validateExport
+
+Validates the default export loaded inside a worker. / Проверяет default export, загруженный внутри Worker.
+
+### Parameters
+
+- `JobClass` **[Function][523]** Loaded class. / Загруженный класс.
+- `metaUrl` **[string][513]** Requested module URL. / Запрошенный URL модуля.
+
+Returns **void**&#x20;
+
+## WEBSOCKET\_OPTION\_KEYS
+
+Supported WebSocket configuration keys. / Поддерживаемые ключи конфигурации WebSocket.
+
+Type: [Set][521]<[string][513]>
+
+## callPresetCallback
+
+Calls a user credential callback without retaining a rejected error.
+Вызывает пользовательский credential callback без сохранения отклонённой ошибки.
+
+### Parameters
+
+- `callback` **[Function][523]** User callback. / Пользовательский callback.
+- `credential` **[string][513]** Raw credential. / Исходный credential.
+- `metadata` **[Object][518]** Safe callback metadata. / Безопасные metadata callback.
+
+<!---->
+
+- Throws **[AuthenticationPresetCallbackError][65]** When the callback fails. / При сбое callback.
+
+Returns **[Promise][524]\<any>** Callback outcome. / Результат callback.
+
+## normalizeConfig
+
+Validates and fills job-runner defaults. / Проверяет конфигурацию исполнителя задач и заполняет значения по умолчанию.
+
+### Parameters
+
+- `config` **[JobRunnerConfig][225]?** User configuration. / Пользовательская конфигурация. (optional, default `{}`)
+
+Returns **[NormalizedJobRunnerConfig][227]** Normalized configuration. / Нормализованная конфигурация.
+
+## InvalidAuthenticationResultError
+
+**Extends TypeError**
+
+Invalid tagged result returned by an authentication strategy.
+Некорректный tagged result, возвращённый strategy аутентификации.
+
+### Parameters
+
+- `strategy` **[string][513]** Strategy name. / Имя strategy.
+
+### Properties
+
+- `strategy` **[string][513]** Stable strategy name. / Стабильное имя strategy.
+
+## AUTHENTICATION\_INSTANCES
+
+Framework-created Authentication instances. / Созданные фреймворком экземпляры Authentication.
+
+Type: [WeakSet][527]<[Object][518]>
 
 ## InfrastructureHttpError
 
@@ -1024,12 +1483,225 @@ Internal HTTP failure with a client-visible status and message.
 
 ### Parameters
 
-- `status` **[number][359]** HTTP status. / HTTP-статус.
-- `message` **[string][357]** Client-visible message. / Сообщение для клиента.
+- `status` **[number][517]** HTTP status. / HTTP-статус.
+- `message` **[string][513]** Client-visible message. / Сообщение для клиента.
 
-## workers
+## bearerToken
 
-Type: [Set][366]<[WorkerEntry][80]>
+Creates an HTTP Bearer authentication strategy.
+Создаёт strategy HTTP Bearer-аутентификации.
+
+### Parameters
+
+- `options` **[BearerTokenOptions][277]** Preset options. / Параметры preset.
+
+<!---->
+
+- Throws **[InvalidAuthenticationOptionsError][146]** When options are invalid. / При неверных параметрах.
+
+Returns **[AuthenticationStrategy][451]** Authentication strategy. / Strategy аутентификации.
+
+## isWebSocketMessageBody
+
+Tests whether a value is a valid body for an outgoing `daevox.v1` message.
+Проверяет, является ли значение допустимым телом исходящего сообщения `daevox.v1`.
+
+### Parameters
+
+- `body` **any** Candidate body. / Проверяемое тело.
+
+Returns **[boolean][516]** Validation result. / Результат проверки.
+
+## AUTHENTICATION\_SCENARIOS
+
+Scenario catalogs owned by framework-created Authentication instances.
+Каталоги scenarios, принадлежащие созданным фреймворком экземплярам Authentication.
+
+Type: [WeakMap][531]<[Object][518], [Map][520]<[string][513], [AuthenticationScenario][453]>>
+
+## AuthenticationStrategyError
+
+**Extends Error**
+
+Authentication strategy threw, rejected, or returned an invalid result.
+Strategy аутентификации выбросила ошибку, отклонила Promise или вернула неверный результат.
+
+### Parameters
+
+- `strategy` **[string][513]** Strategy name. / Имя strategy.
+- `cause` **any** Original failure. / Исходный сбой.
+
+### Properties
+
+- `strategy` **[string][513]** Stable strategy name. / Стабильное имя strategy.
+
+## compileRoute
+
+Compiles a normalized HTTP route into a matchable record. / Компилирует нормализованный HTTP-маршрут в запись для сопоставления.
+
+### Parameters
+
+- `definition` **[NormalizedHttpRoute][399]** Normalized route. / Нормализованный HTTP-маршрут.
+
+Returns **[CompiledHttpRoute][256]** Compiled route. / Скомпилированный HTTP-маршрут.
+
+## invalidOptions
+
+Throws a normalized Authentication-options error.
+Выбрасывает нормализованную ошибку параметров Authentication.
+
+### Parameters
+
+- `message` **[string][513]** Error text without configuration values. / Текст без значений
+  конфигурации.
+
+<!---->
+
+- Throws **[InvalidAuthenticationOptionsError][146]** Always. / Всегда.
+
+## authenticate
+
+Authenticates one normalized input with a Bearer credential.
+Аутентифицирует один нормализованный input с Bearer credential.
+
+### Parameters
+
+- `input` **[Object][518]** Normalized strategy input. / Нормализованный input strategy.
+
+Returns **[Promise][524]<[Object][518]>** Tagged strategy result. / Tagged result strategy.
+
+## authenticate
+
+Authenticates one normalized input with a session cookie.
+Аутентифицирует один нормализованный input с session cookie.
+
+### Parameters
+
+- `input` **[Object][518]** Normalized strategy input. / Нормализованный input strategy.
+
+Returns **[Promise][524]<[Object][518]>** Tagged strategy result. / Tagged result strategy.
+
+## authenticate
+
+Authenticates one normalized WebSocket input with a one-time ticket.
+Аутентифицирует один нормализованный WebSocket input одноразовым ticket.
+
+### Parameters
+
+- `input` **[Object][518]** Normalized strategy input. / Нормализованный input strategy.
+
+Returns **[Promise][524]<[Object][518]>** Tagged strategy result. / Tagged result strategy.
+
+## serialize
+
+Serializes application text into an outbound message descriptor. / Сериализует прикладной текст в описание исходящего сообщения.
+
+### Parameters
+
+- `data` **[string][513]** Text data. / Текстовые данные.
+
+Returns **[WebSocketOutboundMessage][476]** Message descriptor. / Описание сообщения.
+
+## handleMessage
+
+Handles parent-to-worker run and cancellation messages. / Обрабатывает сообщения запуска и отмены от родителя к Worker.
+
+### Parameters
+
+- `message` **([WorkerRunMessage][96] | [WorkerCancelMessage][98])** Worker protocol message. / Сообщение протокола Worker.
+
+Returns **[Promise][524]\<void>** Message completion. / Завершение обработки.
+
+## validateJobClass
+
+Validates a user job class and returns its module URL. / Проверяет пользовательский класс задачи и возвращает URL его модуля.
+
+### Parameters
+
+- `JobClass` **[Function][523]** Candidate class. / Проверяемый класс.
+
+Returns **[string][513]** Absolute `file:` URL. / Абсолютный URL `file:`.
+
+## decodeWebSocketMessage
+
+Decodes and validates an inbound `daevox.v1` text message. / Декодирует и проверяет входящее текстовое сообщение `daevox.v1`.
+
+### Parameters
+
+- `text` **[string][513]** JSON text. / JSON-текст.
+
+<!---->
+
+- Throws **[WebSocketProtocolError][243]** For invalid protocol input. / При некорректных данных протокола.
+
+Returns **[WebSocketProtocolMessage][266]** Decoded message. / Декодированное сообщение.
+
+## invalidHttpOptions
+
+Throws a normalized HTTP-options error. / Выбрасывает нормализованную ошибку параметров HTTP.
+
+### Parameters
+
+- `message` **[string][513]** Error text. / Текст ошибки.
+
+<!---->
+
+- Throws **[InvalidHttpOptionsError][138]** Always. / Всегда.
+
+## AuthenticationAbortedError
+
+**Extends Error**
+
+Authentication stopped because its request or handshake was aborted.
+Аутентификация прекращена из-за отмены запроса или handshake.
+
+## normalizeHttpOptions
+
+Validates and fills HTTP configuration defaults.
+Проверяет конфигурацию HTTP и заполняет значения по умолчанию.
+
+### Parameters
+
+- `options` **[HttpOptions][387]?** HTTP configuration. / Конфигурация HTTP. (optional, default `{}`)
+
+Returns **[NormalizedHttpOptions][389]** Normalized configuration. / Нормализованная конфигурация.
+
+## InvalidWebSocketPushError
+
+**Extends TypeError**
+
+Invalid request-scoped WebSocket server-push envelope.
+Некорректный envelope request-scoped WebSocket server push.
+
+## frame
+
+Builds one unmasked server-to-client WebSocket frame. / Формирует один немаскированный WebSocket frame от сервера клиенту.
+
+### Parameters
+
+- `opcode` **[number][517]** Frame opcode. / Opcode frame.
+- `payload` **[Buffer][532]?** Frame payload. / Payload frame. (optional, default `Buffer.alloc(0)`)
+
+Returns **[Buffer][532]** Encoded frame. / Кодированный frame.
+
+## WebSocketPushPayloadTooLargeError
+
+**Extends RangeError**
+
+Request-scoped WebSocket server-push envelope exceeds the configured payload limit.
+Envelope request-scoped WebSocket server push превышает настроенное ограничение payload.
+
+## catalogEntries
+
+Reads a non-empty catalog containing enumerable data properties.
+Читает непустой каталог с перечислимыми data-свойствами.
+
+### Parameters
+
+- `value` **any** Candidate catalog. / Проверяемый каталог.
+- `label` **[string][513]** Catalog label for errors. / Название каталога для ошибок.
+
+Returns **[Array][514]<\[[string][513], any]>** Stable catalog entries. / Стабильные элементы каталога.
 
 ## InvalidWebSocketControllerError
 
@@ -1037,32 +1709,31 @@ Type: [Set][366]<[WorkerEntry][80]>
 
 Invalid WebSocket-controller declaration. / Некорректное объявление WebSocket-контроллера.
 
-## validateExport
+## validateOptions
 
-Validates the default export loaded inside a worker. / Проверяет default export, загруженный внутри Worker.
-
-### Parameters
-
-- `JobClass` **[Function][364]** Loaded class. / Загруженный класс.
-- `metaUrl` **[string][357]** Requested module URL. / Запрошенный URL модуля.
-
-Returns **void**&#x20;
-
-## normalizeConfig
-
-Validates and fills job-runner defaults. / Проверяет конфигурацию исполнителя задач и заполняет значения по умолчанию.
+Validates options for one job run. / Проверяет параметры одного запуска задачи.
 
 ### Parameters
 
-- `config` **[JobRunnerConfig][173]?** User configuration. / Пользовательская конфигурация. (optional, default `{}`)
+- `options` **[JobRunOptions][229]?** Run options. / Параметры запуска.
+- `defaultTimeout` **[number][517]?** Configured default timeout. / Тайм-аут по умолчанию.
 
-Returns **[NormalizedJobRunnerConfig][175]** Normalized configuration. / Нормализованная конфигурация.
+Returns **[NormalizedJobRunOptions][231]** Normalized options. / Нормализованные параметры.
 
-## InvalidWebSocketOptionsError
+## cookieSession
 
-**Extends TypeError**
+Creates a cookie-backed authentication strategy.
+Создаёт strategy аутентификации на основе cookie.
 
-Invalid WebSocket configuration. / Некорректная конфигурация WebSocket.
+### Parameters
+
+- `options` **[CookieSessionOptions][289]** Preset options. / Параметры preset.
+
+<!---->
+
+- Throws **[InvalidAuthenticationOptionsError][146]** When options are invalid. / При неверных параметрах.
+
+Returns **[AuthenticationStrategy][451]** Authentication strategy. / Strategy аутентификации.
 
 ## WebSocketConnection
 
@@ -1071,9 +1742,10 @@ Parses frames and owns one upgraded WebSocket connection. / Разбирает f
 ### Parameters
 
 - `socket` **Socket** Upgraded socket. / Upgraded-сокет.
-- `options` **[WebSocketConnectionOptions][319]** Parser callbacks and limit. / Callbacks и ограничение парсера.
+- `options` **[WebSocketConnectionOptions][478]** Parser callbacks and limit. / Callbacks и ограничение парсера.
 
   - `options.maxPayload` &#x20;
+  - `options.maxWriteQueueBytes` &#x20;
   - `options.onClose` &#x20;
   - `options.onMessage` &#x20;
   - `options.onProtocolError` &#x20;
@@ -1084,7 +1756,7 @@ Feeds bytes already read after the HTTP upgrade request. / Передаёт ба
 
 #### Parameters
 
-- `head` **[Buffer][372]** Buffered bytes. / Буферизованные байты.
+- `head` **[Buffer][532]** Buffered bytes. / Буферизованные байты.
 
 Returns **void**&#x20;
 
@@ -1094,9 +1766,9 @@ Sends one protocol text message. / Отправляет одно текстов�
 
 #### Parameters
 
-- `data` **[string][357]** Encoded message. / Кодированное сообщение.
+- `data` **[string][513]** Encoded message. / Кодированное сообщение.
 
-Returns **[boolean][358]** Whether the frame was accepted for writing. / Был ли frame принят для записи.
+Returns **[boolean][516]** Whether the frame was accepted for writing. / Был ли frame принят для записи.
 
 ### close
 
@@ -1104,147 +1776,16 @@ Starts a WebSocket closing handshake and finishes local state. / Начинае�
 
 #### Parameters
 
-- `code` **[number][359]** Close code. / Код закрытия. (optional, default `1000`)
-- `reason` **[string][357]** Close reason. / Причина закрытия. (optional, default `''`)
+- `code` **[number][517]** Close code. / Код закрытия. (optional, default `1000`)
+- `reason` **[string][513]** Close reason. / Причина закрытия. (optional, default `''`)
 
 Returns **void**&#x20;
 
-## invalidHttpOptions
+## InvalidWebSocketOptionsError
 
-Throws a normalized HTTP-options error. / Выбрасывает нормализованную ошибку параметров HTTP.
+**Extends TypeError**
 
-### Parameters
-
-- `message` **[string][357]** Error text. / Текст ошибки.
-
-<!---->
-
-- Throws **[InvalidHttpOptionsError][107]** Always. / Всегда.
-
-## buffer
-
-Type: [Buffer][372]
-
-## DuplicateWebSocketControllerError
-
-**Extends Error**
-
-Repeated registration of the same WebSocket-controller class. / Повторная регистрация одного класса WebSocket-контроллера.
-
-## compileRoute
-
-Compiles a normalized HTTP route into a matchable record. / Компилирует нормализованный HTTP-маршрут в запись для сопоставления.
-
-### Parameters
-
-- `definition` **[NormalizedHttpRoute][270]** Normalized route. / Нормализованный HTTP-маршрут.
-
-Returns **[CompiledHttpRoute][192]** Compiled route. / Скомпилированный HTTP-маршрут.
-
-## decodeWebSocketMessage
-
-Decodes and validates an inbound `daevox.v1` text message. / Декодирует и проверяет входящее текстовое сообщение `daevox.v1`.
-
-### Parameters
-
-- `text` **[string][357]** JSON text. / JSON-текст.
-
-<!---->
-
-- Throws **[WebSocketProtocolError][147]** For invalid protocol input. / При некорректных данных протокола.
-
-Returns **[WebSocketProtocolMessage][199]** Decoded message. / Декодированное сообщение.
-
-## normalizeHttpOptions
-
-Validates and fills HTTP configuration defaults.
-Проверяет конфигурацию HTTP и заполняет значения по умолчанию.
-
-### Parameters
-
-- `options` **[HttpOptions][258]?** HTTP configuration. / Конфигурация HTTP. (optional, default `{}`)
-
-Returns **[NormalizedHttpOptions][260]** Normalized configuration. / Нормализованная конфигурация.
-
-## fragmentedChunks
-
-Type: [Array][367]<[Buffer][372]>
-
-## WebSocketControllerConflictError
-
-**Extends Error**
-
-Conflict between WebSocket-controller wire names. / Конфликт сетевых имён WebSocket-контроллеров.
-
-## fragmentedLength
-
-Type: [number][359]
-
-## handleMessage
-
-Handles parent-to-worker run and cancellation messages. / Обрабатывает сообщения запуска и отмены от родителя к Worker.
-
-### Parameters
-
-- `message` **([WorkerRunMessage][82] | [WorkerCancelMessage][84])** Worker protocol message. / Сообщение протокола Worker.
-
-Returns **[Promise][365]\<void>** Message completion. / Завершение обработки.
-
-## validateJobClass
-
-Validates a user job class and returns its module URL. / Проверяет пользовательский класс задачи и возвращает URL его модуля.
-
-### Parameters
-
-- `JobClass` **[Function][364]** Candidate class. / Проверяемый класс.
-
-Returns **[string][357]** Absolute `file:` URL. / Абсолютный URL `file:`.
-
-## WebSocketProtocolError
-
-**Extends Error**
-
-Stable error reported for a `daevox.v1` protocol violation.
-Стабильная ошибка нарушения протокола `daevox.v1`.
-
-### Parameters
-
-- `code` **[WebSocketErrorCode][232]** Machine-readable protocol code. / Машиночитаемый код.
-- `options` **[WebSocketProtocolErrorOptions][230]?** Error address and severity. / Адрес и
-  критичность ошибки. (optional, default `{}`)
-
-  - `options.fatal` (optional, default `false`)
-  - `options.controller` &#x20;
-  - `options.event` &#x20;
-
-## fragmentedOpcode
-
-Type: [number][359]
-
-## maxPayload
-
-Type: [number][359]
-
-## onClose
-
-Type: [WebSocketCloseListener][321]
-
-## onMessage
-
-Type: [WebSocketMessageListener][323]
-
-## onMessage
-
-Handles one job protocol response from a worker. / Обрабатывает один ответ протокола задач от работника.
-
-### Parameters
-
-- `entry` **[WorkerEntry][80]** Worker entry. / Запись работника.
-- `message` **[WorkerResponseMessage][86]** Worker message. / Сообщение работника.
-
-## onProtocolError
-
-Type: [WebSocketProtocolFailureListener][325]
+Invalid WebSocket configuration. / Некорректная конфигурация WebSocket.
 
 ## normalizeWebSocketOptions
 
@@ -1253,43 +1794,17 @@ Validates and fills WebSocket configuration defaults.
 
 ### Parameters
 
-- `options` **[WebSocketOptions][262]?** WebSocket configuration. / Конфигурация WebSocket. (optional, default `{}`)
+- `options` **[WebSocketOptions][391]?** WebSocket configuration. / Конфигурация WebSocket.
+- `authenticationModule` &#x20;
 
-Returns **[NormalizedWebSocketOptions][264]** Normalized configuration. / Нормализованная конфигурация.
+Returns **[NormalizedWebSocketOptions][393]** Normalized configuration. / Нормализованная конфигурация.
 
-## ApplicationStateError
+## blocked
 
-**Extends Error**
+Whether socket backpressure blocks the next frame.
+Блокирует ли backpressure socket передачу следующего frame.
 
-Invalid operation for the current application lifecycle state. / Операция недопустима в текущем состоянии жизненного цикла приложения.
-
-## socket
-
-Type: Socket
-
-## HttpError
-
-**Extends Error**
-
-Expected HTTP failure returned by an HTTP handler.
-Ожидаемая HTTP-ошибка, возвращаемая HTTP-обработчиком.
-
-### Parameters
-
-- `status` **[number][359]** HTTP status from 400 through 599. / HTTP-статус от 400 до 599.
-- `response` **[HttpErrorResponse][228]?** Client response details. / Данные ответа клиенту. (optional, default `{}`)
-- `options` **ErrorOptions?** Standard error options. / Стандартные параметры ошибки.
-
-## validateOptions
-
-Validates options for one job run. / Проверяет параметры одного запуска задачи.
-
-### Parameters
-
-- `options` **[JobRunOptions][177]?** Run options. / Параметры запуска.
-- `defaultTimeout` **[number][359]?** Configured default timeout. / Тайм-аут по умолчанию.
-
-Returns **[NormalizedJobRunOptions][179]** Normalized options. / Нормализованные параметры.
+Type: [boolean][516]
 
 ## encodeWebSocketMessage
 
@@ -1297,23 +1812,18 @@ Encodes a successful `daevox.v1` response. / Кодирует успешный �
 
 ### Parameters
 
-- `controller` **[string][357]** Controller wire name. / Сетевое имя контроллера.
-- `event` **[string][357]** Event wire name. / Сетевое имя события.
-- `body` **[Object][360]<[string][357], any>** Response body. / Тело ответа.
-- `maxPayload` **[number][359]?** Maximum encoded bytes. / Максимум байтов. (optional, default `Number.MAX_SAFE_INTEGER`)
+- `controller` **[string][513]** Controller wire name. / Сетевое имя контроллера.
+- `event` **[string][513]** Event wire name. / Сетевое имя события.
+- `body` **[Object][518]<[string][513], any>** Response body. / Тело ответа.
+- `maxPayload` **[number][517]?** Maximum encoded bytes. / Максимум байтов. (optional, default `Number.MAX_SAFE_INTEGER`)
 
-Returns **[string][357]** Encoded JSON message. / Кодированное JSON-сообщение.
+Returns **[string][513]** Encoded JSON message. / Кодированное JSON-сообщение.
 
-## compareSpecificity
+## DuplicateWebSocketControllerError
 
-Orders static segments ahead of parameter segments. / Упорядочивает статические сегменты перед параметризованными.
+**Extends Error**
 
-### Parameters
-
-- `left` **[CompiledHttpRoute][192]** Left route. / Левый HTTP-маршрут.
-- `right` **[CompiledHttpRoute][192]** Right route. / Правый HTTP-маршрут.
-
-Returns **[number][359]** Sort order. / Порядок сортировки.
+Repeated registration of the same WebSocket-controller class. / Повторная регистрация одного класса WebSocket-контроллера.
 
 ## JobRunner
 
@@ -1325,7 +1835,7 @@ Controllers receive this component as `jobRunner`; applications do not construct
 
 ### Parameters
 
-- `config` **[JobRunnerConfig][173]?** Job configuration. / Конфигурация задач.
+- `config` **[JobRunnerConfig][225]?** Job configuration. / Конфигурация задач.
 
 ### run
 
@@ -1333,34 +1843,34 @@ Runs a validated job in the worker pool. / Выполняет проверенн
 
 #### Parameters
 
-- `JobClass` **[Function][364]** Direct [Job][19] subclass. / Прямой подкласс [Job][19].
+- `JobClass` **[Function][523]** Direct [Job][26] subclass. / Прямой подкласс [Job][26].
 - `payload` **any** Structured-clone-compatible input. / Входные данные для structured clone.
-- `options` **[JobRunOptions][177]?** Cancellation and timeout. / Отмена и тайм-аут.
+- `options` **[JobRunOptions][229]?** Cancellation and timeout. / Отмена и тайм-аут.
 
-Returns **[Promise][365]\<any>** Job result. / Результат задачи.
+Returns **[Promise][524]\<any>** Job result. / Результат задачи.
 
 ### close
 
 Stops accepting jobs and closes the pool. / Прекращает приём задач и закрывает пул.
 
-Returns **[Promise][365]\<void>** Shutdown completion. / Завершение закрытия.
+Returns **[Promise][524]\<void>** Shutdown completion. / Завершение закрытия.
 
 ## JobRunnerConfig
 
 Background-job execution configuration.
 Конфигурация выполнения фоновых задач.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `poolSize` **[number][359]?** Number of worker threads. / Количество потоков Worker.
-- `queueSize` **[number][359]?** Maximum queued jobs. / Максимум задач в очереди.
-- `defaultTimeout` **[number][359]?** Default per-job timeout in milliseconds. / Тайм-аут задачи
+- `poolSize` **[number][517]?** Number of worker threads. / Количество потоков Worker.
+- `queueSize` **[number][517]?** Maximum queued jobs. / Максимум задач в очереди.
+- `defaultTimeout` **[number][517]?** Default per-job timeout in milliseconds. / Тайм-аут задачи
   по умолчанию.
-- `terminationGracePeriod` **[number][359]?** Cancellation grace period in milliseconds. /
+- `terminationGracePeriod` **[number][517]?** Cancellation grace period in milliseconds. /
   Льготный период отмены.
-- `shutdownTimeout` **[number][359]?** Pool shutdown timeout in milliseconds. / Тайм-аут
+- `shutdownTimeout` **[number][517]?** Pool shutdown timeout in milliseconds. / Тайм-аут
   закрытия пула.
 
 ## NormalizedJobRunnerConfig
@@ -1368,47 +1878,112 @@ Type: [Object][360]
 Normalized background-job configuration.
 Нормализованная конфигурация фоновых задач.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `poolSize` **[number][359]** Number of worker threads. / Количество потоков Worker.
-- `queueSize` **[number][359]** Maximum queued jobs. / Максимум задач в очереди.
-- `defaultTimeout` **[number][359]?** Default timeout. / Тайм-аут по умолчанию.
-- `terminationGracePeriod` **[number][359]** Cancellation grace period. / Льготный период отмены.
-- `shutdownTimeout` **[number][359]** Pool shutdown timeout. / Тайм-аут закрытия пула.
+- `poolSize` **[number][517]** Number of worker threads. / Количество потоков Worker.
+- `queueSize` **[number][517]** Maximum queued jobs. / Максимум задач в очереди.
+- `defaultTimeout` **[number][517]?** Default timeout. / Тайм-аут по умолчанию.
+- `terminationGracePeriod` **[number][517]** Cancellation grace period. / Льготный период отмены.
+- `shutdownTimeout` **[number][517]** Pool shutdown timeout. / Тайм-аут закрытия пула.
 
 ## JobRunOptions
 
 Options for one background-job run.
 Параметры одного запуска фоновой задачи.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
 - `signal` **AbortSignal?** Caller cancellation signal. / Сигнал отмены вызывающей стороны.
-- `timeout` **[number][359]?** Timeout in milliseconds. / Тайм-аут в миллисекундах.
+- `timeout` **[number][517]?** Timeout in milliseconds. / Тайм-аут в миллисекундах.
 
 ## NormalizedJobRunOptions
 
 Normalized options for one background-job run.
 Нормализованные параметры запуска фоновой задачи.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
 - `signal` **AbortSignal?** Cancellation signal. / Сигнал отмены.
-- `timeout` **[number][359]?** Timeout in milliseconds. / Тайм-аут в миллисекундах.
+- `timeout` **[number][517]?** Timeout in milliseconds. / Тайм-аут в миллисекундах.
+
+## buffer
+
+Type: [Buffer][532]
+
+## compareSpecificity
+
+Orders static segments ahead of parameter segments. / Упорядочивает статические сегменты перед параметризованными.
+
+### Parameters
+
+- `left` **[CompiledHttpRoute][256]** Left route. / Левый HTTP-маршрут.
+- `right` **[CompiledHttpRoute][256]** Right route. / Правый HTTP-маршрут.
+
+Returns **[number][517]** Sort order. / Порядок сортировки.
+
+## normalizeStrategy
+
+Copies and freezes a custom strategy declaration.
+Копирует и замораживает декларацию custom strategy.
+
+### Parameters
+
+- `declaration` **any** User declaration. / Пользовательская декларация.
+
+Returns **[AuthenticationStrategy][451]** Normalized strategy. / Нормализованная strategy.
+
+## WebSocketControllerConflictError
+
+**Extends Error**
+
+Conflict between WebSocket-controller wire names. / Конфликт сетевых имён WebSocket-контроллеров.
 
 ## closePromise
 
-Type: [Promise][365]\<void>
+Type: [Promise][524]\<void>
 
 ## closePromise
 
-Type: [Promise][365]\<void>
+Type: [Promise][524]\<void>
+
+## fragmentedChunks
+
+Type: [Array][514]<[Buffer][532]>
+
+## fragmentedLength
+
+Type: [number][517]
+
+## WebSocketProtocolError
+
+**Extends Error**
+
+Stable error reported for a `daevox.v1` protocol violation.
+Стабильная ошибка нарушения протокола `daevox.v1`.
+
+### Parameters
+
+- `code` **[WebSocketErrorCode][343]** Machine-readable protocol code. / Машиночитаемый код.
+- `options` **[WebSocketProtocolErrorOptions][341]?** Error address and severity. / Адрес и
+  критичность ошибки. (optional, default `{}`)
+
+  - `options.fatal` (optional, default `false`)
+  - `options.controller` &#x20;
+  - `options.event` &#x20;
+
+## workerPool
+
+Type: [WorkerPool][85]
+
+## fragmentedOpcode
+
+Type: [number][517]
 
 ## HttpRouter
 
@@ -1421,7 +1996,7 @@ Atomically registers a non-empty set of normalized routes. / Атомарно р
 
 #### Parameters
 
-- `routes` **[Array][367]<[NormalizedHttpRoute][270]>** Routes to register. / Регистрируемые HTTP-маршруты.
+- `routes` **[Array][514]<[NormalizedHttpRoute][399]>** Routes to register. / Регистрируемые HTTP-маршруты.
 
 Returns **void**&#x20;
 
@@ -1431,10 +2006,10 @@ Matches an HTTP method and requested path. / Сопоставляет HTTP-ме�
 
 #### Parameters
 
-- `method` **[string][357]** HTTP method. / HTTP-метод.
-- `pathname` **[string][357]** Requested path. / Запрошенный путь.
+- `method` **[string][513]** HTTP method. / HTTP-метод.
+- `pathname` **[string][513]** Requested path. / Запрошенный путь.
 
-Returns **([HttpRouteMatch][194] | null)** Match or `null`. / Результат или `null`.
+Returns **([HttpRouteMatch][258] | null)** Match or `null`. / Результат или `null`.
 
 ### methodsFor
 
@@ -1442,52 +2017,69 @@ Lists explicitly registered methods for a requested path shape. / Возвращ
 
 #### Parameters
 
-- `pathname` **[string][357]** Requested path. / Запрошенный путь.
+- `pathname` **[string][513]** Requested path. / Запрошенный путь.
 
-Returns **[Array][367]<[string][357]>** Ordered unique methods. / Упорядоченные уникальные методы.
+Returns **[Array][514]<[string][513]>** Ordered unique methods. / Упорядоченные уникальные методы.
 
 ## HttpRoutePatternSegment
 
 One path pattern segment.
 Один сегмент шаблона пути.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `dynamic` **[boolean][358]** Whether the value names a parameter. / Является ли значение именем
+- `dynamic` **[boolean][516]** Whether the value names a parameter. / Является ли значение именем
   параметра.
-- `value` **[string][357]** Static value or parameter name. / Статическое значение или имя.
+- `value` **[string][513]** Static value or parameter name. / Статическое значение или имя.
 
 ## CompiledHttpRoute
 
 Matchable internal HTTP-route record.
 Внутренняя запись HTTP-маршрута для сопоставления.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `definition` **[NormalizedHttpRoute][270]** Stored normalized route. / Нормализованный маршрут.
-- `method` **[string][357]** Uppercase HTTP method. / HTTP-метод в верхнем регистре.
-- `pattern` **[Array][367]<[HttpRoutePatternSegment][190]>** Compiled path pattern. / Шаблон пути.
-- `structuralKey` **[string][357]** Conflict key. / Ключ конфликта.
+- `definition` **[NormalizedHttpRoute][399]** Stored normalized route. / Нормализованный маршрут.
+- `method` **[string][513]** Uppercase HTTP method. / HTTP-метод в верхнем регистре.
+- `pattern` **[Array][514]<[HttpRoutePatternSegment][254]>** Compiled path pattern. / Шаблон пути.
+- `structuralKey` **[string][513]** Conflict key. / Ключ конфликта.
 
 ## HttpRouteMatch
 
 Successful HTTP-route lookup.
 Успешный поиск HTTP-маршрута.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `route` **[NormalizedHttpRoute][270]** Matched route. / Найденный HTTP-маршрут.
-- `params` **[Object][360]<[string][357], [string][357]>** Frozen path parameters. / Замороженные параметры пути.
+- `route` **[NormalizedHttpRoute][399]** Matched route. / Найденный HTTP-маршрут.
+- `params` **[Object][518]<[string][513], [string][513]>** Frozen path parameters. / Замороженные параметры пути.
+
+## maxPayload
+
+Type: [number][517]
+
+## normalizeScenario
+
+Copies and freezes one declarative scenario.
+Копирует и замораживает один декларативный scenario.
+
+### Parameters
+
+- `declaration` **any** User declaration. / Пользовательская декларация.
+- `strategies` **[Map][520]<[string][513], [AuthenticationStrategy][451]>** Normalized strategies. /
+  Нормализованные strategies.
+
+Returns **[AuthenticationScenario][453]** Normalized scenario. / Нормализованный scenario.
 
 ## routes
 
-Type: [Array][367]<[CompiledHttpRoute][192]>
+Type: [Array][514]<[CompiledHttpRoute][256]>
 
 ## encodeWebSocketError
 
@@ -1495,86 +2087,218 @@ Encodes an addressed `daevox.v1` error response. / Кодирует адресо
 
 ### Parameters
 
-- `controller` **[string][357]** Controller wire name. / Сетевое имя контроллера.
-- `event` **[string][357]** Event wire name. / Сетевое имя события.
-- `code` **[WebSocketErrorCode][232]** Protocol error code. / Код ошибки протокола.
-- `maxPayload` **[number][359]?** Maximum encoded bytes. / Максимум байтов. (optional, default `Number.MAX_SAFE_INTEGER`)
+- `controller` **[string][513]** Controller wire name. / Сетевое имя контроллера.
+- `event` **[string][513]** Event wire name. / Сетевое имя события.
+- `code` **[WebSocketErrorCode][343]** Protocol error code. / Код ошибки протокола.
+- `maxPayload` **[number][517]?** Maximum encoded bytes. / Максимум байтов. (optional, default `Number.MAX_SAFE_INTEGER`)
 
-Returns **[string][357]** Encoded JSON message. / Кодированное JSON-сообщение.
+Returns **[string][513]** Encoded JSON message. / Кодированное JSON-сообщение.
 
 ## WebSocketProtocolMessage
 
 Strict `daevox.v1` message envelope.
 Строгий envelope сообщения `daevox.v1`.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `controller` **[string][357]** Controller wire name. / Сетевое имя контроллера.
-- `event` **[string][357]** Event wire name. / Сетевое имя события.
-- `body` **[Object][360]<[string][357], any>** JSON-compatible plain object. / JSON-совместимый простой
+- `controller` **[string][513]** Controller wire name. / Сетевое имя контроллера.
+- `event` **[string][513]** Event wire name. / Сетевое имя события.
+- `body` **[Object][518]<[string][513], any>** JSON-compatible plain object. / JSON-совместимый простой
   объект.
 
-## workerPool
+## maxWriteQueueBytes
 
-Type: [WorkerPool][71]
+Maximum fully serialized bytes waiting in the framework queue.
+Максимальное число полностью сериализованных байтов в очереди framework.
 
-## controllerError
-
-Creates an invalid-controller error with an optional cause. / Создаёт ошибку HTTP-контроллера с необязательной причиной.
-
-### Parameters
-
-- `message` **[string][357]** Error text. / Текст ошибки.
-- `cause` **[Error][368]?** Original error. / Исходная ошибка.
-
-Returns **[InvalidHttpControllerError][10]** Created error. / Созданная ошибка.
-
-## InvalidJobError
-
-**Extends TypeError**
-
-Invalid user job class. / Некорректный пользовательский класс задачи.
+Type: [number][517]
 
 ## createWorker
 
 Creates and wires one reusable worker. / Создаёт и подключает одного переиспользуемого работника.
 
-Returns **[WorkerEntry][80]** Worker entry. / Запись работника.
+Returns **[WorkerEntry][94]** Worker entry. / Запись работника.
 
-## InvalidJobOptionsError
+## onClose
 
-**Extends TypeError**
+Type: [WebSocketCloseListener][482]
 
-Invalid job runner configuration or run options. / Некорректная конфигурация исполнителя или параметры запуска задачи.
-
-## routeError
-
-Creates an invalid-route error with an optional cause. / Создаёт ошибку HTTP-маршрута с необязательной причиной.
-
-### Parameters
-
-- `message` **[string][357]** Error text. / Текст ошибки.
-- `cause` **[Error][368]?** Original error. / Исходная ошибка.
-
-Returns **[InvalidHttpRouteError][27]** Created error. / Созданная ошибка.
-
-## JobDataCloneError
+## ApplicationStateError
 
 **Extends Error**
 
-Job payload or result cannot be structured-cloned. / Payload или результат задачи нельзя клонировать через structured clone.
+Invalid operation for the current application lifecycle state. / Операция недопустима в текущем состоянии жизненного цикла приложения.
 
-## pathSegments
+## onMessage
 
-Decodes and validates path segments for a route declaration. / Декодирует и проверяет сегменты пути объявления HTTP-маршрута.
+Type: [WebSocketMessageListener][484]
+
+## onMessage
+
+Handles one job protocol response from a worker. / Обрабатывает один ответ протокола задач от работника.
 
 ### Parameters
 
-- `path` **[string][357]** Absolute path. / Абсолютный путь.
+- `entry` **[WorkerEntry][94]** Worker entry. / Запись работника.
+- `message` **[WorkerResponseMessage][100]** Worker message. / Сообщение работника.
 
-Returns **[Array][367]<[string][357]>** Decoded segments. / Декодированные сегменты.
+## oneTimeWebSocketTicket
+
+Creates a one-time WebSocket-handshake ticket strategy.
+Создаёт strategy одноразового ticket WebSocket-handshake.
+
+### Parameters
+
+- `options` **[OneTimeWebSocketTicketOptions][283]** Preset options. / Параметры preset.
+
+<!---->
+
+- Throws **[InvalidAuthenticationOptionsError][146]** When options are invalid. / При неверных параметрах.
+
+Returns **[AuthenticationStrategy][451]** Authentication strategy. / Strategy аутентификации.
+
+## BearerTokenOptions
+
+Bearer-token preset configuration. / Конфигурация Bearer-token preset.
+
+Type: [Object][518]
+
+### Properties
+
+- `verify` **[BearerTokenVerifier][279]** Credential verifier. / Функция проверки credential.
+
+## BearerTokenVerifier
+
+Verifies one Bearer token. / Проверяет один Bearer token.
+
+Type: [Function][523]
+
+### Parameters
+
+- `token` **[string][513]** Exact token68 credential. / Точный credential token68.
+- `metadata` **[AuthenticationPresetMetadata][281]** Safe attempt metadata. / Безопасные metadata
+  попытки.
+
+Returns **([Object][518] | null | [Promise][524]<([Object][518] | null)>)** Session or rejection signal. / Session или сигнал
+отказа.
+
+## AuthenticationPresetMetadata
+
+Shared metadata for cookie and Bearer callbacks.
+Общие metadata для cookie- и Bearer-callback.
+
+Type: [Object][518]
+
+### Properties
+
+- `transport` **(`"http"` | `"websocket"`)** Transport kind. / Вид transport.
+- `signal` **AbortSignal** Attempt cancellation signal. / Сигнал отмены попытки.
+
+## OneTimeWebSocketTicketOptions
+
+One-time WebSocket-ticket preset configuration.
+Конфигурация preset одноразового WebSocket-ticket.
+
+Type: [Object][518]
+
+### Properties
+
+- `consume` **[OneTimeWebSocketTicketConsumer][285]** Atomic ticket consumer. / Функция атомарного
+  погашения ticket.
+
+## OneTimeWebSocketTicketConsumer
+
+Atomically consumes one WebSocket ticket. / Атомарно погашает один WebSocket-ticket.
+
+Type: [Function][523]
+
+### Parameters
+
+- `ticket` **[string][513]** Decoded opaque query value. / Декодированное opaque query-значение.
+- `metadata` **[WebSocketTicketMetadata][287]** Safe handshake metadata. / Безопасные metadata
+  handshake.
+
+Returns **([Object][518] | null | [Promise][524]<([Object][518] | null)>)** Session or rejection signal. / Session или сигнал
+отказа.
+
+## WebSocketTicketMetadata
+
+Safe callback metadata for a WebSocket ticket.
+Безопасные metadata callback для WebSocket-ticket.
+
+Type: [Object][518]
+
+### Properties
+
+- `origin` **[string][513]?** Validated handshake Origin. / Проверенный Origin handshake.
+- `signal` **AbortSignal** Handshake cancellation signal. / Сигнал отмены handshake.
+
+## CookieSessionOptions
+
+Cookie-session preset configuration. / Конфигурация cookie-session preset.
+
+Type: [Object][518]
+
+### Properties
+
+- `cookie` **[CookieSelector][291]** Cookie selector. / Селектор cookie.
+- `resolve` **[CookieSessionResolver][293]** Credential resolver. / Функция разрешения credential.
+
+## CookieSelector
+
+Session-cookie selector. / Селектор session cookie.
+
+Type: [Object][518]
+
+### Properties
+
+- `name` **[string][513]** Exact case-sensitive RFC cookie name. / Точное регистрозависимое RFC-имя
+  cookie.
+
+## CookieSessionResolver
+
+Resolves one session-cookie value. / Разрешает одно значение session cookie.
+
+Type: [Function][523]
+
+### Parameters
+
+- `cookieValue` **[string][513]** Exact opaque cookie value. / Точное opaque-значение cookie.
+- `metadata` **[AuthenticationPresetMetadata][281]** Safe attempt metadata. / Безопасные metadata
+  попытки.
+
+Returns **([Object][518] | null | [Promise][524]<([Object][518] | null)>)** Session or rejection signal. / Session или сигнал
+отказа.
+
+## onProtocolError
+
+Type: [WebSocketProtocolFailureListener][486]
+
+## HttpError
+
+**Extends Error**
+
+Expected HTTP failure returned by an HTTP handler.
+Ожидаемая HTTP-ошибка, возвращаемая HTTP-обработчиком.
+
+### Parameters
+
+- `status` **[number][517]** HTTP status from 400 through 599. / HTTP-статус от 400 до 599.
+- `response` **[HttpErrorResponse][339]?** Client response details. / Данные ответа клиенту. (optional, default `{}`)
+- `options` **ErrorOptions?** Standard error options. / Стандартные параметры ошибки.
+
+## socket
+
+Type: Socket
+
+## socketListeners
+
+Stable transport listeners removed at the terminal socket event.
+Стабильные transport listeners, удаляемые при терминальном событии socket.
+
+Type: [WebSocketSocketListeners][480]
 
 ## start
 
@@ -1582,8 +2306,112 @@ Assigns a task to an idle worker. / Назначает задачу свобод
 
 ### Parameters
 
-- `entry` **[WorkerEntry][80]** Worker entry. / Запись работника.
-- `task` **[WorkerTask][78]** Task to start. / Запускаемая задача.
+- `entry` **[WorkerEntry][94]** Worker entry. / Запись работника.
+- `task` **[WorkerTask][92]** Task to start. / Запускаемая задача.
+
+## snapshotInput
+
+Validates and snapshots a transport-neutral authentication input.
+Проверяет и создаёт snapshot transport-neutral input аутентификации.
+
+### Parameters
+
+- `input` **any** User or transport input. / Пользовательский или transport input.
+
+<!---->
+
+- Throws **[TypeError][530]** When the input violates its exact transport form. / При нарушении точной
+  transport-формы.
+
+Returns **[AuthenticationInputSnapshot][459]** Stable input snapshot. / Стабильный snapshot input.
+
+## writeQueue
+
+Fully serialized frames waiting for `drain`.
+Полностью сериализованные frames, ожидающие `drain`.
+
+Type: [Array][514]<[Buffer][532]>
+
+## writeQueueBytes
+
+Fully serialized bytes currently waiting in the framework queue.
+Число полностью сериализованных байтов, ожидающих в очереди framework.
+
+Type: [number][517]
+
+## onDrain
+
+Resumes the write queue after socket backpressure.
+Возобновляет write queue после backpressure socket.
+
+Type: [Function][523]
+
+## InvalidJobError
+
+**Extends TypeError**
+
+Invalid user job class. / Некорректный пользовательский класс задачи.
+
+## strategyInput
+
+Creates a fresh isolated input for one strategy invocation.
+Создаёт новый изолированный input для одного вызова strategy.
+
+### Parameters
+
+- `snapshot` **[AuthenticationInputSnapshot][459]** Stable attempt snapshot. / Стабильный snapshot
+  попытки.
+
+Returns **[AuthenticationStrategyInput][457]** Frozen strategy input. / Замороженный input strategy.
+
+## InvalidJobOptionsError
+
+**Extends TypeError**
+
+Invalid job runner configuration or run options. / Некорректная конфигурация исполнителя или параметры запуска задачи.
+
+## controllerError
+
+Creates an invalid-controller error with an optional cause. / Создаёт ошибку HTTP-контроллера с необязательной причиной.
+
+### Parameters
+
+- `message` **[string][513]** Error text. / Текст ошибки.
+- `cause` **[Error][525]?** Original error. / Исходная ошибка.
+
+Returns **[InvalidHttpControllerError][14]** Created error. / Созданная ошибка.
+
+## JobDataCloneError
+
+**Extends Error**
+
+Job payload or result cannot be structured-cloned. / Payload или результат задачи нельзя клонировать через structured clone.
+
+## cloneJson
+
+Deeply copies and freezes one JSON-compatible value.
+Глубоко копирует и замораживает одно JSON-совместимое значение.
+
+### Parameters
+
+- `value` **any** Candidate value. / Проверяемое значение.
+- `ancestors` **[Set][521]<[Object][518]>** Objects on the current recursion path. / Объекты в текущем пути
+  рекурсии. (optional, default `new Set()`)
+
+<!---->
+
+- Throws **[TypeError][530]** When the value is not JSON-compatible. / Если значение несовместимо с JSON.
+
+Returns **any** Frozen copy or primitive. / Замороженная копия или примитив.
+
+## cancel
+
+Cancels a queued or running task. / Отменяет задачу в очереди или на выполнении.
+
+### Parameters
+
+- `task` **[WorkerTask][92]** Task to cancel. / Отменяемая задача.
+- `error` **[Error][525]** Rejection error. / Ошибка отклонения.
 
 ## JobQueueFullError
 
@@ -1591,30 +2419,22 @@ Assigns a task to an idle worker. / Назначает задачу свобод
 
 Worker queue has reached its configured limit. / Очередь работников достигла заданного предела.
 
+## routeError
+
+Creates an invalid-route error with an optional cause. / Создаёт ошибку HTTP-маршрута с необязательной причиной.
+
+### Parameters
+
+- `message` **[string][513]** Error text. / Текст ошибки.
+- `cause` **[Error][525]?** Original error. / Исходная ошибка.
+
+Returns **[InvalidHttpRouteError][35]** Created error. / Созданная ошибка.
+
 ## JobAbortedError
 
 **Extends Error**
 
 Job execution was cancelled. / Выполнение задачи отменено.
-
-## fail
-
-Reports a frame-protocol failure and destroys the socket after close. / Сообщает об ошибке frame-протокола и уничтожает сокет после закрытия.
-
-### Parameters
-
-- `code` **[number][359]** Close code. / Код закрытия.
-- `reason` **[string][357]** Close reason. / Причина закрытия.
-
-## serializeSegment
-
-Escapes a decoded segment for storage in a normalized path. / Экранирует декодированный сегмент для нормализованного пути.
-
-### Parameters
-
-- `segment` **[string][357]** Decoded segment. / Декодированный сегмент.
-
-Returns **[string][357]** Serialized segment. / Сериализованный сегмент.
 
 ## JobTimedOutError
 
@@ -1622,13 +2442,36 @@ Returns **[string][357]** Serialized segment. / Сериализованный �
 
 Job execution exceeded its timeout. / Выполнение задачи превысило тайм-аут.
 
-## read
+## pathSegments
 
-Incrementally parses masked client frames. / Инкрементально разбирает маскированные клиентские frames.
+Decodes and validates path segments for a route declaration. / Декодирует и проверяет сегменты пути объявления HTTP-маршрута.
 
 ### Parameters
 
-- `chunk` **[Buffer][372]** Inbound bytes. / Входящие байты.
+- `path` **[string][513]** Absolute path. / Абсолютный путь.
+
+Returns **[Array][514]<[string][513]>** Decoded segments. / Декодированные сегменты.
+
+## settle
+
+Settles a task once and removes cancellation resources. / Однократно завершает задачу и очищает ресурсы отмены.
+
+### Parameters
+
+- `task` **[WorkerTask][92]** Task. / Задача.
+- `error` **[Error][525]?** Rejection error. / Ошибка отклонения.
+- `value` **any?** Resolution value. / Значение результата.
+
+## enqueue
+
+Accepts one fully serialized frame for ordered writing.
+Принимает один полностью сериализованный frame для упорядоченной записи.
+
+### Parameters
+
+- `serializedFrame` **[Buffer][532]** Fully serialized frame. / Полностью сериализованный frame.
+
+Returns **[boolean][516]** Whether the frame was accepted. / Был ли frame принят.
 
 ## JobExecutionError
 
@@ -1636,22 +2479,51 @@ Incrementally parses masked client frames. / Инкрементально раз
 
 User job threw or rejected in a worker. / Пользовательская задача выбросила ошибку или отклонила Promise в Worker.
 
-## composePath
-
-Joins decoded prefix segments with a declared route path. / Объединяет сегменты префикса с объявленным путём HTTP-маршрута.
-
-### Parameters
-
-- `prefixSegments` **[Array][367]<[string][357]>** Prefix segments. / Сегменты префикса.
-- `path` **[string][357]** Declared path. / Объявленный путь.
-
-Returns **[string][357]** Normalized absolute path. / Нормализованный абсолютный путь.
-
 ## WorkerTerminatedError
 
 **Extends Error**
 
 Worker terminated before completing its task. / Worker завершился до окончания задачи.
+
+## release
+
+Releases a worker and starts the next queued task. / Освобождает работника и запускает следующую задачу из очереди.
+
+### Parameters
+
+- `entry` **[WorkerEntry][94]** Worker entry. / Запись работника.
+
+## serializeSegment
+
+Escapes a decoded segment for storage in a normalized path. / Экранирует декодированный сегмент для нормализованного пути.
+
+### Parameters
+
+- `segment` **[string][513]** Decoded segment. / Декодированный сегмент.
+
+Returns **[string][513]** Serialized segment. / Сериализованный сегмент.
+
+## flush
+
+Writes queued frames until backpressure resumes.
+Записывает frames из очереди до нового backpressure.
+
+Returns **void**&#x20;
+
+## normalizeSession
+
+Copies and freezes an authenticated session.
+Копирует и замораживает подтверждённую сессию аутентификации.
+
+### Parameters
+
+- `value` **any** Candidate session. / Проверяемая сессия.
+
+<!---->
+
+- Throws **[TypeError][530]** When the session is invalid or expired. / Если сессия неверна или истекла.
+
+Returns **[AuthSession][460]** Normalized session. / Нормализованная сессия.
 
 ## JobRunnerClosedError
 
@@ -1661,14 +2533,14 @@ Application-owned job runner is closed. / Принадлежащий прило�
 
 ## HttpErrorResponse
 
-HTTP response details carried by [HttpError][160].
-Данные HTTP-ответа, переносимые [HttpError][160].
+HTTP response details carried by [HttpError][296].
+Данные HTTP-ответа, переносимые [HttpError][296].
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `headers` **[Headers][375]?** WHATWG response headers. / WHATWG-заголовки ответа.
+- `headers` **[Headers][533]?** WHATWG response headers. / WHATWG-заголовки ответа.
 - `body` **any?** JSON-compatible, text, or binary body. / JSON-совместимое, текстовое или
   бинарное тело.
 
@@ -1677,13 +2549,13 @@ Type: [Object][360]
 WebSocket protocol error constructor options.
 Параметры создания ошибки WebSocket-протокола.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `fatal` **[boolean][358]?** Whether the session must close. / Нужно ли закрыть сессию.
-- `controller` **[string][357]?** Addressed controller name. / Имя адресованного контроллера.
-- `event` **[string][357]?** Addressed event name. / Имя адресованного события.
+- `fatal` **[boolean][516]?** Whether the session must close. / Нужно ли закрыть сессию.
+- `controller` **[string][513]?** Addressed controller name. / Имя адресованного контроллера.
+- `event` **[string][513]?** Addressed event name. / Имя адресованного события.
 
 ## WebSocketErrorCode
 
@@ -1692,54 +2564,27 @@ Stable `daevox.v1` protocol error code.
 
 Type: (`"INVALID_MESSAGE"` | `"UNKNOWN_CONTROLLER"` | `"UNKNOWN_EVENT"` | `"HANDLER_ERROR"` | `"INVALID_RESPONSE"`)
 
-## cancel
+## composePath
 
-Cancels a queued or running task. / Отменяет задачу в очереди или на выполнении.
-
-### Parameters
-
-- `task` **[WorkerTask][78]** Task to cancel. / Отменяемая задача.
-- `error` **[Error][368]** Rejection error. / Ошибка отклонения.
-
-## validateControllerClass
-
-Validates the nominal HTTP-controller contract. / Проверяет номинальный контракт HTTP-контроллера.
+Joins decoded prefix segments with a declared route path. / Объединяет сегменты префикса с объявленным путём HTTP-маршрута.
 
 ### Parameters
 
-- `HttpController` **[Function][364]** Candidate class. / Проверяемый класс.
+- `prefixSegments` **[Array][514]<[string][513]>** Prefix segments. / Сегменты префикса.
+- `path` **[string][513]** Declared path. / Объявленный путь.
 
-Returns **[HttpControllerMetadata][268]** Controller metadata. / Метаданные контроллера.
+Returns **[string][513]** Normalized absolute path. / Нормализованный абсолютный путь.
 
-## settle
+## write
 
-Settles a task once and removes cancellation resources. / Однократно завершает задачу и очищает ресурсы отмены.
-
-### Parameters
-
-- `task` **[WorkerTask][78]** Task. / Задача.
-- `error` **[Error][368]?** Rejection error. / Ошибка отклонения.
-- `value` **any?** Resolution value. / Значение результата.
-
-## normalizeRoute
-
-Normalizes one controller route declaration. / Нормализует одно объявление HTTP-маршрута контроллера.
+Hands one frame to the socket and observes backpressure.
+Передаёт один frame socket и учитывает backpressure.
 
 ### Parameters
 
-- `HttpController` **[Function][364]** Controller class. / Класс контроллера.
-- `prefixSegments` **[Array][367]<[string][357]>** Decoded prefix. / Декодированный префикс.
-- `declaration` **[HttpRouteDeclaration][266]** Route declaration. / Объявление HTTP-маршрута.
+- `serializedFrame` **[Buffer][532]** Fully serialized frame. / Полностью сериализованный frame.
 
-Returns **[NormalizedHttpRoute][270]** Frozen normalized route. / Замороженный нормализованный HTTP-маршрут.
-
-## release
-
-Releases a worker and starts the next queued task. / Освобождает работника и запускает следующую задачу из очереди.
-
-### Parameters
-
-- `entry` **[WorkerEntry][80]** Worker entry. / Запись работника.
+Returns **void**&#x20;
 
 ## onExit
 
@@ -1747,17 +2592,167 @@ Handles worker termination and preserves queue progress. / Обрабатыва�
 
 ### Parameters
 
-- `entry` **[WorkerEntry][80]** Worker entry. / Запись работника.
-- `code` **[number][359]** Exit code. / Код завершения.
+- `entry` **[WorkerEntry][94]** Worker entry. / Запись работника.
+- `code` **[number][517]** Exit code. / Код завершения.
 
-## deliverMessage
+## normalizeResult
 
-Decodes and delivers one complete data message. / Декодирует и передаёт одно полное data-сообщение.
+Copies and validates one strategy result.
+Копирует и проверяет один результат strategy.
 
 ### Parameters
 
-- `opcode` **[number][359]** Message opcode. / Opcode сообщения.
-- `payload` **[Buffer][372]** Message bytes. / Байты сообщения.
+- `result` **any** Candidate result. / Проверяемый результат.
+
+<!---->
+
+- Throws **[TypeError][530]** When the result is invalid. / Если результат неверен.
+
+Returns **[AuthenticationResult][462]** Normalized result. / Нормализованный результат.
+
+## terminate
+
+Finishes state and removes listeners after a terminal socket event.
+Завершает состояние и удаляет listeners после терминального события socket.
+
+### Parameters
+
+- `destroy` **[boolean][516]** Whether an ended socket must be destroyed. / Нужно ли уничтожить
+  завершившийся socket.
+
+Returns **void**&#x20;
+
+## terminateBrokenWorker
+
+Rejects active work and terminates a protocol-violating worker. / Отклоняет активную работу и останавливает нарушившего протокол работника.
+
+### Parameters
+
+- `entry` **[WorkerEntry][94]** Worker entry. / Запись работника.
+- `message` **[string][513]** Failure description. / Описание сбоя.
+
+## validateControllerClass
+
+Validates the nominal HTTP-controller contract. / Проверяет номинальный контракт HTTP-контроллера.
+
+### Parameters
+
+- `HttpController` **[Function][523]** Candidate class. / Проверяемый класс.
+
+Returns **[HttpControllerMetadata][397]** Controller metadata. / Метаданные контроллера.
+
+## terminateEntry
+
+Starts terminating one worker at most once. / Однократно начинает остановку работника.
+
+### Parameters
+
+- `entry` **[WorkerEntry][94]** Worker entry. / Запись работника.
+
+## invalidResult
+
+Creates a stable invalid-result failure for one strategy.
+Создаёт стабильную ошибку неверного результата одной strategy.
+
+### Parameters
+
+- `strategy` **[string][513]** Strategy name. / Имя strategy.
+
+Returns **[AuthenticationStrategyError][168]** Wrapped failure. / Обёрнутый сбой.
+
+## fail
+
+Reports a frame-protocol failure and destroys the socket after close. / Сообщает об ошибке frame-протокола и уничтожает сокет после закрытия.
+
+### Parameters
+
+- `code` **[number][517]** Close code. / Код закрытия.
+- `reason` **[string][513]** Close reason. / Причина закрытия.
+
+## throwIfAborted
+
+Throws when an authentication attempt has been aborted.
+Выбрасывает ошибку при отмене попытки аутентификации.
+
+### Parameters
+
+- `signal` **AbortSignal** Attempt signal. / Сигнал попытки.
+
+<!---->
+
+- Throws **[AuthenticationAbortedError][191]** When the signal is aborted. / Если сигнал отменён.
+
+Returns **void**&#x20;
+
+## normalizeRoute
+
+Normalizes one controller route declaration. / Нормализует одно объявление HTTP-маршрута контроллера.
+
+### Parameters
+
+- `HttpController` **[Function][523]** Controller class. / Класс контроллера.
+- `prefixSegments` **[Array][514]<[string][513]>** Decoded prefix. / Декодированный префикс.
+- `declaration` **[HttpRouteDeclaration][395]** Route declaration. / Объявление HTTP-маршрута.
+- `authenticationModule` **[Authentication][370]?** Application Authentication module. / Модуль
+  Authentication приложения.
+
+Returns **[NormalizedHttpRoute][399]** Frozen normalized route. / Замороженный нормализованный HTTP-маршрут.
+
+## read
+
+Incrementally parses masked client frames. / Инкрементально разбирает маскированные клиентские frames.
+
+### Parameters
+
+- `chunk` **[Buffer][532]** Inbound bytes. / Входящие байты.
+
+## Authentication
+
+Transport-neutral orchestrator for named authentication scenarios.
+Transport-neutral оркестратор именованных сценариев аутентификации.
+
+Instances are created by [createAuthentication][435]; the constructor is not exported.
+Экземпляры создаются через [createAuthentication][435]; конструктор не экспортируется.
+
+### Parameters
+
+- `strategies` **[Map][520]<[string][513], [AuthenticationStrategy][451]>** Strategies by name. / Strategies по
+  имени.
+- `scenarios` **[Map][520]<[string][513], [AuthenticationScenario][453]>** Scenarios by name. / Scenarios по
+  имени.
+
+### authenticate
+
+Executes one named scenario against a normalized transport input.
+Выполняет один именованный scenario для нормализованного transport input.
+
+#### Parameters
+
+- `scenarioName` **[string][513]** Scenario name. / Имя scenario.
+- `input` **[AuthenticationStrategyInput][457]** HTTP or WebSocket input. / HTTP- или WebSocket
+  input.
+
+<!---->
+
+- Throws **[InvalidAuthenticationOptionsError][146]** When the scenario does not exist. / Если scenario
+  отсутствует.
+- Throws **[AuthenticationStrategyError][168]** When a strategy fails or returns invalid data. / При
+  сбое strategy или неверных данных.
+- Throws **[AuthenticationAbortedError][191]** When the attempt is aborted. / При отмене попытки.
+
+Returns **[Promise][524]<[AuthenticationResult][462]>** Normalized outcome. / Нормализованный результат.
+
+## scenarios
+
+Normalized scenarios by name. / Нормализованные scenarios по имени.
+
+Type: [Map][520]<[string][513], [AuthenticationScenario][453]>
+
+## strategies
+
+Normalized strategies by name. / Нормализованные strategies по имени.
+
+Type: [Map][520]<[string][513], [AuthenticationStrategy][451]>
 
 ## Application
 
@@ -1766,11 +2761,7 @@ Composes HTTP, WebSocket, and background-job capabilities and owns their lifecyc
 
 ### Parameters
 
-- `options` **[ApplicationOptions][256]?** Application configuration. / Конфигурация приложения. (optional, default `{}`)
-
-  - `options.jobs` &#x20;
-  - `options.http` &#x20;
-  - `options.websocket` &#x20;
+- `options` **[ApplicationOptions][385]** Application configuration. / Конфигурация приложения. (optional, default `{}`)
 
 ### registerWebSocketController
 
@@ -1779,10 +2770,10 @@ Registers a named WebSocket-controller class before listening starts.
 
 #### Parameters
 
-- `WebSocketController` **[Function][364]** Direct subclass of [WebSocketControllerBase][24]. /
-  Прямой подкласс [WebSocketControllerBase][24].
+- `WebSocketController` **[Function][523]** Direct subclass of [WebSocketControllerBase][31]. /
+  Прямой подкласс [WebSocketControllerBase][31].
 
-Returns **[Application][247]** This application. / Это приложение.
+Returns **[Application][376]** This application. / Это приложение.
 
 ### registerHttpController
 
@@ -1791,10 +2782,10 @@ Registers all declared HTTP routes of an HTTP-controller class.
 
 #### Parameters
 
-- `HttpController` **[Function][364]** Direct subclass of [HttpControllerBase][15]. / Прямой
-  подкласс [HttpControllerBase][15].
+- `HttpController` **[Function][523]** Direct subclass of [HttpControllerBase][22]. / Прямой
+  подкласс [HttpControllerBase][22].
 
-Returns **[Application][247]** This application. / Это приложение.
+Returns **[Application][376]** This application. / Это приложение.
 
 ### listen
 
@@ -1803,17 +2794,17 @@ Starts the shared HTTP/WebSocket transport exactly once.
 
 #### Parameters
 
-- `options` **[ListenOptions][278]** Listen address. / Адрес прослушивания.
+- `options` **[ListenOptions][409]** Listen address. / Адрес прослушивания.
 
   - `options.port` &#x20;
   - `options.host` (optional, default `'127.0.0.1'`)
 
 <!---->
 
-- Throws **[ApplicationStateError][158]** When the application has already started or closed. / Если
+- Throws **[ApplicationStateError][271]** When the application has already started or closed. / Если
   приложение уже запускалось или закрыто.
 
-Returns **[Promise][365]<(AddressInfo | [string][357] | null)>** Bound address. / Фактический
+Returns **[Promise][524]<(AddressInfo | [string][513] | null)>** Bound address. / Фактический
 адрес.
 
 ### close
@@ -1824,149 +2815,171 @@ Irreversibly closes WebSocket sessions, HTTP activity, and the job runner.
 Repeated calls return the same operation.
 Повторные вызовы возвращают ту же операцию.
 
-Returns **[Promise][365]\<void>** Application shutdown. / Завершение приложения.
+Returns **[Promise][524]\<void>** Application shutdown. / Завершение приложения.
 
 ## ApplicationOptions
 
 Application configuration sections.
 Разделы конфигурации приложения.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `jobs` **[JobRunnerConfig][173]?** Background-job configuration. / Конфигурация фоновых задач.
-- `http` **[HttpOptions][258]?** HTTP configuration. / Конфигурация HTTP.
-- `websocket` **[WebSocketOptions][262]?** WebSocket configuration. / Конфигурация WebSocket.
+- `jobs` **[JobRunnerConfig][225]?** Background-job configuration. / Конфигурация фоновых задач.
+- `authentication` **[Authentication][370]?** Shared Authentication module. / Общий модуль
+  Authentication.
+- `http` **[HttpOptions][387]?** HTTP configuration. / Конфигурация HTTP.
+- `websocket` **[WebSocketOptions][391]** WebSocket configuration. / Конфигурация WebSocket.
 
 ## HttpOptions
 
 HTTP transport configuration.
 Конфигурация HTTP-транспорта.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `bodyLimit` **[number][359]?** Maximum request body bytes. / Максимальный размер тела
+- `bodyLimit` **[number][517]?** Maximum request body bytes. / Максимальный размер тела
   запроса в байтах.
-- `shutdownTimeout` **[number][359]?** Graceful shutdown timeout in milliseconds. / Тайм-аут
+- `shutdownTimeout` **[number][517]?** Graceful shutdown timeout in milliseconds. / Тайм-аут
   корректного завершения в миллисекундах.
-- `onError` **[HttpErrorHandler][276]?** Unexpected-error observer. / Наблюдатель неожиданных ошибок.
+- `onError` **[HttpErrorHandler][405]?** Unexpected-error observer. / Наблюдатель неожиданных ошибок.
 
 ## NormalizedHttpOptions
 
 Normalized HTTP configuration used internally.
 Нормализованная конфигурация HTTP для внутреннего использования.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `bodyLimit` **[number][359]** Maximum request body bytes. / Максимальный размер тела запроса.
-- `shutdownTimeout` **[number][359]** Shutdown timeout in milliseconds. / Тайм-аут завершения.
-- `onError` **[HttpErrorHandler][276]?** Unexpected-error observer. / Наблюдатель ошибок.
+- `bodyLimit` **[number][517]** Maximum request body bytes. / Максимальный размер тела запроса.
+- `shutdownTimeout` **[number][517]** Shutdown timeout in milliseconds. / Тайм-аут завершения.
+- `onError` **[HttpErrorHandler][405]?** Unexpected-error observer. / Наблюдатель ошибок.
 
 ## WebSocketOptions
 
 WebSocket transport and lifecycle configuration.
 Конфигурация WebSocket-транспорта и жизненного цикла.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `path` **[string][357]?** Shared protocol endpoint. / Общий endpoint протокола.
-- `maxPayload` **[number][359]?** Maximum message bytes. / Максимальный размер сообщения.
-- `onConnect` **[WebSocketConnectHandler][286]?** Pre-upgrade lifecycle hook. / Lifecycle-hook до
+- `authentication` **(`false` | [string][513])** Authentication scenario or explicit opt-out. / Scenario
+  Authentication или явное отключение.
+- `allowedOrigins` **[Array][514]<[string][513]>?** Exact canonical browser origins. / Точные canonical
+  origins браузеров.
+- `path` **[string][513]?** Shared protocol endpoint. / Общий endpoint протокола.
+- `maxPayload` **[number][517]?** Maximum message bytes. / Максимальный размер сообщения.
+- `maxWriteQueueBytes` **[number][517]?** Maximum pending framed bytes per connection. /
+  Максимальный размер ожидающих frames одного соединения в байтах.
+- `onConnect` **[WebSocketConnectHandler][417]?** Pre-upgrade lifecycle hook. / Lifecycle-hook до
   upgrade.
-- `onDisconnect` **[WebSocketDisconnectHandler][288]?** Disconnect lifecycle hook. /
+- `onDisconnect` **[WebSocketDisconnectHandler][419]?** Disconnect lifecycle hook. /
   Lifecycle-hook отключения.
-- `onError` **[WebSocketErrorHandler][290]?** Error observer. / Наблюдатель ошибок.
+- `onError` **[WebSocketErrorHandler][421]?** Error observer. / Наблюдатель ошибок.
 
 ## NormalizedWebSocketOptions
 
 Normalized WebSocket configuration used internally.
 Нормализованная конфигурация WebSocket для внутреннего использования.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `path` **[string][357]** Shared protocol endpoint. / Общий endpoint протокола.
-- `maxPayload` **[number][359]** Maximum message bytes. / Максимальный размер сообщения.
-- `onConnect` **[WebSocketConnectHandler][286]?** Connect hook. / Hook подключения.
-- `onDisconnect` **[WebSocketDisconnectHandler][288]?** Disconnect hook. / Hook отключения.
-- `onError` **[WebSocketErrorHandler][290]?** Error observer. / Наблюдатель ошибок.
+- `authentication` **(`false` | [string][513])** Authentication scenario or explicit opt-out. / Scenario
+  Authentication или явное отключение.
+- `allowedOrigins` **[Array][514]<[string][513]>** Frozen exact Origin allowlist. / Замороженный точный
+  allowlist Origin.
+- `path` **[string][513]** Shared protocol endpoint. / Общий endpoint протокола.
+- `maxPayload` **[number][517]** Maximum message bytes. / Максимальный размер сообщения.
+- `maxWriteQueueBytes` **[number][517]** Maximum pending framed bytes per connection. /
+  Максимальный размер ожидающих frames одного соединения в байтах.
+- `onConnect` **[WebSocketConnectHandler][417]?** Connect hook. / Hook подключения.
+- `onDisconnect` **[WebSocketDisconnectHandler][419]?** Disconnect hook. / Hook отключения.
+- `onError` **[WebSocketErrorHandler][421]?** Error observer. / Наблюдатель ошибок.
 
 ## HttpRouteDeclaration
 
 Declarative HTTP-route metadata owned by an HTTP-controller class.
 Декларативные метаданные HTTP-маршрута класса HTTP-контроллера.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `method` **[string][357]** HTTP method token. / Токен HTTP-метода.
-- `path` **[string][357]** Path relative to the controller prefix. / Путь относительно префикса.
-- `handler` **[string][357]** Own controller method name. / Имя собственного метода контроллера.
+- `method` **[string][513]** HTTP method token. / Токен HTTP-метода.
+- `path` **[string][513]** Path relative to the controller prefix. / Путь относительно префикса.
+- `handler` **[string][513]** Own controller method name. / Имя собственного метода контроллера.
+- `authentication` **(`false` | [string][513])** Authentication scenario or explicit opt-out. / Scenario
+  Authentication или явное отключение.
 
 ## HttpControllerMetadata
 
 Validated HTTP-controller metadata.
 Проверенные метаданные HTTP-контроллера.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `prefix` **[string][357]** Controller path prefix. / Префикс пути контроллера.
-- `routes` **[Array][367]<[HttpRouteDeclaration][266]>** Declared routes. / Объявленные HTTP-маршруты.
+- `prefix` **[string][513]** Controller path prefix. / Префикс пути контроллера.
+- `routes` **[Array][514]<[HttpRouteDeclaration][395]>** Declared routes. / Объявленные HTTP-маршруты.
 
 ## NormalizedHttpRoute
 
 Normalized HTTP route stored in the application catalog.
 Нормализованный HTTP-маршрут в каталоге приложения.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `method` **[string][357]** Uppercase HTTP method. / HTTP-метод в верхнем регистре.
-- `path` **[string][357]** Normalized absolute path. / Нормализованный абсолютный путь.
-- `handler` **[string][357]** Handler method name. / Имя метода HTTP-обработчика.
-- `controller` **[Function][364]** HTTP-controller class. / Класс HTTP-контроллера.
+- `method` **[string][513]** Uppercase HTTP method. / HTTP-метод в верхнем регистре.
+- `path` **[string][513]** Normalized absolute path. / Нормализованный абсолютный путь.
+- `handler` **[string][513]** Handler method name. / Имя метода HTTP-обработчика.
+- `controller` **[Function][523]** HTTP-controller class. / Класс HTTP-контроллера.
+- `authentication` **(`false` | [string][513])** Authentication scenario or explicit opt-out. / Scenario
+  Authentication или явное отключение.
 
 ## HttpRequestContext
 
 Normalized input supplied to an HTTP handler.
 Нормализованные входные данные HTTP-обработчика.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `method` **[string][357]** Requested HTTP method. / Запрошенный HTTP-метод.
-- `path` **[string][357]** Requested URL path. / Запрошенный URL-путь.
-- `params` **[Object][360]<[string][357], [string][357]>** Matched route parameters. / Параметры найденного
+- `method` **[string][513]** Requested HTTP method. / Запрошенный HTTP-метод.
+- `path` **[string][513]** Requested URL path. / Запрошенный URL-путь.
+- `params` **[Object][518]<[string][513], [string][513]>** Matched route parameters. / Параметры найденного
   HTTP-маршрута.
 - `query` **URLSearchParams** Query parameters. / Параметры query string.
-- `headers` **[Headers][375]** WHATWG request headers. / WHATWG-заголовки запроса.
+- `headers` **[Headers][533]** WHATWG request headers. / WHATWG-заголовки запроса.
 - `body` **any?** Parsed JSON body. / Разобранное JSON-тело.
 - `signal` **AbortSignal** Request cancellation signal. / Сигнал отмены запроса.
+- `authSession` **[AuthSession][460]?** Confirmed authentication session. / Подтверждённая сессия
+  аутентификации.
+- `webSocket` **[HttpRequestWebSocketSender][128]?** Request-scoped WebSocket server-push
+  capability. / Request-scoped capability WebSocket server push.
 
 ## HttpResponse
 
 Explicit result returned by an HTTP handler.
 Явный результат, возвращаемый HTTP-обработчиком.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `status` **[number][359]** HTTP status from 200 through 599. / HTTP-статус от 200 до 599.
-- `headers` **[Headers][375]?** WHATWG response headers. / WHATWG-заголовки ответа.
+- `status` **[number][517]** HTTP status from 200 through 599. / HTTP-статус от 200 до 599.
+- `headers` **[Headers][533]?** WHATWG response headers. / WHATWG-заголовки ответа.
 - `body` **any?** JSON-compatible, text, Buffer, or Uint8Array body. / JSON-совместимое,
   текстовое тело, Buffer или Uint8Array.
 
@@ -1975,73 +2988,89 @@ Type: [Object][360]
 Observes an unexpected HTTP-handler error.
 Наблюдает неожиданную ошибку HTTP-обработчика.
 
-Type: [Function][364]
+Type: [Function][523]
 
 ### Parameters
 
 - `error` **any** Reported error. / Ошибка.
-- `ctx` **[HttpRequestContext][272]?** Request context when available. / Контекст HTTP-запроса.
+- `ctx` **([HttpRequestContext][401] | [HttpAuthenticationErrorContext][407])?** Safe context when available. /
+  Безопасный контекст при наличии.
 
-Returns **(void | [Promise][365]\<void>)** Optional asynchronous completion. / Асинхронное завершение.
+Returns **(void | [Promise][524]\<void>)** Optional asynchronous completion. / Асинхронное завершение.
+
+## HttpAuthenticationErrorContext
+
+Safe observer context for an HTTP authentication strategy failure.
+Безопасный observer-контекст сбоя strategy HTTP-аутентификации.
+
+Type: [Object][518]
+
+### Properties
+
+- `phase` **`"authentication"`** Failure phase. / Фаза сбоя.
+- `method` **[string][513]** Requested HTTP method. / Запрошенный HTTP-метод.
+- `path` **[string][513]** Requested pathname. / Запрошенный pathname.
+- `scenario` **[string][513]** Selected scenario name. / Имя выбранного scenario.
+- `signal` **AbortSignal** Request cancellation signal. / Сигнал отмены запроса.
 
 ## ListenOptions
 
 Address on which the application listens.
 Адрес прослушивания приложения.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `port` **[number][359]** TCP port. / TCP-порт.
-- `host` **[string][357]?** Host name or address. / Имя или адрес хоста.
+- `port` **[number][517]** TCP port. / TCP-порт.
+- `host` **[string][513]?** Host name or address. / Имя или адрес хоста.
 
 ## WebSocketLifecycleContext
 
 WebSocket lifecycle context shared by connect and disconnect hooks.
 Контекст жизненного цикла WebSocket для hooks подключения и отключения.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `clientId` **[string][357]** Framework-generated client identifier. / Идентификатор клиента.
-- `sessionId` **[string][357]** Framework-generated session identifier. / Идентификатор сессии.
-- `path` **[string][357]** Endpoint path. / Путь endpoint.
-- `query` **URLSearchParams** Handshake query parameters. / Query-параметры handshake.
-- `headers` **[Headers][375]** WHATWG handshake headers. / WHATWG-заголовки handshake.
+- `clientId` **[string][513]** Framework-generated client identifier. / Идентификатор клиента.
+- `sessionId` **[string][513]** Framework-generated session identifier. / Идентификатор сессии.
+- `path` **[string][513]** Endpoint path. / Путь endpoint.
+- `origin` **[string][513]?** Validated browser Origin. / Проверенный Origin браузера.
 - `signal` **AbortSignal** Session cancellation signal. / Сигнал отмены сессии.
+- `authSession` **[AuthSession][460]?** Confirmed authentication session. / Подтверждённая сессия
+  аутентификации.
 
 ## WebSocketDisconnectContext
 
 WebSocket disconnect lifecycle context.
 Контекст жизненного цикла отключения WebSocket.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `clientId` **[string][357]** Framework-generated client identifier. / Идентификатор клиента.
-- `sessionId` **[string][357]** Framework-generated session identifier. / Идентификатор сессии.
-- `path` **[string][357]** Endpoint path. / Путь endpoint.
-- `query` **URLSearchParams** Handshake query parameters. / Query-параметры handshake.
-- `headers` **[Headers][375]** WHATWG handshake headers. / WHATWG-заголовки handshake.
+- `clientId` **[string][513]** Framework-generated client identifier. / Идентификатор клиента.
+- `sessionId` **[string][513]** Framework-generated session identifier. / Идентификатор сессии.
 - `signal` **AbortSignal** Session cancellation signal. / Сигнал отмены сессии.
-- `code` **[number][359]** WebSocket close code. / Код закрытия WebSocket.
-- `reason` **[string][357]** WebSocket close reason. / Причина закрытия WebSocket.
+- `code` **[number][517]** WebSocket close code. / Код закрытия WebSocket.
+- `reason` **[string][513]** WebSocket close reason. / Причина закрытия WebSocket.
+- `authSession` **[AuthSession][460]?** Confirmed authentication session. / Подтверждённая сессия
+  аутентификации.
 
 ## WebSocketHandlerContext
 
 Context supplied to a WebSocket-event handler.
 Контекст, передаваемый обработчику WebSocket-события.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `body` **[Object][360]<[string][357], any>** Protocol message body. / Тело сообщения протокола.
-- `clientId` **[string][357]** Framework-generated client identifier. / Идентификатор клиента.
-- `sessionId` **[string][357]** Framework-generated session identifier. / Идентификатор сессии.
+- `body` **[Object][518]<[string][513], any>** Protocol message body. / Тело сообщения протокола.
+- `clientId` **[string][513]** Framework-generated client identifier. / Идентификатор клиента.
+- `sessionId` **[string][513]** Framework-generated session identifier. / Идентификатор сессии.
 - `signal` **AbortSignal** Session cancellation signal. / Сигнал отмены сессии.
 
 ## WebSocketConnectHandler
@@ -2049,47 +3078,70 @@ Type: [Object][360]
 WebSocket connection lifecycle hook.
 Lifecycle-hook подключения WebSocket.
 
-Type: [Function][364]
+Type: [Function][523]
 
 ### Parameters
 
-- `ctx` **[WebSocketLifecycleContext][280]** Connection context. / Контекст подключения.
+- `ctx` **[WebSocketLifecycleContext][411]** Connection context. / Контекст подключения.
 
-Returns **(void | [Promise][365]\<void>)** Completion. / Завершение hook.
+Returns **(void | [Promise][524]\<void>)** Completion. / Завершение hook.
 
 ## WebSocketDisconnectHandler
 
 WebSocket disconnection lifecycle hook.
 Lifecycle-hook отключения WebSocket.
 
-Type: [Function][364]
+Type: [Function][523]
 
 ### Parameters
 
-- `ctx` **[WebSocketDisconnectContext][282]** Disconnection context. / Контекст отключения.
+- `ctx` **[WebSocketDisconnectContext][413]** Disconnection context. / Контекст отключения.
 
-Returns **(void | [Promise][365]\<void>)** Completion. / Завершение hook.
+Returns **(void | [Promise][524]\<void>)** Completion. / Завершение hook.
 
 ## WebSocketErrorHandler
 
 Observes a WebSocket lifecycle or protocol error.
 Наблюдает ошибку жизненного цикла или протокола WebSocket.
 
-Type: [Function][364]
+Type: [Function][523]
 
 ### Parameters
 
 - `error` **any** Reported error. / Ошибка.
-- `ctx` **[Object][360]?** Available session and message address. / Данные сессии и адрес сообщения.
+- `ctx` **[WebSocketErrorContext][423]?** Safe lifecycle or session context. / Безопасный lifecycle-
+  или session-контекст.
 
-Returns **(void | [Promise][365]\<void>)** Optional asynchronous completion. / Асинхронное завершение.
+Returns **(void | [Promise][524]\<void>)** Optional asynchronous completion. / Асинхронное завершение.
+
+## WebSocketErrorContext
+
+Safe context for a WebSocket handshake, lifecycle, or session error.
+Безопасный контекст ошибки WebSocket handshake, lifecycle или сессии.
+
+Type: [Object][518]
+
+### Properties
+
+- `phase` **(`"handshake"` | `"connect"` | `"session"` | `"disconnect"`)** Error phase. / Фаза ошибки.
+- `clientId` **[string][513]?** Framework-generated client identifier. / Идентификатор клиента.
+- `sessionId` **[string][513]?** Framework-generated session identifier. / Идентификатор сессии.
+- `path` **[string][513]?** Handshake or endpoint path. / Путь handshake или endpoint.
+- `scenario` **[string][513]?** Selected authentication scenario. / Выбранный scenario
+  аутентификации.
+- `controller` **[string][513]?** Addressed WebSocket-controller. / Адресованный
+  WebSocket-контроллер.
+- `event` **[string][513]?** Addressed WebSocket-event. / Адресованное WebSocket-событие.
+- `signal` **AbortSignal** Cancellation signal. / Сигнал отмены.
+- `authSession` **[AuthSession][460]?** Confirmed authentication session. / Подтверждённая сессия
+  аутентификации.
 
 ## ActiveHttpRequest
 
 One tracked in-flight HTTP request.
 Один отслеживаемый активный HTTP-запрос.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
@@ -2098,67 +3150,60 @@ Type: [Object][360]
 
 ## httpRouter
 
-Type: [HttpRouter][183]
+Type: [HttpRouter][247]
 
 ## httpControllers
 
-Type: [Set][366]<[Function][364]>
-
-## terminateBrokenWorker
-
-Rejects active work and terminates a protocol-violating worker. / Отклоняет активную работу и останавливает нарушившего протокол работника.
-
-### Parameters
-
-- `entry` **[WorkerEntry][80]** Worker entry. / Запись работника.
-- `message` **[string][357]** Failure description. / Описание сбоя.
+Type: [Set][521]<[Function][523]>
 
 ## jobRunner
 
-Type: [JobRunner][168]
+Type: [JobRunner][220]
 
 ## jobRunner
 
-Type: [JobRunner][168]
+Type: [JobRunner][220]
 
-## isValidCloseCode
+## authentication
 
-Checks a close code accepted from a peer. / Проверяет код закрытия от другой стороны.
+Application Authentication module. / Модуль Authentication приложения.
 
-### Parameters
+Type: [Authentication][370]
 
-- `code` **[number][359]** Close code. / Код закрытия.
+## authentication
 
-Returns **[boolean][358]** Validation result. / Результат проверки.
+Shared Authentication module. / Общий модуль Authentication.
+
+Type: [Authentication][370]
 
 ## httpOptions
 
-Type: [NormalizedHttpOptions][260]
-
-## terminateEntry
-
-Starts terminating one worker at most once. / Однократно начинает остановку работника.
-
-### Parameters
-
-- `entry` **[WorkerEntry][80]** Worker entry. / Запись работника.
+Type: [NormalizedHttpOptions][389]
 
 ## httpServer
 
 Type: Server
 
-## listenPromise
+## createAuthentication
 
-Type: [Promise][365]<(AddressInfo | [string][357] | null)>
-
-## finish
-
-Completes local connection state exactly once. / Однократно завершает локальное состояние соединения.
+Creates an immutable Authentication module from named strategies and scenarios.
+Создаёт неизменяемый модуль Authentication из именованных strategies и scenarios.
 
 ### Parameters
 
-- `code` **[number][359]** Close code. / Код закрытия.
-- `reason` **[string][357]** Close reason. / Причина закрытия.
+- `options` **[AuthenticationOptions][449]** Declarative Authentication configuration. /
+  Декларативная конфигурация Authentication.
+
+<!---->
+
+- Throws **[InvalidAuthenticationOptionsError][146]** When configuration is invalid. / При неверной
+  конфигурации.
+
+Returns **[Authentication][370]** Authentication module. / Модуль Authentication.
+
+## listenPromise
+
+Type: [Promise][524]<(AddressInfo | [string][513] | null)>
 
 ## state
 
@@ -2166,11 +3211,186 @@ Type: (`"new"` | `"starting"` | `"running"` | `"failed"` | `"closing"` | `"close
 
 ## activeRequests
 
-Type: [Set][366]<[ActiveHttpRequest][292]>
+Type: [Set][521]<[ActiveHttpRequest][425]>
 
 ## activeWaiters
 
-Type: [Set][366]<[Function][364]>
+Type: [Set][521]<[Function][523]>
+
+## isAuthentication
+
+Tests whether a value is a framework-created Authentication module.
+Проверяет, является ли значение созданным фреймворком модулем Authentication.
+
+### Parameters
+
+- `value` **any** Candidate value. / Проверяемое значение.
+
+Returns **[boolean][516]** Whether the brand matches. / Совпадает ли brand.
+
+## deliverMessage
+
+Decodes and delivers one complete data message. / Декодирует и передаёт одно полное data-сообщение.
+
+### Parameters
+
+- `opcode` **[number][517]** Message opcode. / Opcode сообщения.
+- `payload` **[Buffer][532]** Message bytes. / Байты сообщения.
+
+## webSocketControllers
+
+Type: [WebSocketControllerRegistry][74]
+
+## webSocketControllerClasses
+
+Type: [Set][521]<[Function][523]>
+
+## hasAuthenticationScenario
+
+Tests whether a framework Authentication contains a named scenario.
+Проверяет наличие именованного scenario в framework Authentication.
+
+### Parameters
+
+- `authentication` **any** Candidate Authentication module. / Проверяемый модуль Authentication.
+- `scenarioName` **[string][513]** Scenario name. / Имя scenario.
+
+Returns **[boolean][516]** Whether the scenario exists. / Существует ли scenario.
+
+## AuthenticationOptions
+
+Authentication module configuration. / Конфигурация модуля Authentication.
+
+Type: [Object][518]
+
+### Properties
+
+- `strategies` **[Object][518]<[string][513], [AuthenticationStrategy][451]>** Named strategies. / Именованные
+  strategies.
+- `scenarios` **[Object][518]<[string][513], [AuthenticationScenario][453]>** Named scenarios. / Именованные
+  scenarios.
+
+## AuthenticationStrategy
+
+User-defined authentication strategy. / Пользовательская strategy аутентификации.
+
+Type: [Object][518]
+
+### Properties
+
+- `authenticate` **[AuthenticationStrategyHandler][455]** Credential adapter. / Adapter credential.
+
+## AuthenticationScenario
+
+Declarative authentication scenario. / Декларативный scenario аутентификации.
+
+Type: [Object][518]
+
+### Properties
+
+- `use` **[Array][514]<[string][513]>** Ordered unique strategy names. / Упорядоченные уникальные имена
+  strategies.
+- `required` **[boolean][516]** Whether full abstention is rejected. / Отклоняется ли полный
+  abstain.
+
+## AuthenticationStrategyHandler
+
+Executes one authentication strategy. / Выполняет одну strategy аутентификации.
+
+Type: [Function][523]
+
+### Parameters
+
+- `input` **[AuthenticationStrategyInput][457]** Normalized transport input. / Нормализованный
+  transport input.
+
+Returns **([AuthenticationResult][462] | [Promise][524]<[AuthenticationResult][462]>)** Tagged outcome. / Tagged result.
+
+## AuthenticationStrategyInput
+
+Normalized HTTP or WebSocket authentication input.
+Нормализованный HTTP- или WebSocket input аутентификации.
+
+Type: [Object][518]
+
+### Properties
+
+- `transport` **(`"http"` | `"websocket"`)** Transport kind. / Вид transport.
+- `method` **[string][513]** Uppercase HTTP method. / HTTP-метод в верхнем регистре.
+- `path` **[string][513]** Percent-encoded pathname. / Percent-encoded pathname.
+- `headers` **[Headers][533]** Isolated WHATWG headers snapshot. / Изолированный snapshot
+  WHATWG-заголовков.
+- `query` **URLSearchParams** Isolated query snapshot. / Изолированный snapshot query.
+- `origin` **[string][513]?** Validated WebSocket Origin. / Проверенный WebSocket Origin.
+- `signal` **AbortSignal** Request or handshake signal. / Сигнал запроса или handshake.
+
+## AuthenticationInputSnapshot
+
+Stable internal authentication-input snapshot.
+Стабильный внутренний snapshot input аутентификации.
+
+Type: [AuthenticationStrategyInput][457]
+
+## AuthSession
+
+Confirmed identity shared by HTTP and WebSocket transports.
+Подтверждённая общая идентичность HTTP- и WebSocket-транспортов.
+
+Type: [Object][518]
+
+### Properties
+
+- `authSessionId` **[string][513]** Stable opaque session identifier. / Стабильный непрозрачный
+  идентификатор сессии.
+- `principal` **[Object][518]** Immutable JSON-compatible identity data. / Неизменяемые
+  JSON-совместимые данные идентичности.
+- `expiresAt` **[number][517]?** Unix expiry time in milliseconds. / Unix-время истечения в
+  миллисекундах.
+
+## AuthenticationResult
+
+Authentication strategy or scenario outcome.
+Результат strategy или scenario аутентификации.
+
+Type: [Object][518]
+
+### Properties
+
+- `status` **(`"abstain"` | `"rejected"` | `"authenticated"`)** Outcome tag. / Тег результата.
+- `code` **[string][513]?** Stable rejection code. / Стабильный код отказа.
+- `challenge` **[string][513]?** WWW-Authenticate challenge. / Challenge WWW-Authenticate.
+- `session` **[AuthSession][460]?** Confirmed session. / Подтверждённая сессия.
+
+## webSocketOptions
+
+Type: [NormalizedWebSocketOptions][393]
+
+## webSocketSessions
+
+Type: [WebSocketSessionStore][1]
+
+## webSocketTransport
+
+Type: [WebSocketTransport][466]
+
+## isValidCloseCode
+
+Checks a close code accepted from a peer. / Проверяет код закрытия от другой стороны.
+
+### Parameters
+
+- `code` **[number][517]** Close code. / Код закрытия.
+
+Returns **[boolean][516]** Validation result. / Результат проверки.
+
+## finish
+
+Completes local connection state exactly once. / Однократно завершает локальное состояние соединения.
+
+### Parameters
+
+- `code` **[number][517]** Close code. / Код закрытия.
+- `reason` **[string][513]** Close reason. / Причина закрытия.
 
 ## WebSocketTransport
 
@@ -2178,8 +3398,9 @@ Owns WebSocket upgrades, `daevox.v1` dispatch, and lifecycle hooks. / Владе
 
 ### Parameters
 
-- `dependencies` **[WebSocketTransportDependencies][327]** Owned dependencies. / Принадлежащие зависимости.
+- `dependencies` **[WebSocketTransportDependencies][488]** Owned dependencies. / Принадлежащие зависимости.
 
+  - `dependencies.authentication` &#x20;
   - `dependencies.controllers` &#x20;
   - `dependencies.jobRunner` &#x20;
   - `dependencies.onError` &#x20;
@@ -2200,45 +3421,61 @@ Returns **void**&#x20;
 
 Waits for all currently pending disconnect hooks. / Ожидает все текущие hooks отключения.
 
-Returns **[Promise][365]\<void>** Hook completion. / Завершение hooks.
+Returns **[Promise][524]\<void>** Hook completion. / Завершение hooks.
 
 ## WebSocketOutboundMessage
 
 Encoded outbound WebSocket message descriptor.
 Описание кодированного исходящего WebSocket-сообщения.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `opcode` **[number][359]** Frame opcode. / Opcode frame.
-- `payload` **[Buffer][372]** Frame payload. / Payload frame.
+- `opcode` **[number][517]** Frame opcode. / Opcode frame.
+- `payload` **[Buffer][532]** Frame payload. / Payload frame.
 
 ## WebSocketConnectionOptions
 
 Options used by the frame-level connection parser.
 Параметры парсера соединения на уровне frames.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `maxPayload` **[number][359]** Maximum message bytes. / Максимальный размер сообщения.
-- `onClose` **[WebSocketCloseListener][321]** Close listener. / Обработчик закрытия.
-- `onMessage` **[WebSocketMessageListener][323]** Message listener. / Обработчик сообщения.
-- `onProtocolError` **[WebSocketProtocolFailureListener][325]** Protocol listener. / Обработчик.
+- `maxPayload` **[number][517]** Maximum message bytes. / Максимальный размер сообщения.
+- `maxWriteQueueBytes` **[number][517]** Maximum pending framed bytes. / Максимальный размер
+  ожидающих frames в байтах.
+- `onClose` **[WebSocketCloseListener][482]** Close listener. / Обработчик закрытия.
+- `onMessage` **[WebSocketMessageListener][484]** Message listener. / Обработчик сообщения.
+- `onProtocolError` **[WebSocketProtocolFailureListener][486]** Protocol listener. / Обработчик.
+
+## WebSocketSocketListeners
+
+Stable socket listeners owned by one WebSocket connection.
+Стабильные listeners socket, принадлежащие одному WebSocket-соединению.
+
+Type: [Object][518]
+
+### Properties
+
+- `data` **[Function][523]** Inbound-data listener. / Listener входящих данных.
+- `error` **[Function][523]** Socket-error listener. / Listener ошибки socket.
+- `end` **[Function][523]** Socket-end listener. / Listener завершения socket.
+- `close` **[Function][523]** Socket-close listener. / Listener закрытия socket.
 
 ## WebSocketCloseListener
 
 Receives a completed WebSocket close.
 Получает завершённое закрытие WebSocket.
 
-Type: [Function][364]
+Type: [Function][523]
 
 ### Parameters
 
-- `code` **[number][359]** Close code. / Код закрытия.
-- `reason` **[string][357]** Close reason. / Причина закрытия.
+- `code` **[number][517]** Close code. / Код закрытия.
+- `reason` **[string][513]** Close reason. / Причина закрытия.
 
 Returns **void**&#x20;
 
@@ -2247,11 +3484,11 @@ Returns **void**&#x20;
 Receives one decoded text string or binary Buffer.
 Получает одну декодированную строку или бинарный Buffer.
 
-Type: [Function][364]
+Type: [Function][523]
 
 ### Parameters
 
-- `data` **([string][357] | [Buffer][372])** Message data. / Данные сообщения.
+- `data` **([string][513] | [Buffer][532])** Message data. / Данные сообщения.
 
 Returns **void**&#x20;
 
@@ -2260,12 +3497,12 @@ Returns **void**&#x20;
 Receives a frame-level protocol failure.
 Получает ошибку протокола на уровне frames.
 
-Type: [Function][364]
+Type: [Function][523]
 
 ### Parameters
 
-- `code` **[number][359]** Close code. / Код закрытия.
-- `reason` **[string][357]** Close reason. / Причина закрытия.
+- `code` **[number][517]** Close code. / Код закрытия.
+- `reason` **[string][513]** Close reason. / Причина закрытия.
 
 Returns **void**&#x20;
 
@@ -2274,14 +3511,16 @@ Returns **void**&#x20;
 Dependencies owned by the WebSocket transport.
 Зависимости, принадлежащие WebSocket-транспорту.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `controllers` **[WebSocketControllerRegistry][60]** Controller catalog. / Каталог.
-- `jobRunner` **[JobRunner][168]** Controller job runner. / Исполнитель задач.
-- `onError` **[WebSocketErrorHandler][290]?** Error observer. / Наблюдатель ошибок.
-- `options` **[NormalizedWebSocketOptions][264]** Transport options. / Параметры транспорта.
+- `authentication` **[Authentication][370]?** Shared Authentication module. / Общий модуль
+  Authentication.
+- `controllers` **[WebSocketControllerRegistry][74]** Controller catalog. / Каталог.
+- `jobRunner` **[JobRunner][220]** Controller job runner. / Исполнитель задач.
+- `onError` **[WebSocketErrorHandler][421]?** Error observer. / Наблюдатель ошибок.
+- `options` **[NormalizedWebSocketOptions][393]** Transport options. / Параметры транспорта.
 - `sessionStore` **[WebSocketSessionStore][1]** Active sessions. / Активные сессии.
 
 ## WebSocketSessionContext
@@ -2289,45 +3528,28 @@ Type: [Object][360]
 Minimal context retained while dispatching a WebSocket message.
 Минимальный контекст при обработке WebSocket-сообщения.
 
-Type: [Object][360]
+Type: [Object][518]
 
 ### Properties
 
-- `clientId` **[string][357]** Client identifier. / Идентификатор клиента.
-- `sessionId` **[string][357]** Session identifier. / Идентификатор сессии.
+- `phase` **`"session"`** Error phase. / Фаза ошибки.
+- `clientId` **[string][513]** Client identifier. / Идентификатор клиента.
+- `sessionId` **[string][513]** Session identifier. / Идентификатор сессии.
 - `signal` **AbortSignal** Session signal. / Сигнал сессии.
-
-## webSocketControllers
-
-Type: [WebSocketControllerRegistry][60]
-
-## webSocketControllerClasses
-
-Type: [Set][366]<[Function][364]>
+- `authSession` **[AuthSession][460]?** Confirmed authentication session. / Подтверждённая сессия
+  аутентификации.
 
 ## disconnectPromises
 
-Type: [Set][366]<[Promise][365]\<void>>
-
-## webSocketOptions
-
-Type: [NormalizedWebSocketOptions][264]
-
-## webSocketSessions
-
-Type: [WebSocketSessionStore][1]
+Type: [Set][521]<[Promise][524]\<void>>
 
 ## onError
 
-Type: [WebSocketErrorHandler][290]
-
-## webSocketTransport
-
-Type: [WebSocketTransport][312]
+Type: [WebSocketErrorHandler][421]
 
 ## options
 
-Type: [NormalizedWebSocketOptions][264]
+Type: [NormalizedWebSocketOptions][393]
 
 ## sessionStore
 
@@ -2341,9 +3563,9 @@ Validates and upgrades one handshake, then dispatches its messages serially. / �
 
 - `request` **IncomingMessage** Upgrade request. / Upgrade-запрос.
 - `socket` **Socket** TCP socket. / TCP-сокет.
-- `head` **[Buffer][372]** Buffered bytes. / Буферизованные байты.
+- `head` **[Buffer][532]** Buffered bytes. / Буферизованные байты.
 
-Returns **[Promise][365]\<void>** Upgrade completion. / Завершение upgrade.
+Returns **[Promise][524]\<void>** Upgrade completion. / Завершение upgrade.
 
 ## handleHttpRequest
 
@@ -2354,7 +3576,7 @@ Handles one HTTP request through routing, normalization, and response writing. /
 - `request` **IncomingMessage** Incoming request. / Входящий запрос.
 - `response` **ServerResponse** Server response. / Ответ сервера.
 
-Returns **[Promise][365]\<void>** Completion. / Завершение обработки.
+Returns **[Promise][524]\<void>** Completion. / Завершение обработки.
 
 ## writeHttpResult
 
@@ -2363,17 +3585,8 @@ Validates, serializes, and writes an HTTP-handler result. / Проверяет, 
 ### Parameters
 
 - `response` **ServerResponse** Server response. / Ответ сервера.
-- `requestedMethod` **[string][357]** Requested method. / Запрошенный метод.
-- `result` **[HttpResponse][274]** Handler result. / Результат HTTP-обработчика.
-
-## report
-
-Reports an error without letting observer failures affect transport. / Сообщает об ошибке, не позволяя сбою наблюдателя повлиять на транспорт.
-
-### Parameters
-
-- `error` **any** Reported error. / Ошибка.
-- `ctx` **[Object][360]?** Available context. / Доступный контекст.
+- `requestedMethod` **[string][513]** Requested method. / Запрошенный метод.
+- `result` **[HttpResponse][403]** Handler result. / Результат HTTP-обработчика.
 
 ## isJsonMediaType
 
@@ -2383,17 +3596,7 @@ Checks whether a Content-Type represents UTF-8 JSON. / Проверяет, яв�
 
 - `value` **any** Header value. / Значение заголовка.
 
-Returns **[boolean][358]** Match result. / Результат проверки.
-
-## handleMessageError
-
-Converts a queued message failure into a protocol response or close. / Преобразует ошибку очереди сообщений в ответ протокола или закрытие.
-
-### Parameters
-
-- `error` **any** Processing error. / Ошибка обработки.
-- `connection` **[WebSocketConnection][122]** Active connection. / Активное соединение.
-- `sessionContext` **[WebSocketSessionContext][329]** Session identifiers and signal. / Идентификаторы и сигнал сессии.
+Returns **[boolean][516]** Match result. / Результат проверки.
 
 ## reportUnexpected
 
@@ -2402,13 +3605,13 @@ Reports an unexpected HTTP error without affecting the response flow. / Сооб
 ### Parameters
 
 - `error` **any** Reported error. / Ошибка.
-- `ctx` **[HttpRequestContext][272]?** Request context. / Контекст HTTP-запроса.
+- `ctx` **[HttpRequestContext][401]?** Request context. / Контекст HTTP-запроса.
 
 ## waitForActiveRequests
 
 Waits until no HTTP requests remain active. / Ожидает завершения всех активных HTTP-запросов.
 
-Returns **[Promise][365]\<void>** Completion. / Завершение ожидания.
+Returns **[Promise][524]\<void>** Completion. / Завершение ожидания.
 
 ## writeJson
 
@@ -2417,382 +3620,559 @@ Writes an infrastructure JSON response. / Записывает инфрастр�
 ### Parameters
 
 - `response` **ServerResponse** Server response. / Ответ сервера.
-- `status` **[number][359]** HTTP status. / HTTP-статус.
+- `status` **[number][517]** HTTP status. / HTTP-статус.
 - `value` **any** JSON value. / JSON-значение.
-- `headers` **[Object][360]<[string][357], ([string][357] | [number][359])>?** Additional headers. / Дополнительные заголовки. (optional, default `{}`)
+- `headers` **[Object][518]<[string][513], ([string][513] | [number][517])>?** Additional headers. / Дополнительные заголовки. (optional, default `{}`)
+
+## report
+
+Reports an error without letting observer failures affect transport. / Сообщает об ошибке, не позволяя сбою наблюдателя повлиять на транспорт.
+
+### Parameters
+
+- `error` **any** Reported error. / Ошибка.
+- `ctx` **[Object][518]?** Available context. / Доступный контекст.
+
+## handleMessageError
+
+Converts a queued message failure into a protocol response or close. / Преобразует ошибку очереди сообщений в ответ протокола или закрытие.
+
+### Parameters
+
+- `error` **any** Processing error. / Ошибка обработки.
+- `connection` **[WebSocketConnection][205]** Active connection. / Активное соединение.
+- `sessionContext` **[WebSocketSessionContext][490]** Session identifiers and signal. / Идентификаторы и сигнал сессии.
 
 [1]: #websocketsessionstore
 [2]: #add
 [3]: #parameters
-[4]: #remove
+[4]: #connectionsforauthsession
 [5]: #parameters-1
-[6]: #closeall
+[6]: #authsessionforsession
 [7]: #parameters-2
-[8]: #websocketsessionrecord
-[9]: #properties
-[10]: #invalidhttpcontrollererror
-[11]: #http_token
-[12]: #sessions
-[13]: #wire_name
-[14]: #wire_name-1
-[15]: #httpcontrollerbase
-[16]: #parameters-3
-[17]: #controlleroptions
-[18]: #properties-1
-[19]: #job
-[20]: #jobcontext
-[21]: #properties-2
-[22]: #jobrun
-[23]: #parameters-4
-[24]: #websocketcontrollerbase
-[25]: #parameters-5
-[26]: #option_keys
-[27]: #invalidhttprouteerror
-[28]: #parameter_name
-[29]: #guid
-[30]: #owndatavalue
-[31]: #parameters-6
-[32]: #owndatavalue-1
-[33]: #parameters-7
-[34]: #owndatavalue-2
-[35]: #parameters-8
-[36]: #config_keys
-[37]: #hasexactlyownkeys
-[38]: #parameters-9
-[39]: #restoreerror
-[40]: #parameters-10
-[41]: #route_keys
-[42]: #utf8_decoder
-[43]: #utf8_decoder-1
-[44]: #duplicatehttpcontrollererror
-[45]: #isplainobject
+[8]: #remove
+[9]: #parameters-3
+[10]: #closeall
+[11]: #parameters-4
+[12]: #websocketsessionrecord
+[13]: #properties
+[14]: #invalidhttpcontrollererror
+[15]: #http_token
+[16]: #cookie_name
+[17]: #wire_name
+[18]: #wire_name-1
+[19]: #wire_name-2
+[20]: #catalog_name
+[21]: #authsessionmembership
+[22]: #httpcontrollerbase
+[23]: #parameters-5
+[24]: #controlleroptions
+[25]: #properties-1
+[26]: #job
+[27]: #jobcontext
+[28]: #properties-2
+[29]: #jobrun
+[30]: #parameters-6
+[31]: #websocketcontrollerbase
+[32]: #parameters-7
+[33]: #option_keys
+[34]: #cookie_value
+[35]: #invalidhttprouteerror
+[36]: #parameter_name
+[37]: #sessions
+[38]: #guid
+[39]: #owndatavalue
+[40]: #parameters-8
+[41]: #owndatavalue-1
+[42]: #parameters-9
+[43]: #owndatavalue-2
+[44]: #parameters-10
+[45]: #isexactpushenvelope
 [46]: #parameters-11
-[47]: #invalid
-[48]: #parameters-12
-[49]: #invalid-1
-[50]: #parameters-13
-[51]: #declaration_keys
-[52]: #http_option_keys
-[53]: #httprouteconflicterror
-[54]: #serializeerror
-[55]: #parameters-14
-[56]: #serialize
-[57]: #parameters-15
-[58]: #invalidroute
-[59]: #parameters-16
-[60]: #websocketcontrollerregistry
-[61]: #register
-[62]: #parameters-17
-[63]: #resolve
-[64]: #parameters-18
-[65]: #websocketeventdeclaration
-[66]: #properties-3
-[67]: #websocketcontrollerentry
-[68]: #properties-4
-[69]: #websocketcontrollerresolution
-[70]: #properties-5
-[71]: #workerpool
-[72]: #parameters-19
-[73]: #run
-[74]: #parameters-20
-[75]: #close
-[76]: #serializedworkererror
-[77]: #properties-6
-[78]: #workertask
-[79]: #properties-7
-[80]: #workerentry
-[81]: #properties-8
-[82]: #workerrunmessage
-[83]: #properties-9
-[84]: #workercancelmessage
-[85]: #properties-10
-[86]: #workerresponsemessage
-[87]: #properties-11
-[88]: #ishttptoken
-[89]: #parameters-21
-[90]: #controllers
-[91]: #controllers-1
-[92]: #controllers-2
-[93]: #closed
-[94]: #closed-1
-[95]: #closed-2
-[96]: #invalidhttppathencodingerror
-[97]: #iscompatible
-[98]: #parameters-22
-[99]: #websocket_option_keys
-[100]: #config
-[101]: #config-1
-[102]: #nextid
-[103]: #istimeout
-[104]: #parameters-23
-[105]: #frame
-[106]: #parameters-24
-[107]: #invalidhttpoptionserror
-[108]: #parsepath
-[109]: #parameters-25
-[110]: #queue
-[111]: #decodepathsegments
-[112]: #parameters-26
-[113]: #infrastructurehttperror
-[114]: #parameters-27
-[115]: #workers
-[116]: #invalidwebsocketcontrollererror
-[117]: #validateexport
-[118]: #parameters-28
-[119]: #normalizeconfig
-[120]: #parameters-29
-[121]: #invalidwebsocketoptionserror
-[122]: #websocketconnection
-[123]: #parameters-30
-[124]: #start
-[125]: #parameters-31
-[126]: #send
-[127]: #parameters-32
-[128]: #close-1
-[129]: #parameters-33
-[130]: #invalidhttpoptions
-[131]: #parameters-34
-[132]: #buffer
-[133]: #duplicatewebsocketcontrollererror
-[134]: #compileroute
-[135]: #parameters-35
-[136]: #decodewebsocketmessage
-[137]: #parameters-36
-[138]: #normalizehttpoptions
-[139]: #parameters-37
-[140]: #fragmentedchunks
-[141]: #websocketcontrollerconflicterror
-[142]: #fragmentedlength
-[143]: #handlemessage
-[144]: #parameters-38
-[145]: #validatejobclass
-[146]: #parameters-39
-[147]: #websocketprotocolerror
-[148]: #parameters-40
-[149]: #fragmentedopcode
-[150]: #maxpayload
-[151]: #onclose
-[152]: #onmessage
-[153]: #onmessage-1
-[154]: #parameters-41
-[155]: #onprotocolerror
-[156]: #normalizewebsocketoptions
-[157]: #parameters-42
-[158]: #applicationstateerror
-[159]: #socket
-[160]: #httperror
-[161]: #parameters-43
-[162]: #validateoptions
-[163]: #parameters-44
-[164]: #encodewebsocketmessage
-[165]: #parameters-45
-[166]: #comparespecificity
-[167]: #parameters-46
-[168]: #jobrunner
-[169]: #parameters-47
-[170]: #run-1
-[171]: #parameters-48
-[172]: #close-2
-[173]: #jobrunnerconfig
-[174]: #properties-12
-[175]: #normalizedjobrunnerconfig
-[176]: #properties-13
-[177]: #jobrunoptions
-[178]: #properties-14
-[179]: #normalizedjobrunoptions
-[180]: #properties-15
-[181]: #closepromise
-[182]: #closepromise-1
-[183]: #httprouter
-[184]: #registerall
-[185]: #parameters-49
-[186]: #match
-[187]: #parameters-50
-[188]: #methodsfor
-[189]: #parameters-51
-[190]: #httproutepatternsegment
-[191]: #properties-16
-[192]: #compiledhttproute
-[193]: #properties-17
-[194]: #httproutematch
-[195]: #properties-18
-[196]: #routes
-[197]: #encodewebsocketerror
-[198]: #parameters-52
-[199]: #websocketprotocolmessage
-[200]: #properties-19
-[201]: #workerpool-1
-[202]: #controllererror
-[203]: #parameters-53
-[204]: #invalidjoberror
-[205]: #createworker
-[206]: #invalidjoboptionserror
-[207]: #routeerror
-[208]: #parameters-54
-[209]: #jobdatacloneerror
-[210]: #pathsegments
-[211]: #parameters-55
-[212]: #start-1
-[213]: #parameters-56
-[214]: #jobqueuefullerror
-[215]: #jobabortederror
-[216]: #fail
-[217]: #parameters-57
-[218]: #serializesegment
-[219]: #parameters-58
-[220]: #jobtimedouterror
-[221]: #read
-[222]: #parameters-59
-[223]: #jobexecutionerror
-[224]: #composepath
-[225]: #parameters-60
-[226]: #workerterminatederror
-[227]: #jobrunnerclosederror
-[228]: #httperrorresponse
-[229]: #properties-20
-[230]: #websocketprotocolerroroptions
-[231]: #properties-21
-[232]: #websocketerrorcode
-[233]: #cancel
-[234]: #parameters-61
-[235]: #validatecontrollerclass
-[236]: #parameters-62
-[237]: #settle
-[238]: #parameters-63
-[239]: #normalizeroute
-[240]: #parameters-64
-[241]: #release
-[242]: #parameters-65
-[243]: #onexit
-[244]: #parameters-66
-[245]: #delivermessage
-[246]: #parameters-67
-[247]: #application
-[248]: #parameters-68
-[249]: #registerwebsocketcontroller
-[250]: #parameters-69
-[251]: #registerhttpcontroller
-[252]: #parameters-70
-[253]: #listen
-[254]: #parameters-71
-[255]: #close-3
-[256]: #applicationoptions
-[257]: #properties-22
-[258]: #httpoptions
-[259]: #properties-23
-[260]: #normalizedhttpoptions
-[261]: #properties-24
-[262]: #websocketoptions
-[263]: #properties-25
-[264]: #normalizedwebsocketoptions
-[265]: #properties-26
-[266]: #httproutedeclaration
-[267]: #properties-27
-[268]: #httpcontrollermetadata
-[269]: #properties-28
-[270]: #normalizedhttproute
-[271]: #properties-29
-[272]: #httprequestcontext
-[273]: #properties-30
-[274]: #httpresponse
-[275]: #properties-31
-[276]: #httperrorhandler
-[277]: #parameters-72
-[278]: #listenoptions
-[279]: #properties-32
-[280]: #websocketlifecyclecontext
-[281]: #properties-33
-[282]: #websocketdisconnectcontext
-[283]: #properties-34
-[284]: #websockethandlercontext
-[285]: #properties-35
-[286]: #websocketconnecthandler
-[287]: #parameters-73
-[288]: #websocketdisconnecthandler
-[289]: #parameters-74
-[290]: #websocketerrorhandler
-[291]: #parameters-75
-[292]: #activehttprequest
-[293]: #properties-36
-[294]: #httprouter-1
-[295]: #httpcontrollers
-[296]: #terminatebrokenworker
-[297]: #parameters-76
-[298]: #jobrunner-1
-[299]: #jobrunner-2
-[300]: #isvalidclosecode
-[301]: #parameters-77
-[302]: #httpoptions-1
-[303]: #terminateentry
-[304]: #parameters-78
-[305]: #httpserver
-[306]: #listenpromise
-[307]: #finish
-[308]: #parameters-79
-[309]: #state
-[310]: #activerequests
-[311]: #activewaiters
-[312]: #websockettransport
-[313]: #parameters-80
-[314]: #attach
-[315]: #parameters-81
-[316]: #waitfordisconnects
-[317]: #websocketoutboundmessage
-[318]: #properties-37
-[319]: #websocketconnectionoptions
-[320]: #properties-38
-[321]: #websocketcloselistener
-[322]: #parameters-82
-[323]: #websocketmessagelistener
-[324]: #parameters-83
-[325]: #websocketprotocolfailurelistener
-[326]: #parameters-84
-[327]: #websockettransportdependencies
-[328]: #properties-39
-[329]: #websocketsessioncontext
-[330]: #properties-40
-[331]: #websocketcontrollers
-[332]: #websocketcontrollerclasses
-[333]: #disconnectpromises
-[334]: #websocketoptions-1
-[335]: #websocketsessions
-[336]: #onerror
-[337]: #websockettransport-1
-[338]: #options
-[339]: #sessionstore
-[340]: #upgrade
-[341]: #parameters-85
-[342]: #handlehttprequest
-[343]: #parameters-86
-[344]: #writehttpresult
-[345]: #parameters-87
-[346]: #report
-[347]: #parameters-88
-[348]: #isjsonmediatype
-[349]: #parameters-89
-[350]: #handlemessageerror
-[351]: #parameters-90
-[352]: #reportunexpected
-[353]: #parameters-91
-[354]: #waitforactiverequests
-[355]: #writejson
-[356]: #parameters-92
-[357]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
-[358]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Boolean
-[359]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Number
-[360]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object
-[361]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/RegExp
-[362]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Map
-[363]: #applicationregisterhttpcontroller
-[364]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Statements/function
-[365]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise
-[366]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Set
-[367]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Array
-[368]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Error
-[369]: https://developer.mozilla.org/docs/Web/API/TextDecoder
-[370]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WeakSet
-[371]: https://developer.mozilla.org/docs/Web/JavaScript
-[372]: https://nodejs.org/api/buffer.html
-[373]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/URIError
-[374]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/TypeError
-[375]: https://developer.mozilla.org/docs/Web/HTML/Element/header
+[47]: #rejection_code
+[48]: #config_keys
+[49]: #hasexactlyownkeys
+[50]: #parameters-12
+[51]: #restoreerror
+[52]: #parameters-13
+[53]: #token68
+[54]: #route_keys
+[55]: #utf8_decoder
+[56]: #utf8_decoder-1
+[57]: #duplicatehttpcontrollererror
+[58]: #isplainobject
+[59]: #parameters-14
+[60]: #http_method
+[61]: #invalid
+[62]: #parameters-15
+[63]: #invalid-1
+[64]: #parameters-16
+[65]: #authenticationpresetcallbackerror
+[66]: #authentication_scenario_name
+[67]: #authentication_scenario_name-1
+[68]: #declaration_keys
+[69]: #max_timer_delay
+[70]: #authentication_keys
+[71]: #httprouteconflicterror
+[72]: #serializeerror
+[73]: #parameters-17
+[74]: #websocketcontrollerregistry
+[75]: #register
+[76]: #parameters-18
+[77]: #resolve
+[78]: #parameters-19
+[79]: #websocketeventdeclaration
+[80]: #properties-3
+[81]: #websocketcontrollerentry
+[82]: #properties-4
+[83]: #websocketcontrollerresolution
+[84]: #properties-5
+[85]: #workerpool
+[86]: #parameters-20
+[87]: #run
+[88]: #parameters-21
+[89]: #close
+[90]: #serializedworkererror
+[91]: #properties-6
+[92]: #workertask
+[93]: #properties-7
+[94]: #workerentry
+[95]: #properties-8
+[96]: #workerrunmessage
+[97]: #properties-9
+[98]: #workercancelmessage
+[99]: #properties-10
+[100]: #workerresponsemessage
+[101]: #properties-11
+[102]: #ishttptoken
+[103]: #parameters-22
+[104]: #strategy_keys
+[105]: #controllers
+[106]: #controllers-1
+[107]: #controllers-2
+[108]: #closed
+[109]: #closed-1
+[110]: #closed-2
+[111]: #rejecthandshake
+[112]: #parameters-23
+[113]: #invalidhttppathencodingerror
+[114]: #iscompatible
+[115]: #parameters-24
+[116]: #invalidroute
+[117]: #parameters-25
+[118]: #application_option_keys
+[119]: #config
+[120]: #config-1
+[121]: #hasexactdatakeys
+[122]: #parameters-26
+[123]: #hasexactdatakeys-1
+[124]: #parameters-27
+[125]: #scenario_keys
+[126]: #createwebsocketrequestsender
+[127]: #parameters-28
+[128]: #httprequestwebsocketsender
+[129]: #properties-12
+[130]: #websocketpushsend
+[131]: #parameters-29
+[132]: #websocketpushresult
+[133]: #properties-13
+[134]: #http_option_keys
+[135]: #nextid
+[136]: #istimeout
+[137]: #parameters-30
+[138]: #invalidhttpoptionserror
+[139]: #http_input_keys
+[140]: #queue
+[141]: #decodepathsegments
+[142]: #parameters-31
+[143]: #validateorigin
+[144]: #parameters-32
+[145]: #workers
+[146]: #invalidauthenticationoptionserror
+[147]: #parsepath
+[148]: #parameters-33
+[149]: #websocket_input_keys
+[150]: #validateexport
+[151]: #parameters-34
+[152]: #websocket_option_keys
+[153]: #callpresetcallback
+[154]: #parameters-35
+[155]: #normalizeconfig
+[156]: #parameters-36
+[157]: #invalidauthenticationresulterror
+[158]: #parameters-37
+[159]: #properties-14
+[160]: #authentication_instances
+[161]: #infrastructurehttperror
+[162]: #parameters-38
+[163]: #bearertoken
+[164]: #parameters-39
+[165]: #iswebsocketmessagebody
+[166]: #parameters-40
+[167]: #authentication_scenarios
+[168]: #authenticationstrategyerror
+[169]: #parameters-41
+[170]: #properties-15
+[171]: #compileroute
+[172]: #parameters-42
+[173]: #invalidoptions
+[174]: #parameters-43
+[175]: #authenticate
+[176]: #parameters-44
+[177]: #authenticate-1
+[178]: #parameters-45
+[179]: #authenticate-2
+[180]: #parameters-46
+[181]: #serialize
+[182]: #parameters-47
+[183]: #handlemessage
+[184]: #parameters-48
+[185]: #validatejobclass
+[186]: #parameters-49
+[187]: #decodewebsocketmessage
+[188]: #parameters-50
+[189]: #invalidhttpoptions
+[190]: #parameters-51
+[191]: #authenticationabortederror
+[192]: #normalizehttpoptions
+[193]: #parameters-52
+[194]: #invalidwebsocketpusherror
+[195]: #frame
+[196]: #parameters-53
+[197]: #websocketpushpayloadtoolargeerror
+[198]: #catalogentries
+[199]: #parameters-54
+[200]: #invalidwebsocketcontrollererror
+[201]: #validateoptions
+[202]: #parameters-55
+[203]: #cookiesession
+[204]: #parameters-56
+[205]: #websocketconnection
+[206]: #parameters-57
+[207]: #start
+[208]: #parameters-58
+[209]: #send
+[210]: #parameters-59
+[211]: #close-1
+[212]: #parameters-60
+[213]: #invalidwebsocketoptionserror
+[214]: #normalizewebsocketoptions
+[215]: #parameters-61
+[216]: #blocked
+[217]: #encodewebsocketmessage
+[218]: #parameters-62
+[219]: #duplicatewebsocketcontrollererror
+[220]: #jobrunner
+[221]: #parameters-63
+[222]: #run-1
+[223]: #parameters-64
+[224]: #close-2
+[225]: #jobrunnerconfig
+[226]: #properties-16
+[227]: #normalizedjobrunnerconfig
+[228]: #properties-17
+[229]: #jobrunoptions
+[230]: #properties-18
+[231]: #normalizedjobrunoptions
+[232]: #properties-19
+[233]: #buffer
+[234]: #comparespecificity
+[235]: #parameters-65
+[236]: #normalizestrategy
+[237]: #parameters-66
+[238]: #websocketcontrollerconflicterror
+[239]: #closepromise
+[240]: #closepromise-1
+[241]: #fragmentedchunks
+[242]: #fragmentedlength
+[243]: #websocketprotocolerror
+[244]: #parameters-67
+[245]: #workerpool-1
+[246]: #fragmentedopcode
+[247]: #httprouter
+[248]: #registerall
+[249]: #parameters-68
+[250]: #match
+[251]: #parameters-69
+[252]: #methodsfor
+[253]: #parameters-70
+[254]: #httproutepatternsegment
+[255]: #properties-20
+[256]: #compiledhttproute
+[257]: #properties-21
+[258]: #httproutematch
+[259]: #properties-22
+[260]: #maxpayload
+[261]: #normalizescenario
+[262]: #parameters-71
+[263]: #routes
+[264]: #encodewebsocketerror
+[265]: #parameters-72
+[266]: #websocketprotocolmessage
+[267]: #properties-23
+[268]: #maxwritequeuebytes
+[269]: #createworker
+[270]: #onclose
+[271]: #applicationstateerror
+[272]: #onmessage
+[273]: #onmessage-1
+[274]: #parameters-73
+[275]: #onetimewebsocketticket
+[276]: #parameters-74
+[277]: #bearertokenoptions
+[278]: #properties-24
+[279]: #bearertokenverifier
+[280]: #parameters-75
+[281]: #authenticationpresetmetadata
+[282]: #properties-25
+[283]: #onetimewebsocketticketoptions
+[284]: #properties-26
+[285]: #onetimewebsocketticketconsumer
+[286]: #parameters-76
+[287]: #websocketticketmetadata
+[288]: #properties-27
+[289]: #cookiesessionoptions
+[290]: #properties-28
+[291]: #cookieselector
+[292]: #properties-29
+[293]: #cookiesessionresolver
+[294]: #parameters-77
+[295]: #onprotocolerror
+[296]: #httperror
+[297]: #parameters-78
+[298]: #socket
+[299]: #socketlisteners
+[300]: #start-1
+[301]: #parameters-79
+[302]: #snapshotinput
+[303]: #parameters-80
+[304]: #writequeue
+[305]: #writequeuebytes
+[306]: #ondrain
+[307]: #invalidjoberror
+[308]: #strategyinput
+[309]: #parameters-81
+[310]: #invalidjoboptionserror
+[311]: #controllererror
+[312]: #parameters-82
+[313]: #jobdatacloneerror
+[314]: #clonejson
+[315]: #parameters-83
+[316]: #cancel
+[317]: #parameters-84
+[318]: #jobqueuefullerror
+[319]: #routeerror
+[320]: #parameters-85
+[321]: #jobabortederror
+[322]: #jobtimedouterror
+[323]: #pathsegments
+[324]: #parameters-86
+[325]: #settle
+[326]: #parameters-87
+[327]: #enqueue
+[328]: #parameters-88
+[329]: #jobexecutionerror
+[330]: #workerterminatederror
+[331]: #release
+[332]: #parameters-89
+[333]: #serializesegment
+[334]: #parameters-90
+[335]: #flush
+[336]: #normalizesession
+[337]: #parameters-91
+[338]: #jobrunnerclosederror
+[339]: #httperrorresponse
+[340]: #properties-30
+[341]: #websocketprotocolerroroptions
+[342]: #properties-31
+[343]: #websocketerrorcode
+[344]: #composepath
+[345]: #parameters-92
+[346]: #write
+[347]: #parameters-93
+[348]: #onexit
+[349]: #parameters-94
+[350]: #normalizeresult
+[351]: #parameters-95
+[352]: #terminate
+[353]: #parameters-96
+[354]: #terminatebrokenworker
+[355]: #parameters-97
+[356]: #validatecontrollerclass
+[357]: #parameters-98
+[358]: #terminateentry
+[359]: #parameters-99
+[360]: #invalidresult
+[361]: #parameters-100
+[362]: #fail
+[363]: #parameters-101
+[364]: #throwifaborted
+[365]: #parameters-102
+[366]: #normalizeroute
+[367]: #parameters-103
+[368]: #read
+[369]: #parameters-104
+[370]: #authentication
+[371]: #parameters-105
+[372]: #authenticate-3
+[373]: #parameters-106
+[374]: #scenarios
+[375]: #strategies
+[376]: #application
+[377]: #parameters-107
+[378]: #registerwebsocketcontroller
+[379]: #parameters-108
+[380]: #registerhttpcontroller
+[381]: #parameters-109
+[382]: #listen
+[383]: #parameters-110
+[384]: #close-3
+[385]: #applicationoptions
+[386]: #properties-32
+[387]: #httpoptions
+[388]: #properties-33
+[389]: #normalizedhttpoptions
+[390]: #properties-34
+[391]: #websocketoptions
+[392]: #properties-35
+[393]: #normalizedwebsocketoptions
+[394]: #properties-36
+[395]: #httproutedeclaration
+[396]: #properties-37
+[397]: #httpcontrollermetadata
+[398]: #properties-38
+[399]: #normalizedhttproute
+[400]: #properties-39
+[401]: #httprequestcontext
+[402]: #properties-40
+[403]: #httpresponse
+[404]: #properties-41
+[405]: #httperrorhandler
+[406]: #parameters-111
+[407]: #httpauthenticationerrorcontext
+[408]: #properties-42
+[409]: #listenoptions
+[410]: #properties-43
+[411]: #websocketlifecyclecontext
+[412]: #properties-44
+[413]: #websocketdisconnectcontext
+[414]: #properties-45
+[415]: #websockethandlercontext
+[416]: #properties-46
+[417]: #websocketconnecthandler
+[418]: #parameters-112
+[419]: #websocketdisconnecthandler
+[420]: #parameters-113
+[421]: #websocketerrorhandler
+[422]: #parameters-114
+[423]: #websocketerrorcontext
+[424]: #properties-47
+[425]: #activehttprequest
+[426]: #properties-48
+[427]: #httprouter-1
+[428]: #httpcontrollers
+[429]: #jobrunner-1
+[430]: #jobrunner-2
+[431]: #authentication-1
+[432]: #authentication-2
+[433]: #httpoptions-1
+[434]: #httpserver
+[435]: #createauthentication
+[436]: #parameters-115
+[437]: #listenpromise
+[438]: #state
+[439]: #activerequests
+[440]: #activewaiters
+[441]: #isauthentication
+[442]: #parameters-116
+[443]: #delivermessage
+[444]: #parameters-117
+[445]: #websocketcontrollers
+[446]: #websocketcontrollerclasses
+[447]: #hasauthenticationscenario
+[448]: #parameters-118
+[449]: #authenticationoptions
+[450]: #properties-49
+[451]: #authenticationstrategy
+[452]: #properties-50
+[453]: #authenticationscenario
+[454]: #properties-51
+[455]: #authenticationstrategyhandler
+[456]: #parameters-119
+[457]: #authenticationstrategyinput
+[458]: #properties-52
+[459]: #authenticationinputsnapshot
+[460]: #authsession
+[461]: #properties-53
+[462]: #authenticationresult
+[463]: #properties-54
+[464]: #websocketoptions-1
+[465]: #websocketsessions
+[466]: #websockettransport
+[467]: #isvalidclosecode
+[468]: #parameters-120
+[469]: #finish
+[470]: #parameters-121
+[471]: #websockettransport-1
+[472]: #parameters-122
+[473]: #attach
+[474]: #parameters-123
+[475]: #waitfordisconnects
+[476]: #websocketoutboundmessage
+[477]: #properties-55
+[478]: #websocketconnectionoptions
+[479]: #properties-56
+[480]: #websocketsocketlisteners
+[481]: #properties-57
+[482]: #websocketcloselistener
+[483]: #parameters-124
+[484]: #websocketmessagelistener
+[485]: #parameters-125
+[486]: #websocketprotocolfailurelistener
+[487]: #parameters-126
+[488]: #websockettransportdependencies
+[489]: #properties-58
+[490]: #websocketsessioncontext
+[491]: #properties-59
+[492]: #disconnectpromises
+[493]: #onerror
+[494]: #options
+[495]: #sessionstore
+[496]: #upgrade
+[497]: #parameters-127
+[498]: #handlehttprequest
+[499]: #parameters-128
+[500]: #writehttpresult
+[501]: #parameters-129
+[502]: #isjsonmediatype
+[503]: #parameters-130
+[504]: #reportunexpected
+[505]: #parameters-131
+[506]: #waitforactiverequests
+[507]: #writejson
+[508]: #parameters-132
+[509]: #report
+[510]: #parameters-133
+[511]: #handlemessageerror
+[512]: #parameters-134
+[513]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
+[514]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Array
+[515]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/undefined
+[516]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Boolean
+[517]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Number
+[518]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object
+[519]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/RegExp
+[520]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Map
+[521]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Set
+[522]: #applicationregisterhttpcontroller
+[523]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Statements/function
+[524]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise
+[525]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Error
+[526]: https://developer.mozilla.org/docs/Web/API/TextDecoder
+[527]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WeakSet
+[528]: https://developer.mozilla.org/docs/Web/JavaScript
+[529]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/URIError
+[530]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/TypeError
+[531]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WeakMap
+[532]: https://nodejs.org/api/buffer.html
+[533]: https://developer.mozilla.org/docs/Web/HTML/Element/header

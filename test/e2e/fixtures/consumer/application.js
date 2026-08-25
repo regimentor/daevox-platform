@@ -7,7 +7,7 @@ import SumJob from './sum-job.js';
 
 class CalculationsHttpController extends HttpControllerBase {
   static prefix = '/calculations';
-  static routes = [{ method: 'POST', path: '/sum', handler: 'sum' }];
+  static routes = [{ method: 'POST', path: '/sum', handler: 'sum', authentication: false }];
 
   async sum(ctx) {
     const values = ctx.body?.values;
@@ -42,7 +42,10 @@ async function receiveMessage(webSocket) {
   return JSON.parse(String(event.data));
 }
 
-const application = new Application({ jobs: { poolSize: 1 } });
+const application = new Application({
+  jobs: { poolSize: 1 },
+  websocket: { authentication: false },
+});
 application.registerHttpController(CalculationsHttpController);
 application.registerWebSocketController(EventsWebSocketController);
 

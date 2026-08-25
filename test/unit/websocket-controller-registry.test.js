@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { Application } from '../../lib/framework/Application.js';
+import { createAuthentication } from '../../lib/framework/Authentication.js';
 import { WebSocketControllerBase } from '../../lib/framework/WebSocketControllerBase.js';
 import {
   DuplicateWebSocketControllerError,
+  InvalidAuthenticationOptionsError,
   InvalidWebSocketControllerError,
   WebSocketControllerConflictError,
   InvalidWebSocketOptionsError,
@@ -29,7 +31,7 @@ test('Application регистрирует декларативный WebSocket-
     subscribe() {}
   }
 
-  const app = new Application();
+  const app = new Application({ websocket: { authentication: false } });
   assert.equal(app.registerWebSocketController(NotificationsController), app);
   await app.close();
 });
@@ -61,7 +63,10 @@ test('WebSocket-контроллер строго проверяет собст�
     class InheritedMetadata extends Parent {},
   ]) {
     assert.throws(
-      () => new Application().registerWebSocketController(Controller),
+      () =>
+        new Application({ websocket: { authentication: false } }).registerWebSocketController(
+          Controller,
+        ),
       InvalidWebSocketControllerError,
     );
   }
@@ -81,7 +86,10 @@ test('WebSocket-событие имеет точную форму и собст�
     eventController({ name: 'valid', handler: 'missing' }, handle),
   ]) {
     assert.throws(
-      () => new Application().registerWebSocketController(Controller),
+      () =>
+        new Application({ websocket: { authentication: false } }).registerWebSocketController(
+          Controller,
+        ),
       InvalidWebSocketControllerError,
     );
   }
@@ -108,7 +116,7 @@ test('регистрация отклоняет повторные классы,
     second() {}
   }
 
-  const app = new Application();
+  const app = new Application({ websocket: { authentication: false } });
   app.registerWebSocketController(FirstController);
   assert.throws(
     () => app.registerWebSocketController(FirstController),
@@ -130,8 +138,11 @@ test('регистрация отклоняет повторные классы,
 test('Application строго проверяет конфигурацию единого WebSocket endpoint', async () => {
   const app = new Application({
     websocket: {
+      authentication: false,
+      allowedOrigins: ['https://app.example.com'],
       path: '/socket',
       maxPayload: 0,
+      maxWriteQueueBytes: 0,
       onConnect: noop,
       onDisconnect: noop,
       onError: noop,
@@ -139,19 +150,88 @@ test('Application строго проверяет конфигурацию ед�
   });
   await app.close();
 
+  const explicitLimit = new Application({
+    websocket: {
+      authentication: false,
+      maxPayload: Number.MAX_SAFE_INTEGER,
+      maxWriteQueueBytes: 0,
+    },
+  });
+  await explicitLimit.close();
+
   for (const websocket of [
-    null,
-    [],
+    { authentication: true },
+    { authentication: 'invalid scenario' },
+    { authentication: false, allowedOrigins: null },
+    { authentication: false, allowedOrigins: ['https://app.example.com/'] },
+    { authentication: false, allowedOrigins: ['ws://app.example.com'] },
+    { authentication: false, allowedOrigins: ['null'] },
+    { authentication: false, allowedOrigins: Array(1) },
+    {
+      authentication: false,
+      allowedOrigins: ['https://app.example.com', 'https://app.example.com'],
+    },
     { path: 'relative' },
     { path: '/..' },
     { maxPayload: -1 },
     { maxPayload: 1.5 },
     { maxPayload: Number.POSITIVE_INFINITY },
+    { maxPayload: Number.MAX_SAFE_INTEGER },
+    { maxWriteQueueBytes: -1 },
+    { maxWriteQueueBytes: null },
+    { maxWriteQueueBytes: undefined },
+    { maxWriteQueueBytes: 1.5 },
+    { maxWriteQueueBytes: Number.POSITIVE_INFINITY },
+    { maxWriteQueueBytes: Number.MAX_SAFE_INTEGER + 1 },
     { onConnect: true },
     { onDisconnect: true },
     { onError: true },
     { unknown: true },
   ]) {
+    assert.throws(
+      () => new Application({ websocket: { authentication: false, ...websocket } }),
+      InvalidWebSocketOptionsError,
+    );
+  }
+
+  for (const websocket of [undefined, null, [], {}]) {
     assert.throws(() => new Application({ websocket }), InvalidWebSocketOptionsError);
   }
+  assert.throws(
+    () =>
+      new Application({
+        websocket: { authentication: false },
+        unknown: true,
+      }),
+    InvalidWebSocketOptionsError,
+  );
+
+  let accessorWasRead = false;
+  const websocketAccessor = {};
+  Object.defineProperty(websocketAccessor, 'authentication', {
+    enumerable: true,
+    get() {
+      accessorWasRead = true;
+      return false;
+    },
+  });
+  assert.throws(
+    () => new Application({ websocket: websocketAccessor }),
+    InvalidWebSocketOptionsError,
+  );
+  assert.equal(accessorWasRead, false);
+
+  const authentication = createAuthentication({
+    strategies: { session: { authenticate: () => ({ status: 'abstain' }) } },
+    scenarios: { browser: { use: ['session'], required: true } },
+  });
+  const authenticated = new Application({
+    authentication,
+    websocket: { authentication: 'browser' },
+  });
+  await authenticated.close();
+  assert.throws(
+    () => new Application({ websocket: { authentication: 'browser' } }),
+    InvalidAuthenticationOptionsError,
+  );
 });

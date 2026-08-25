@@ -264,13 +264,13 @@ async function cancelWhileReadingBody(iteration) {
   let handlerCalls = 0;
   class BodyController extends HttpControllerBase {
     static prefix = '/body';
-    static routes = [{ method: 'POST', path: '/', handler: 'read' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'read', authentication: false }];
     read() {
       handlerCalls += 1;
       return { status: 200 };
     }
   }
-  const application = new Application();
+  const application = new Application({ websocket: { authentication: false } });
   application.registerHttpController(BodyController);
   const address = await application.listen({ port: 0 });
   try {
@@ -306,7 +306,7 @@ async function cancelDuringHandler(iteration) {
   const releaseHandler = deferred();
   class HandlerController extends HttpControllerBase {
     static prefix = '/handler';
-    static routes = [{ method: 'GET', path: '/', handler: 'run' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'run', authentication: false }];
     async run(ctx) {
       started.resolve();
       ctx.signal.addEventListener('abort', aborted.resolve, { once: true });
@@ -315,7 +315,10 @@ async function cancelDuringHandler(iteration) {
     }
   }
   const errors = [];
-  const application = new Application({ http: { onError: (error) => errors.push(error) } });
+  const application = new Application({
+    http: { onError: (error) => errors.push(error) },
+    websocket: { authentication: false },
+  });
   application.registerHttpController(HandlerController);
   const address = await application.listen({ port: 0 });
   try {
@@ -340,7 +343,7 @@ async function cancelWhileWaitingForJob(iteration) {
   const replacementCompleted = deferred();
   class JobController extends HttpControllerBase {
     static prefix = '/job';
-    static routes = [{ method: 'GET', path: '/', handler: 'run' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'run', authentication: false }];
     async run(ctx) {
       try {
         await this.jobRunner.run(
@@ -356,7 +359,10 @@ async function cancelWhileWaitingForJob(iteration) {
       return { status: 200, body: { replacement } };
     }
   }
-  const application = new Application({ jobs: { poolSize: 1, terminationGracePeriod: 50 } });
+  const application = new Application({
+    jobs: { poolSize: 1, terminationGracePeriod: 50 },
+    websocket: { authentication: false },
+  });
   application.registerHttpController(JobController);
   const address = await application.listen({ port: 0 });
   try {
@@ -384,7 +390,7 @@ async function cancelWhileWritingResponse(iteration) {
   const releaseHandler = deferred();
   class ResponseController extends HttpControllerBase {
     static prefix = '/response';
-    static routes = [{ method: 'GET', path: '/', handler: 'run' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'run', authentication: false }];
     async run() {
       handlerStarted.resolve();
       await releaseHandler.promise;
@@ -392,7 +398,10 @@ async function cancelWhileWritingResponse(iteration) {
     }
   }
   const errors = [];
-  const application = new Application({ http: { onError: (error) => errors.push(error) } });
+  const application = new Application({
+    http: { onError: (error) => errors.push(error) },
+    websocket: { authentication: false },
+  });
   application.registerHttpController(ResponseController);
   const address = await application.listen({ port: 0 });
   try {
@@ -454,6 +463,7 @@ test(
       }
       const application = new Application({
         websocket: {
+          authentication: false,
           onDisconnect: (ctx) => disconnects.push(ctx),
           onError: (error) => errors.push(error),
         },
@@ -488,7 +498,7 @@ test(
   { timeout: 10_000 },
   async () => {
     for (let iteration = 1; iteration <= ITERATIONS; iteration += 1) {
-      const application = new Application();
+      const application = new Application({ websocket: { authentication: false } });
       const listening = application.listen({ port: 0 });
       const duplicateListen = application.listen({ port: 0 });
       const closing = application.close();
@@ -497,13 +507,13 @@ test(
       assert.equal(application.close(), closing, `starting/close iteration=${iteration}`);
       await closing;
 
-      const closedBeforeListen = new Application();
+      const closedBeforeListen = new Application({ websocket: { authentication: false } });
       await closedBeforeListen.close();
       await assert.rejects(closedBeforeListen.listen({ port: 0 }), ApplicationStateError);
 
-      const occupied = new Application();
+      const occupied = new Application({ websocket: { authentication: false } });
       const address = await occupied.listen({ port: 0 });
-      const failing = new Application();
+      const failing = new Application({ websocket: { authentication: false } });
       const failedListen = failing.listen({ port: address.port });
       const failedClose = failing.close();
       await assert.rejects(failedListen, { code: 'EADDRINUSE' });

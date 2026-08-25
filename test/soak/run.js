@@ -338,10 +338,25 @@ async function main() {
   class SoakHttpController extends HttpControllerBase {
     static prefix = '/soak';
     static routes = [
-      { method: 'POST', path: '/echo', handler: 'echo' },
-      { method: 'POST', path: '/job/success', handler: 'jobSuccess' },
-      { method: 'POST', path: '/job/cancel', handler: 'jobCancel' },
-      { method: 'POST', path: '/job/timeout', handler: 'jobTimeout' },
+      { method: 'POST', path: '/echo', handler: 'echo', authentication: false },
+      {
+        method: 'POST',
+        path: '/job/success',
+        handler: 'jobSuccess',
+        authentication: false,
+      },
+      {
+        method: 'POST',
+        path: '/job/cancel',
+        handler: 'jobCancel',
+        authentication: false,
+      },
+      {
+        method: 'POST',
+        path: '/job/timeout',
+        handler: 'jobTimeout',
+        authentication: false,
+      },
     ];
     async echo(ctx) {
       return { status: 200, body: ctx.body };
@@ -394,6 +409,7 @@ async function main() {
         terminationGracePeriod: 25,
       },
       websocket: {
+        authentication: false,
         async onConnect() {
           lifecycle.connected += 1;
         },

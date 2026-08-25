@@ -2,10 +2,9 @@ import { WebSocketControllerBase } from '../../lib/framework/WebSocketController
 
 export class EventsController extends WebSocketControllerBase {
   static name = 'events';
-  static events = [{ name: 'echo', handler: 'echo' }];
+  static events = [{ name: 'ping', handler: 'ping' }];
 
-  echo(ctx) {
-    if (typeof ctx.body.message !== 'string' || ctx.body.message.trim() === '') return;
-    return { message: ctx.body.message };
+  ping() {
+    return { ok: true };
   }
 }
