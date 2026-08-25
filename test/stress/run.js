@@ -265,7 +265,7 @@ async function createJobResource(config, poolSize, durationMode) {
   let mixedIndex = 0;
   class StressHttpController extends HttpControllerBase {
     static prefix = '/stress';
-    static routes = [{ method: 'POST', path: '/job', handler: 'job' }];
+    static routes = [{ method: 'POST', path: '/job', handler: 'job', authentication: false }];
     async job() {
       const durationMs =
         durationMode === 'mixed'
@@ -284,7 +284,10 @@ async function createJobResource(config, poolSize, durationMode) {
       }
     }
   }
-  const application = new Application({ jobs: { poolSize, queueSize: config.queueSize } });
+  const application = new Application({
+    jobs: { poolSize, queueSize: config.queueSize },
+    websocket: { authentication: false },
+  });
   application.registerHttpController(StressHttpController);
   const address = await application.listen({ port: 0 });
   return {
@@ -300,7 +303,7 @@ async function queueScenario(config) {
   let submissions = 0;
   class QueueController extends HttpControllerBase {
     static prefix = '/stress';
-    static routes = [{ method: 'POST', path: '/queue', handler: 'queue' }];
+    static routes = [{ method: 'POST', path: '/queue', handler: 'queue', authentication: false }];
     async queue(ctx) {
       submissions += 1;
       try {
@@ -317,7 +320,10 @@ async function queueScenario(config) {
       }
     }
   }
-  const application = new Application({ jobs: { poolSize: 1, queueSize: config.queueSize } });
+  const application = new Application({
+    jobs: { poolSize: 1, queueSize: config.queueSize },
+    websocket: { authentication: false },
+  });
   application.registerHttpController(QueueController);
   const address = await application.listen({ port: 0 });
   try {
@@ -363,7 +369,9 @@ async function createWebSocketApplication() {
       return ctx.body;
     }
   }
-  const application = new Application({ websocket: { maxPayload: 64 * 1024 } });
+  const application = new Application({
+    websocket: { authentication: false, maxPayload: 64 * 1024 },
+  });
   application.registerWebSocketController(StressWebSocketController);
   const address = await application.listen({ port: 0 });
   return {
@@ -540,8 +548,8 @@ async function mixedProfile(config) {
   class MixedHttpController extends HttpControllerBase {
     static prefix = '/stress';
     static routes = [
-      { method: 'GET', path: '/fast', handler: 'fast' },
-      { method: 'POST', path: '/job', handler: 'job' },
+      { method: 'GET', path: '/fast', handler: 'fast', authentication: false },
+      { method: 'POST', path: '/job', handler: 'job', authentication: false },
     ];
     async fast() {
       return { status: 200, body: { ok: true } };
@@ -567,7 +575,10 @@ async function mixedProfile(config) {
     }
   }
   const poolSize = config.poolSizes.at(-1);
-  const application = new Application({ jobs: { poolSize, queueSize: config.queueSize } });
+  const application = new Application({
+    jobs: { poolSize, queueSize: config.queueSize },
+    websocket: { authentication: false },
+  });
   application.registerHttpController(MixedHttpController);
   application.registerWebSocketController(MixedWebSocketController);
   const address = await application.listen({ port: 0 });

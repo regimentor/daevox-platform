@@ -4,6 +4,7 @@ import net from 'node:net';
 import test from 'node:test';
 
 import { Application } from '../../lib/framework/Application.js';
+import { createAuthentication } from '../../lib/framework/Authentication.js';
 import { WebSocketControllerBase } from '../../lib/framework/WebSocketControllerBase.js';
 import { WebSocketProtocolError } from '../../lib/framework/errors.js';
 import { WebSocketTransport } from '../../lib/framework/WebSocketTransport.js';
@@ -68,6 +69,16 @@ function rawRequest(address, request) {
     socket.once('data', (data) => resolve({ data, socket }));
     socket.once('error', reject);
   });
+}
+
+function rawHandshake(address, { path = '/websocket', headers = {} } = {}) {
+  const additionalHeaders = Object.entries(headers)
+    .map(([name, value]) => `${name}: ${value}\r\n`)
+    .join('');
+  return rawRequest(
+    address,
+    `GET ${path} HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Protocol: daevox.v1\r\n${additionalHeaders}\r\n`,
+  );
 }
 
 async function rawWebSocket(address) {
@@ -161,10 +172,298 @@ test('неожиданная ошибка HTTP Upgrade возвращает 500 
   assert.deepEqual(responses, ['HTTP/1.1 500 Internal Server Error\r\n\r\n']);
 });
 
+test('WebSocket handshake проверяет Origin и Authentication до onConnect и 101', async () => {
+  const attempts = [];
+  const connections = [];
+  const errors = [];
+  const allowedOrigins = ['https://app.example.com'];
+  const authentication = createAuthentication({
+    strategies: {
+      session: {
+        authenticate(input) {
+          attempts.push(input);
+          if (input.query.get('mode') === 'error') throw new Error('credential details');
+          const credential = input.headers.get('authorization');
+          if (credential === null) return { status: 'abstain' };
+          if (credential !== 'Session valid') {
+            return {
+              status: 'rejected',
+              code: 'INVALID_CREDENTIALS',
+              challenge: 'Session realm="daevox"',
+            };
+          }
+          return {
+            status: 'authenticated',
+            session: {
+              authSessionId: 'auth-session-42',
+              principal: { id: 'user-42' },
+            },
+          };
+        },
+      },
+    },
+    scenarios: { browser: { use: ['session'], required: true } },
+  });
+  const app = new Application({
+    authentication,
+    websocket: {
+      authentication: 'browser',
+      allowedOrigins,
+      onConnect: (ctx) => connections.push(ctx),
+      onError: (error, ctx) => errors.push({ error, ctx }),
+    },
+  });
+  allowedOrigins[0] = 'https://evil.example.com';
+  const address = await app.listen({ port: 0 });
+  const sockets = [];
+
+  try {
+    let handshake = await rawHandshake(address, {
+      headers: { Origin: 'https://evil.example.com' },
+    });
+    sockets.push(handshake.socket);
+    assert.match(handshake.data.toString(), /^HTTP\/1\.1 403 Forbidden\r\n/);
+    assert.match(handshake.data.toString(), /\{"error":\{"code":"ORIGIN_NOT_ALLOWED"\}\}/);
+    assert.equal(attempts.length, 0);
+    assert.equal(connections.length, 0);
+
+    handshake = await rawHandshake(address, {
+      headers: { Origin: 'https://app.example.com' },
+    });
+    sockets.push(handshake.socket);
+    assert.match(handshake.data.toString(), /^HTTP\/1\.1 401 Unauthorized\r\n/);
+    assert.match(handshake.data.toString(), /\{"error":\{"code":"AUTHENTICATION_REQUIRED"\}\}/);
+    assert.equal(connections.length, 0);
+
+    handshake = await rawHandshake(address, {
+      headers: {
+        Origin: 'https://app.example.com',
+        Authorization: 'Session invalid',
+      },
+    });
+    sockets.push(handshake.socket);
+    assert.match(handshake.data.toString(), /^HTTP\/1\.1 401 Unauthorized\r\n/);
+    assert.match(handshake.data.toString(), /www-authenticate: Session realm="daevox"\r\n/i);
+    assert.match(handshake.data.toString(), /\{"error":\{"code":"INVALID_CREDENTIALS"\}\}/);
+    assert.equal(connections.length, 0);
+
+    handshake = await rawHandshake(address, {
+      path: '/websocket?mode=error',
+      headers: { Origin: 'https://app.example.com' },
+    });
+    sockets.push(handshake.socket);
+    assert.match(handshake.data.toString(), /^HTTP\/1\.1 500 Internal Server Error\r\n/);
+    assert.match(handshake.data.toString(), /\{"error":\{"code":"INTERNAL_SERVER_ERROR"\}\}/);
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].error.cause.message, 'credential details');
+    assert.deepEqual(Object.keys(errors[0].ctx).toSorted(), [
+      'path',
+      'phase',
+      'scenario',
+      'signal',
+    ]);
+    assert.ok(Object.isFrozen(errors[0].ctx));
+    assert.equal(connections.length, 0);
+
+    handshake = await rawHandshake(address, {
+      headers: {
+        Origin: 'https://app.example.com',
+        Authorization: 'Session valid',
+      },
+    });
+    sockets.push(handshake.socket);
+    assert.match(handshake.data.toString(), /^HTTP\/1\.1 101 Switching Protocols\r\n/);
+    assert.equal(connections.length, 1);
+    assert.deepEqual(Object.keys(connections[0]).toSorted(), [
+      'authSession',
+      'clientId',
+      'origin',
+      'path',
+      'sessionId',
+      'signal',
+    ]);
+    assert.equal(connections[0].origin, 'https://app.example.com');
+    assert.equal(connections[0].authSession.authSessionId, 'auth-session-42');
+    assert.ok(Object.isFrozen(connections[0]));
+    assert.ok(Object.isFrozen(connections[0].authSession));
+    assert.notEqual(connections[0].clientId, connections[0].sessionId);
+
+    assert.equal(attempts.at(-1).transport, 'websocket');
+    assert.equal(attempts.at(-1).method, 'GET');
+    assert.equal(attempts.at(-1).path, '/websocket');
+    assert.equal(attempts.at(-1).origin, 'https://app.example.com');
+    assert.equal('socket' in attempts.at(-1), false);
+    assert.equal('clientId' in attempts.at(-1), false);
+    assert.equal('sessionId' in attempts.at(-1), false);
+  } finally {
+    for (const socket of sockets) socket.destroy();
+    await app.close();
+  }
+});
+
+test('optional WebSocket abstain не добавляет AuthSession в lifecycle', async () => {
+  const attempts = [];
+  const connections = [];
+  const disconnections = [];
+  const authentication = createAuthentication({
+    strategies: {
+      anonymous: {
+        authenticate(input) {
+          attempts.push(input);
+          return { status: 'abstain' };
+        },
+      },
+    },
+    scenarios: { optional: { use: ['anonymous'], required: false } },
+  });
+  const app = new Application({
+    authentication,
+    websocket: {
+      authentication: 'optional',
+      onConnect: (ctx) => connections.push(ctx),
+      onDisconnect: (ctx) => disconnections.push(ctx),
+    },
+  });
+  const address = await app.listen({ port: 0 });
+  const socket = await opened(`ws://${address.address}:${address.port}/websocket?source=test`);
+
+  try {
+    assert.equal(connections.length, 1);
+    assert.equal(Object.hasOwn(connections[0], 'authSession'), false);
+    assert.equal(Object.hasOwn(connections[0], 'origin'), false);
+    assert.deepEqual(Object.keys(connections[0]).toSorted(), [
+      'clientId',
+      'path',
+      'sessionId',
+      'signal',
+    ]);
+    assert.equal(attempts.length, 1);
+    assert.equal(attempts[0].query.get('source'), 'test');
+    assert.equal(Object.hasOwn(attempts[0], 'origin'), false);
+
+    const close = closed(socket);
+    socket.close(1000, 'Done');
+    await close;
+  } finally {
+    socket.close();
+    await app.close();
+  }
+
+  assert.equal(disconnections.length, 1);
+  assert.equal(Object.hasOwn(disconnections[0], 'authSession'), false);
+});
+
+test('expiresAt закрывает WebSocket membership и передаёт AuthSession в disconnect', async () => {
+  const connections = [];
+  const disconnections = [];
+  let resolveDisconnected;
+  const disconnected = new Promise((resolve) => {
+    resolveDisconnected = resolve;
+  });
+  const authentication = createAuthentication({
+    strategies: {
+      expiring: {
+        authenticate: () => ({
+          status: 'authenticated',
+          session: {
+            authSessionId: 'expiring-session',
+            principal: { id: 'user-42' },
+            expiresAt: Date.now() + 100,
+          },
+        }),
+      },
+    },
+    scenarios: { required: { use: ['expiring'], required: true } },
+  });
+  const app = new Application({
+    authentication,
+    websocket: {
+      authentication: 'required',
+      onConnect: (ctx) => connections.push(ctx),
+      onDisconnect(ctx) {
+        disconnections.push(ctx);
+        resolveDisconnected();
+      },
+    },
+  });
+  const address = await app.listen({ port: 0 });
+  const socket = await opened(`ws://${address.address}:${address.port}/websocket`);
+
+  try {
+    const close = await closed(socket);
+    await disconnected;
+    assert.deepEqual(close, { code: 4001, reason: 'Authentication expired' });
+    assert.equal(connections.length, 1);
+    assert.equal(disconnections.length, 1);
+    assert.equal(connections[0].authSession, disconnections[0].authSession);
+    assert.equal(disconnections[0].authSession.authSessionId, 'expiring-session');
+    assert.equal(disconnections[0].signal.aborted, true);
+    assert.ok(Object.isFrozen(disconnections[0]));
+    assert.deepEqual(Object.keys(disconnections[0]).toSorted(), [
+      'authSession',
+      'clientId',
+      'code',
+      'reason',
+      'sessionId',
+      'signal',
+    ]);
+  } finally {
+    socket.close();
+    await app.close();
+  }
+
+  assert.equal(disconnections.length, 1);
+});
+
+test('AuthSession, истёкшая в onConnect, не получает 101 и membership', async () => {
+  let connectCalls = 0;
+  let disconnectCalls = 0;
+  const authentication = createAuthentication({
+    strategies: {
+      expiring: {
+        authenticate: () => ({
+          status: 'authenticated',
+          session: {
+            authSessionId: 'expires-in-connect',
+            principal: {},
+            expiresAt: Date.now() + 50,
+          },
+        }),
+      },
+    },
+    scenarios: { required: { use: ['expiring'], required: true } },
+  });
+  const app = new Application({
+    authentication,
+    websocket: {
+      authentication: 'required',
+      async onConnect() {
+        connectCalls += 1;
+        await new Promise((resolve) => setTimeout(resolve, 80));
+      },
+      onDisconnect() {
+        disconnectCalls += 1;
+      },
+    },
+  });
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const handshake = await rawHandshake(address);
+    handshake.socket.destroy();
+    assert.match(handshake.data.toString(), /^HTTP\/1\.1 401 Unauthorized\r\n/);
+    assert.match(handshake.data.toString(), /\{"error":\{"code":"AUTHENTICATION_EXPIRED"\}\}/);
+    assert.equal(connectCalls, 1);
+    assert.equal(disconnectCalls, 0);
+  } finally {
+    await app.close();
+  }
+});
+
 test('daevox.v1 принимает handshake только на едином endpoint с subprotocol', async () => {
   const connections = [];
   const app = new Application({
-    websocket: { onConnect: (ctx) => connections.push(ctx) },
+    websocket: { authentication: false, onConnect: (ctx) => connections.push(ctx) },
   });
   app.registerWebSocketController(notificationsController());
   const address = await app.listen({ port: 0 });
@@ -185,9 +484,13 @@ test('daevox.v1 принимает handshake только на едином endp
     );
     assert.notEqual(connections[0].clientId, connections[0].sessionId);
     assert.equal(connections[0].path, '/websocket');
-    assert.equal(connections[0].query.get('source'), 'test');
-    assert.ok(connections[0].headers instanceof Headers);
     assert.ok(connections[0].signal instanceof AbortSignal);
+    assert.deepEqual(Object.keys(connections[0]).toSorted(), [
+      'clientId',
+      'path',
+      'sessionId',
+      'signal',
+    ]);
     socket.close();
   } finally {
     await app.close();
@@ -209,7 +512,7 @@ test('daevox.v1 маршрутизирует envelope и формирует ре
       return { subscribed: ctx.body.topic };
     }
   }
-  const app = new Application();
+  const app = new Application({ websocket: { authentication: false } });
   app.registerWebSocketController(NotificationsController);
   const address = await app.listen({ port: 0 });
   const socket = await opened(`ws://${address.address}:${address.port}/websocket`);
@@ -263,7 +566,7 @@ test('маршрутизация использует копию метадан�
       return { snapshot: true };
     }
   }
-  const app = new Application();
+  const app = new Application({ websocket: { authentication: false } });
   app.registerWebSocketController(SnapshotController);
   SnapshotController.name = 'changed-controller';
   event.name = 'changed-event';
@@ -291,7 +594,7 @@ test('маршрутизация использует копию метадан�
 test('неизвестный WebSocket-контроллер возвращает UNKNOWN_CONTROLLER и сохраняет сессию', async () => {
   const errors = [];
   const app = new Application({
-    websocket: { onError: (error, ctx) => errors.push({ error, ctx }) },
+    websocket: { authentication: false, onError: (error, ctx) => errors.push({ error, ctx }) },
   });
   app.registerWebSocketController(notificationsController());
   const address = await app.listen({ port: 0 });
@@ -323,7 +626,7 @@ test('неизвестный WebSocket-контроллер возвращает
 test('неизвестное WebSocket-событие возвращает UNKNOWN_EVENT', async () => {
   const errors = [];
   const app = new Application({
-    websocket: { onError: (error, ctx) => errors.push({ error, ctx }) },
+    websocket: { authentication: false, onError: (error, ctx) => errors.push({ error, ctx }) },
   });
   app.registerWebSocketController(notificationsController());
   const address = await app.listen({ port: 0 });
@@ -348,7 +651,7 @@ test('неизвестное WebSocket-событие возвращает UNKNO
 test('адресуемый неверный envelope возвращает INVALID_MESSAGE и продолжает очередь', async () => {
   const errors = [];
   const app = new Application({
-    websocket: { onError: (error, ctx) => errors.push({ error, ctx }) },
+    websocket: { authentication: false, onError: (error, ctx) => errors.push({ error, ctx }) },
   });
   app.registerWebSocketController(notificationsController());
   const address = await app.listen({ port: 0 });
@@ -383,7 +686,7 @@ test('адресуемый неверный envelope возвращает INVALI
 test('неадресуемый JSON закрывает сессию кодом 1007, binary frame — кодом 1003', async () => {
   const errors = [];
   const app = new Application({
-    websocket: { onError: (error) => errors.push(error) },
+    websocket: { authentication: false, onError: (error) => errors.push(error) },
   });
   app.registerWebSocketController(notificationsController());
   const address = await app.listen({ port: 0 });
@@ -412,7 +715,7 @@ test('невалидный UTF-8 в text frame закрывает сессию �
       handled = true;
     }
   }
-  const app = new Application();
+  const app = new Application({ websocket: { authentication: false } });
   app.registerWebSocketController(Utf8Controller);
   const address = await app.listen({ port: 0 });
   const socket = await rawWebSocket(address);
@@ -432,7 +735,7 @@ test('невалидный UTF-8 в text frame закрывает сессию �
 });
 
 test('fragmented WebSocket-сообщение собирается из нескольких continuation frames', async () => {
-  const app = new Application();
+  const app = new Application({ websocket: { authentication: false } });
   app.registerWebSocketController(notificationsController());
   const address = await app.listen({ port: 0 });
   const socket = await rawWebSocket(address);
@@ -466,7 +769,7 @@ test('fragmented WebSocket-сообщение собирается из неск
 });
 
 test('WebSocket transport отвечает pong и отклоняет немаскированный client frame', async () => {
-  const app = new Application();
+  const app = new Application({ websocket: { authentication: false } });
   const address = await app.listen({ port: 0 });
 
   let socket = await rawWebSocket(address);
@@ -486,7 +789,7 @@ test('WebSocket transport отвечает pong и отклоняет немас
 });
 
 test('WebSocket transport отклоняет невозможную длину и слишком большой control frame', async () => {
-  const app = new Application();
+  const app = new Application({ websocket: { authentication: false } });
   const address = await app.listen({ port: 0 });
 
   let socket = await rawWebSocket(address);
@@ -510,7 +813,7 @@ test('WebSocket transport отклоняет невозможную длину �
 });
 
 test('WebSocket transport отклоняет некорректный URL и версию handshake', async () => {
-  const app = new Application();
+  const app = new Application({ websocket: { authentication: false } });
   const address = await app.listen({ port: 0 });
 
   let result = await rawRequest(
@@ -549,7 +852,7 @@ test('ошибка handler скрывается как HANDLER_ERROR, невер
     }
   }
   const app = new Application({
-    websocket: { onError: (error, ctx) => errors.push({ error, ctx }) },
+    websocket: { authentication: false, onError: (error, ctx) => errors.push({ error, ctx }) },
   });
   app.registerWebSocketController(ResultsController);
   const address = await app.listen({ port: 0 });
@@ -589,6 +892,7 @@ test('входящее сообщение больше maxPayload закрыва
   const errors = [];
   const app = new Application({
     websocket: {
+      authentication: false,
       maxPayload: 50,
       onError: (error, ctx) => errors.push({ error, ctx }),
     },
@@ -631,7 +935,7 @@ test('сообщения одной сессии последовательны,
       return { value: ctx.body.value };
     }
   }
-  const app = new Application();
+  const app = new Application({ websocket: { authentication: false } });
   app.registerWebSocketController(QueueController);
   const address = await app.listen({ port: 0 });
   const url = `ws://${address.address}:${address.port}/websocket`;
@@ -679,7 +983,7 @@ test('undefined не создаёт ответ и не мешает следую
       return { replied: true };
     }
   }
-  const app = new Application();
+  const app = new Application({ websocket: { authentication: false } });
   app.registerWebSocketController(OptionalResponseController);
   const address = await app.listen({ port: 0 });
   const socket = await opened(`ws://${address.address}:${address.port}/websocket`);
@@ -702,6 +1006,7 @@ test('onDisconnect вызывается один раз с отменённым 
   });
   const app = new Application({
     websocket: {
+      authentication: false,
       onDisconnect(ctx) {
         disconnects.push(ctx);
         disconnected();
@@ -730,7 +1035,7 @@ test('Application.close ожидает асинхронный onDisconnect пр�
     releaseDisconnect = resolve;
   });
   const app = new Application({
-    websocket: { onDisconnect: () => disconnectPending },
+    websocket: { authentication: false, onDisconnect: () => disconnectPending },
   });
   app.registerWebSocketController(notificationsController());
   const address = await app.listen({ port: 0 });
@@ -761,7 +1066,7 @@ test('исходящий maxPayload возвращает INVALID_RESPONSE или
   }
   const input = JSON.stringify({ controller: 'c', event: 'e', body: {} });
 
-  let app = new Application({ websocket: { maxPayload: 80 } });
+  let app = new Application({ websocket: { authentication: false, maxPayload: 80 } });
   app.registerWebSocketController(LargeController);
   let address = await app.listen({ port: 0 });
   let socket = await opened(`ws://${address.address}:${address.port}/websocket`);
@@ -771,7 +1076,7 @@ test('исходящий maxPayload возвращает INVALID_RESPONSE или
   socket.close();
   await app.close();
 
-  app = new Application({ websocket: { maxPayload: 70 } });
+  app = new Application({ websocket: { authentication: false, maxPayload: 70 } });
   app.registerWebSocketController(LargeController);
   address = await app.listen({ port: 0 });
   socket = await opened(`ws://${address.address}:${address.port}/websocket`);
@@ -789,7 +1094,7 @@ test('daevox.v1 принимает и отправляет envelopes с 16- и 6
       return { value: ctx.body.value };
     }
   }
-  const app = new Application();
+  const app = new Application({ websocket: { authentication: false } });
   app.registerWebSocketController(LargeFramesController);
   const address = await app.listen({ port: 0 });
   const socket = await opened(`ws://${address.address}:${address.port}/websocket`);
@@ -811,6 +1116,7 @@ test('ошибка onConnect отклоняет handshake с 500, ошибка o
   const errors = [];
   let app = new Application({
     websocket: {
+      authentication: false,
       onConnect() {
         throw connectError;
       },
@@ -834,6 +1140,7 @@ test('ошибка onConnect отклоняет handshake с 500, ошибка o
   });
   app = new Application({
     websocket: {
+      authentication: false,
       onDisconnect() {
         throw disconnectError;
       },
@@ -868,7 +1175,7 @@ test('отклонённый Promise websocket.onError безопасно пер
     }
   }
   const app = new Application({
-    websocket: { onError: () => Promise.reject(reportingError) },
+    websocket: { authentication: false, onError: () => Promise.reject(reportingError) },
   });
   app.registerWebSocketController(FailingController);
   const address = await app.listen({ port: 0 });
@@ -890,6 +1197,7 @@ test('синхронная ошибка websocket.onError безопасно п�
   const consoleError = t.mock.method(console, 'error', () => consoleCalled());
   const app = new Application({
     websocket: {
+      authentication: false,
       onError() {
         throw reportingError;
       },

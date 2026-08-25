@@ -4,6 +4,8 @@ import { EventsController } from './EventsController.js';
 
 const application = new Application({
   websocket: {
+    authentication: false,
+    allowedOrigins: ['http://127.0.0.1:3000'],
     onError(error) {
       console.error(error);
     },

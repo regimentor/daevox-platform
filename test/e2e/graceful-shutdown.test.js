@@ -132,11 +132,11 @@ function createHarness(iteration) {
   class ShutdownHttpController extends HttpControllerBase {
     static prefix = '/shutdown';
     static routes = [
-      { method: 'GET', path: '/quick', handler: 'quick' },
-      { method: 'GET', path: '/slow', handler: 'slow' },
-      { method: 'GET', path: '/job-timed', handler: 'timed' },
-      { method: 'GET', path: '/job-running', handler: 'running' },
-      { method: 'GET', path: '/job-queued', handler: 'queued' },
+      { method: 'GET', path: '/quick', handler: 'quick', authentication: false },
+      { method: 'GET', path: '/slow', handler: 'slow', authentication: false },
+      { method: 'GET', path: '/job-timed', handler: 'timed', authentication: false },
+      { method: 'GET', path: '/job-running', handler: 'running', authentication: false },
+      { method: 'GET', path: '/job-queued', handler: 'queued', authentication: false },
     ];
 
     async quick() {
@@ -231,6 +231,7 @@ function createHarness(iteration) {
       terminationGracePeriod: TERMINATION_GRACE_PERIOD,
     },
     websocket: {
+      authentication: false,
       onDisconnect(ctx) {
         events.push('websocket-disconnected');
         disconnects.push(ctx);

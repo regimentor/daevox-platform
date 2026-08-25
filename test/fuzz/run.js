@@ -32,8 +32,8 @@ const VALID_ENVELOPE = Buffer.from(
 class FuzzHttpController extends HttpControllerBase {
   static prefix = '/fuzz';
   static routes = [
-    { method: 'GET', path: '/health', handler: 'health' },
-    { method: 'POST', path: '/echo', handler: 'echo' },
+    { method: 'GET', path: '/health', handler: 'health', authentication: false },
+    { method: 'POST', path: '/echo', handler: 'echo', authentication: false },
   ];
   health() {
     return { status: 200, body: { ok: true } };
@@ -463,6 +463,7 @@ export async function runFuzz(options = {}) {
   const app = new Application({
     http: { bodyLimit: effectiveBodyLimit, shutdownTimeout: limits.caseTimeout },
     websocket: {
+      authentication: false,
       maxPayload: bodyLimit,
       onConnect() {
         connections += 1;

@@ -59,7 +59,7 @@ const page = `<!doctype html>
 
 export class BrowserController extends HttpControllerBase {
   static prefix = '/';
-  static routes = [{ method: 'GET', path: '/', handler: 'index' }];
+  static routes = [{ method: 'GET', path: '/', handler: 'index', authentication: false }];
 
   index() {
     return {

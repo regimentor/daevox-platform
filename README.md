@@ -30,8 +30,8 @@ class UsersController extends HttpControllerBase {
   static prefix = '/users';
 
   static routes = [
-    { method: 'GET', path: '/', handler: 'list' },
-    { method: 'GET', path: '/:id', handler: 'getById' },
+    { method: 'GET', path: '/', handler: 'list', authentication: false },
+    { method: 'GET', path: '/:id', handler: 'getById', authentication: false },
   ];
 
   async list() {
@@ -48,6 +48,7 @@ const application = new Application({
     bodyLimit: 1024 * 1024,
     shutdownTimeout: 30_000,
   },
+  websocket: { authentication: false },
 });
 
 application.registerHttpController(UsersController);
@@ -63,10 +64,10 @@ HTML-версия находится в [`docs/api/`](docs/api/).
 
 `Application.registerHttpController()` принимает класс, напрямую наследующий `HttpControllerBase`. Класс объявляет собственные статические поля `prefix` и `routes`, а каждый указанный HTTP-обработчик должен быть собственным методом его прототипа.
 
-Объявление HTTP-маршрута содержит ровно три поля:
+Объявление HTTP-маршрута содержит ровно четыре поля. `authentication` явно выбирает scenario либо отключает Authentication:
 
 ```js
-{ method: 'GET', path: '/:id', handler: 'getById' }
+{ method: 'GET', path: '/:id', handler: 'getById', authentication: false }
 ```
 
 После регистрации оно нормализуется с учётом префикса HTTP-контроллера:
@@ -77,6 +78,7 @@ HTML-версия находится в [`docs/api/`](docs/api/).
   path: '/users/:id',
   handler: 'getById',
   controller: UsersController,
+  authentication: false,
 }
 ```
 
@@ -169,6 +171,8 @@ Endpoint, lifecycle hooks, максимальный размер входяще�
 ```js
 const application = new Application({
   websocket: {
+    authentication: false,
+    allowedOrigins: ['https://app.example.com'],
     path: '/websocket',
     maxPayload: 1024 * 1024,
     async onConnect(ctx) {
@@ -184,7 +188,7 @@ const application = new Application({
 });
 ```
 
-Фреймворк создаёт новые `clientId` и `sessionId` для каждой сессии. Авторизация, объединение сессий пользователя и server push в `daevox.v1` отсутствуют. Адресуемые ошибки возвращаются в `body.error.code`: `INVALID_MESSAGE`, `UNKNOWN_CONTROLLER`, `UNKNOWN_EVENT`, `HANDLER_ERROR` или `INVALID_RESPONSE`. Они представлены публичным `WebSocketProtocolError` и также передаются в `websocket.onError`.
+Фреймворк создаёт новые `clientId` и `sessionId` для каждой сессии. WebSocket endpoint явно выбирает Authentication scenario либо `false`; подтверждённая `AuthSession` передаётся lifecycle hooks и связывает локальные WebSocket-сессии. Browser handshake дополнительно проходит exact `allowedOrigins`. Server push до его отдельной интеграции отсутствует. Адресуемые ошибки возвращаются в `body.error.code`: `INVALID_MESSAGE`, `UNKNOWN_CONTROLLER`, `UNKNOWN_EVENT`, `HANDLER_ERROR` или `INVALID_RESPONSE`. Они представлены публичным `WebSocketProtocolError` и также передаются в `websocket.onError`.
 
 ## Фоновые задачи
 
@@ -226,6 +230,7 @@ const application = new Application({
     terminationGracePeriod: 1_000,
     shutdownTimeout: 30_000,
   },
+  websocket: { authentication: false },
 });
 ```
 

@@ -1,7 +1,7 @@
 import { Application } from '../../lib/framework/Application.js';
 import { JobsController } from './JobsController.js';
 
-const application = new Application();
+const application = new Application({ websocket: { authentication: false } });
 application.registerHttpController(JobsController);
 const address = await application.listen({ port: 3000 });
 console.log(`Jobs HTTP example listening on http://${address.address}:${address.port}`);

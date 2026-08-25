@@ -18,6 +18,7 @@ function route(overrides = {}) {
     path: '/users',
     handler: 'list',
     controller: UsersController,
+    authentication: false,
     ...overrides,
   });
 }
@@ -41,6 +42,7 @@ test('HttpRouter сохраняет замороженное определен�
     path: '/users',
     handler: 'list',
     controller: UsersController,
+    authentication: false,
   };
   router.registerAll([mutableDefinition]);
   mutableDefinition.path = '/changed';

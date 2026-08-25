@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import http from 'node:http';
+import net from 'node:net';
 import test from 'node:test';
 
 import { Application } from '../../lib/framework/Application.js';
+import { createAuthentication } from '../../lib/framework/Authentication.js';
 import { HttpControllerBase } from '../../lib/framework/HttpControllerBase.js';
-import { HttpError } from '../../lib/framework/errors.js';
+import { AuthenticationStrategyError, HttpError } from '../../lib/framework/errors.js';
 import { JobsController } from '../../examples/jobs-http/JobsController.js';
 
 function request(address, options = {}) {
@@ -36,8 +38,23 @@ function request(address, options = {}) {
   });
 }
 
+function incompleteRawRequest(address, requestHead) {
+  return new Promise((resolve, reject) => {
+    const socket = net.createConnection({ host: address.address, port: address.port });
+    const chunks = [];
+    socket.setTimeout(2_000, () => {
+      socket.destroy();
+      reject(new Error('Timed out waiting for an HTTP response'));
+    });
+    socket.on('connect', () => socket.write(requestHead));
+    socket.on('data', (chunk) => chunks.push(chunk));
+    socket.on('end', () => resolve(Buffer.concat(chunks).toString()));
+    socket.on('error', reject);
+  });
+}
+
 test('Application слушает ephemeral-порт и без HTTP-контроллеров отвечает 404', async () => {
-  const app = new Application();
+  const app = new Application({ websocket: { authentication: false } });
   const address = await app.listen({ port: 0 });
 
   try {
@@ -56,7 +73,7 @@ test('HTTP transport сопоставляет HTTP-маршрут и перед�
   let seenContext;
   class UsersController extends HttpControllerBase {
     static prefix = '/users';
-    static routes = [{ method: 'POST', path: '/:id', handler: 'update' }];
+    static routes = [{ method: 'POST', path: '/:id', handler: 'update', authentication: false }];
     update(ctx) {
       seenContext = ctx;
       return {
@@ -66,7 +83,7 @@ test('HTTP transport сопоставляет HTTP-маршрут и перед�
       };
     }
   }
-  const app = new Application();
+  const app = new Application({ websocket: { authentication: false } });
   app.registerHttpController(UsersController);
   const address = await app.listen({ port: 0 });
 
@@ -102,8 +119,8 @@ test('HTTP transport детерминированно обрабатывает H
   class ResourceController extends HttpControllerBase {
     static prefix = '/resource';
     static routes = [
-      { method: 'GET', path: '/', handler: 'get' },
-      { method: 'POST', path: '/', handler: 'post' },
+      { method: 'GET', path: '/', handler: 'get', authentication: false },
+      { method: 'POST', path: '/', handler: 'post', authentication: false },
     ];
     get() {
       return { status: 200, body: { ok: true } };
@@ -112,7 +129,7 @@ test('HTTP transport детерминированно обрабатывает H
       return { status: 204 };
     }
   }
-  const app = new Application();
+  const app = new Application({ websocket: { authentication: false } });
   app.registerHttpController(ResourceController);
   const address = await app.listen({ port: 0 });
 
@@ -139,12 +156,15 @@ test('HTTP transport детерминированно обрабатывает H
 test('HTTP transport ограничивает и разбирает только UTF-8 JSON-тело', async () => {
   class BodyController extends HttpControllerBase {
     static prefix = '/body';
-    static routes = [{ method: 'PUT', path: '/', handler: 'put' }];
+    static routes = [{ method: 'PUT', path: '/', handler: 'put', authentication: false }];
     put(ctx) {
       return { status: 200, body: ctx.body };
     }
   }
-  const app = new Application({ http: { bodyLimit: 8 } });
+  const app = new Application({
+    http: { bodyLimit: 8 },
+    websocket: { authentication: false },
+  });
   app.registerHttpController(BodyController);
   const address = await app.listen({ port: 0 });
 
@@ -190,9 +210,14 @@ test('HttpError формирует ожидаемый ответ, а неожи�
   class ErrorController extends HttpControllerBase {
     static prefix = '/errors';
     static routes = [
-      { method: 'GET', path: '/expected', handler: 'expected' },
-      { method: 'GET', path: '/unexpected', handler: 'unexpected' },
-      { method: 'GET', path: '/invalid-response', handler: 'invalidResponse' },
+      { method: 'GET', path: '/expected', handler: 'expected', authentication: false },
+      { method: 'GET', path: '/unexpected', handler: 'unexpected', authentication: false },
+      {
+        method: 'GET',
+        path: '/invalid-response',
+        handler: 'invalidResponse',
+        authentication: false,
+      },
     ];
     expected() {
       throw new HttpError(422, {
@@ -207,7 +232,10 @@ test('HttpError формирует ожидаемый ответ, а неожи�
       return { status: 200, extra: true };
     }
   }
-  const app = new Application({ http: { onError: (error, ctx) => observed.push({ error, ctx }) } });
+  const app = new Application({
+    http: { onError: (error, ctx) => observed.push({ error, ctx }) },
+    websocket: { authentication: false },
+  });
   app.registerHttpController(ErrorController);
   const address = await app.listen({ port: 0 });
 
@@ -239,7 +267,7 @@ test('Application.close по timeout отменяет оставшийся HTTP-
   let wasAborted = false;
   class SlowController extends HttpControllerBase {
     static prefix = '/slow';
-    static routes = [{ method: 'GET', path: '/', handler: 'get' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'get', authentication: false }];
     get(ctx) {
       started();
       return new Promise((resolve) => {
@@ -254,7 +282,10 @@ test('Application.close по timeout отменяет оставшийся HTTP-
       });
     }
   }
-  const app = new Application({ http: { shutdownTimeout: 0 } });
+  const app = new Application({
+    http: { shutdownTimeout: 0 },
+    websocket: { authentication: false },
+  });
   app.registerHttpController(SlowController);
   const address = await app.listen({ port: 0 });
   const pendingRequest = request(address, { path: '/slow' }).catch(() => undefined);
@@ -280,12 +311,15 @@ test('сброс соединения при чтении HTTP-запроса у
   const unexpectedErrors = [];
   class BodyController extends HttpControllerBase {
     static prefix = '/body';
-    static routes = [{ method: 'POST', path: '/', handler: 'accept' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'accept', authentication: false }];
     accept() {
       return { status: 204 };
     }
   }
-  const app = new Application({ http: { onError: (error) => unexpectedErrors.push(error) } });
+  const app = new Application({
+    http: { onError: (error) => unexpectedErrors.push(error) },
+    websocket: { authentication: false },
+  });
   app.registerHttpController(BodyController);
   await app.listen({ port: 0 });
 
@@ -325,7 +359,10 @@ test('сброс соединения при чтении HTTP-запроса у
 });
 
 test('jobs-http HTTP-контроллер запускает SumJob в Worker', async () => {
-  const app = new Application({ jobs: { poolSize: 1 } });
+  const app = new Application({
+    jobs: { poolSize: 1 },
+    websocket: { authentication: false },
+  });
   app.registerHttpController(JobsController);
   const address = await app.listen({ port: 0 });
 
@@ -354,8 +391,8 @@ test('HTTP transport нормализует строковые и бинарны
   class BodiesController extends HttpControllerBase {
     static prefix = '/responses';
     static routes = [
-      { method: 'GET', path: '/text', handler: 'text' },
-      { method: 'GET', path: '/bytes', handler: 'bytes' },
+      { method: 'GET', path: '/text', handler: 'text', authentication: false },
+      { method: 'GET', path: '/bytes', handler: 'bytes', authentication: false },
     ];
     text() {
       return { status: 200, body: 'hello' };
@@ -364,7 +401,7 @@ test('HTTP transport нормализует строковые и бинарны
       return { status: 200, body: new Uint8Array([0, 1, 2]) };
     }
   }
-  const app = new Application();
+  const app = new Application({ websocket: { authentication: false } });
   app.registerHttpController(BodiesController);
   const address = await app.listen({ port: 0 });
 
@@ -384,10 +421,10 @@ test('HTTP transport принимает только граничные стат
   class StatusController extends HttpControllerBase {
     static prefix = '/status';
     static routes = [
-      { method: 'GET', path: '/minimum', handler: 'minimum' },
-      { method: 'GET', path: '/maximum', handler: 'maximum' },
-      { method: 'GET', path: '/below', handler: 'below' },
-      { method: 'GET', path: '/above', handler: 'above' },
+      { method: 'GET', path: '/minimum', handler: 'minimum', authentication: false },
+      { method: 'GET', path: '/maximum', handler: 'maximum', authentication: false },
+      { method: 'GET', path: '/below', handler: 'below', authentication: false },
+      { method: 'GET', path: '/above', handler: 'above', authentication: false },
     ];
     minimum() {
       return { status: 200 };
@@ -403,7 +440,10 @@ test('HTTP transport принимает только граничные стат
     }
   }
   const observed = [];
-  const app = new Application({ http: { onError: (error) => observed.push(error) } });
+  const app = new Application({
+    http: { onError: (error) => observed.push(error) },
+    websocket: { authentication: false },
+  });
   app.registerHttpController(StatusController);
   const address = await app.listen({ port: 0 });
 
@@ -421,7 +461,10 @@ test('HTTP transport принимает только граничные стат
 
 test('ошибка до создания HttpRequestContext получает безопасный 500', async () => {
   const observed = [];
-  const app = new Application({ http: { onError: (error, ctx) => observed.push({ error, ctx }) } });
+  const app = new Application({
+    http: { onError: (error, ctx) => observed.push({ error, ctx }) },
+    websocket: { authentication: false },
+  });
   const address = await app.listen({ port: 0 });
 
   try {
@@ -440,7 +483,7 @@ test('синхронная ошибка onError попадает в console.erro
   const consoleError = t.mock.method(console, 'error', () => {});
   class FailingController extends HttpControllerBase {
     static prefix = '/failure';
-    static routes = [{ method: 'GET', path: '/', handler: 'get' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'get', authentication: false }];
     get() {
       throw new Error('handler failed');
     }
@@ -451,6 +494,7 @@ test('синхронная ошибка onError попадает в console.erro
         throw reportingError;
       },
     },
+    websocket: { authentication: false },
   });
   app.registerHttpController(FailingController);
   const address = await app.listen({ port: 0 });
@@ -461,6 +505,274 @@ test('синхронная ошибка onError попадает в console.erro
     assert.equal(consoleError.mock.callCount(), 1);
     assert.equal(consoleError.mock.calls[0].arguments[0], reportingError);
   } finally {
+    await app.close();
+  }
+});
+
+test('HTTP transport отображает outcomes Authentication до вызова HTTP-обработчика', async () => {
+  const attempts = [];
+  const observed = [];
+  let controllerCreations = 0;
+  let authenticatedContext;
+  const authentication = createAuthentication({
+    strategies: {
+      session: {
+        authenticate(input) {
+          attempts.push(input);
+          if (input.path === '/auth/error') throw new Error('credential details');
+          const credential = input.headers.get('authorization');
+          if (credential === null) return { status: 'abstain' };
+          if (credential !== 'Session valid') {
+            return {
+              status: 'rejected',
+              code: 'INVALID_CREDENTIALS',
+              challenge: 'Session realm="daevox"',
+            };
+          }
+          return {
+            status: 'authenticated',
+            session: {
+              authSessionId: 'session-42',
+              principal: { id: 'user-42', roles: ['member'] },
+            },
+          };
+        },
+      },
+    },
+    scenarios: {
+      optional: { use: ['session'], required: false },
+      required: { use: ['session'], required: true },
+    },
+  });
+  class AuthController extends HttpControllerBase {
+    static prefix = '/auth';
+    static routes = [
+      { method: 'GET', path: '/optional', handler: 'optional', authentication: 'optional' },
+      { method: 'GET', path: '/required', handler: 'required', authentication: 'required' },
+      { method: 'GET', path: '/error', handler: 'required', authentication: 'required' },
+    ];
+    constructor(options) {
+      super(options);
+      controllerCreations += 1;
+    }
+    optional(ctx) {
+      return { status: 200, body: { hasAuthSession: Object.hasOwn(ctx, 'authSession') } };
+    }
+    required(ctx) {
+      authenticatedContext = ctx;
+      return { status: 200, body: ctx.authSession };
+    }
+  }
+  const app = new Application({
+    authentication,
+    http: { onError: (error, ctx) => observed.push({ error, ctx }) },
+    websocket: { authentication: false },
+  });
+  app.registerHttpController(AuthController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const notFound = await request(address, { path: '/missing' });
+    const options = await request(address, { method: 'OPTIONS', path: '/auth/required' });
+    const methodNotAllowed = await request(address, {
+      method: 'DELETE',
+      path: '/auth/required',
+    });
+    assert.equal(notFound.status, 404);
+    assert.equal(options.status, 204);
+    assert.equal(methodNotAllowed.status, 405);
+    assert.equal(attempts.length, 0);
+
+    const optional = await request(address, { path: '/auth/optional?source=test' });
+    assert.equal(optional.status, 200);
+    assert.equal(optional.body, '{"hasAuthSession":false}');
+
+    const required = await request(address, { path: '/auth/required' });
+    assert.equal(required.status, 401);
+    assert.equal(required.headers['www-authenticate'], undefined);
+    assert.equal(required.body, '{"error":{"code":"AUTHENTICATION_REQUIRED"}}');
+
+    const rejected = await request(address, {
+      path: '/auth/required',
+      headers: { authorization: 'Session invalid' },
+    });
+    assert.equal(rejected.status, 401);
+    assert.equal(rejected.headers['www-authenticate'], 'Session realm="daevox"');
+    assert.equal(rejected.body, '{"error":{"code":"INVALID_CREDENTIALS"}}');
+
+    const authenticated = await request(address, {
+      path: '/auth/required',
+      headers: { authorization: 'Session valid' },
+    });
+    assert.equal(authenticated.status, 200);
+    assert.equal(
+      authenticated.body,
+      '{"authSessionId":"session-42","principal":{"id":"user-42","roles":["member"]}}',
+    );
+    assert.ok(Object.isFrozen(authenticatedContext));
+    assert.ok(Object.isFrozen(authenticatedContext.authSession));
+    assert.ok(Object.isFrozen(authenticatedContext.authSession.principal));
+    assert.deepEqual(Object.keys(authenticatedContext.authSession), ['authSessionId', 'principal']);
+    assert.equal('authorization' in authenticatedContext.authSession, false);
+
+    const failed = await request(address, { path: '/auth/error' });
+    assert.equal(failed.status, 500);
+    assert.equal(failed.body, '{"error":{"code":"INTERNAL_SERVER_ERROR"}}');
+    assert.equal(controllerCreations, 2);
+    assert.equal(observed.length, 1);
+    assert.ok(observed[0].error instanceof AuthenticationStrategyError);
+    assert.deepEqual(Object.keys(observed[0].ctx).toSorted(), [
+      'method',
+      'path',
+      'phase',
+      'scenario',
+      'signal',
+    ]);
+    assert.ok(Object.isFrozen(observed[0].ctx));
+    assert.equal(observed[0].ctx.phase, 'authentication');
+
+    assert.equal(attempts[0].transport, 'http');
+    assert.equal(attempts[0].method, 'GET');
+    assert.equal(attempts[0].path, '/auth/optional');
+    assert.equal(attempts[0].query.get('source'), 'test');
+    assert.ok(Object.isFrozen(attempts[0]));
+    assert.equal('params' in attempts[0], false);
+    assert.equal('body' in attempts[0], false);
+    assert.equal('request' in attempts[0], false);
+    assert.equal('socket' in attempts[0], false);
+    assert.equal(observed[0].error.cause.message, 'credential details');
+  } finally {
+    await app.close();
+  }
+});
+
+test('HTTP authentication отклоняет запрос до чтения первого body chunk', async () => {
+  let controllerCreations = 0;
+  let handlerCalls = 0;
+  const authentication = createAuthentication({
+    strategies: {
+      session: {
+        authenticate: () => ({
+          status: 'rejected',
+          code: 'INVALID_CREDENTIALS',
+          challenge: 'Bearer',
+        }),
+      },
+    },
+    scenarios: { required: { use: ['session'], required: true } },
+  });
+  class UploadController extends HttpControllerBase {
+    static prefix = '/upload';
+    static routes = [{ method: 'POST', path: '/', handler: 'upload', authentication: 'required' }];
+    constructor(options) {
+      super(options);
+      controllerCreations += 1;
+    }
+    upload() {
+      handlerCalls += 1;
+      return { status: 204 };
+    }
+  }
+  const app = new Application({
+    authentication,
+    http: { bodyLimit: 0 },
+    websocket: { authentication: false },
+  });
+  app.registerHttpController(UploadController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const response = await incompleteRawRequest(
+      address,
+      [
+        'POST /upload HTTP/1.1',
+        `Host: ${address.address}:${address.port}`,
+        'Content-Type: text/plain',
+        'Content-Length: 100',
+        'Connection: close',
+        '',
+        '',
+      ].join('\r\n'),
+    );
+    assert.match(response, /^HTTP\/1\.1 401 Unauthorized\r\n/);
+    assert.match(response, /www-authenticate: Bearer\r\n/i);
+    assert.match(response, /\{"error":\{"code":"INVALID_CREDENTIALS"\}\}$/);
+    assert.equal(controllerCreations, 0);
+    assert.equal(handlerCalls, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test('HTTP authentication прекращается при отмене клиента без handler и onError', async () => {
+  let markStarted;
+  const started = new Promise((resolve) => {
+    markStarted = resolve;
+  });
+  let markAborted;
+  const aborted = new Promise((resolve) => {
+    markAborted = resolve;
+  });
+  let handlerCalls = 0;
+  const observed = [];
+  const authentication = createAuthentication({
+    strategies: {
+      slow: {
+        authenticate(input) {
+          markStarted();
+          return new Promise((resolve) => {
+            input.signal.addEventListener(
+              'abort',
+              () => {
+                markAborted();
+                resolve({ status: 'abstain' });
+              },
+              { once: true },
+            );
+          });
+        },
+      },
+    },
+    scenarios: { required: { use: ['slow'], required: true } },
+  });
+  class SlowAuthController extends HttpControllerBase {
+    static prefix = '/slow-auth';
+    static routes = [{ method: 'POST', path: '/', handler: 'post', authentication: 'required' }];
+    post() {
+      handlerCalls += 1;
+      return { status: 204 };
+    }
+  }
+  const app = new Application({
+    authentication,
+    http: { onError: (error) => observed.push(error) },
+    websocket: { authentication: false },
+  });
+  app.registerHttpController(SlowAuthController);
+  const address = await app.listen({ port: 0 });
+  const socket = net.createConnection({ host: address.address, port: address.port });
+
+  try {
+    await new Promise((resolve, reject) => {
+      socket.once('connect', resolve);
+      socket.once('error', reject);
+    });
+    socket.write(
+      [
+        'POST /slow-auth HTTP/1.1',
+        `Host: ${address.address}:${address.port}`,
+        'Content-Length: 1',
+        '',
+        '',
+      ].join('\r\n'),
+    );
+    await started;
+    socket.destroy();
+    await aborted;
+    assert.equal(handlerCalls, 0);
+    assert.deepEqual(observed, []);
+  } finally {
+    socket.destroy();
     await app.close();
   }
 });
