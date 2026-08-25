@@ -57,8 +57,9 @@ console.log(`Listening on http://${address.address}:${address.port}`);
 ```
 
 До появления библиотечной точки входа классы публичного API импортируются напрямую из `lib/framework/`.
-Подробные контракты публичных и внутренних сущностей собраны в [API-документации](docs/API.md);
-HTML-версия находится в [`docs/api/`](docs/api/).
+Полное руководство находится в [пользовательской документации](docs/README.md). Подробные контракты
+публичных и внутренних сущностей собраны в [API-документации](docs/API.md); HTML-версия находится в
+[`docs/api/`](docs/api/).
 
 ## HTTP-контроллеры и маршруты
 
@@ -286,7 +287,10 @@ class NotificationsController extends WebSocketControllerBase {
 application.registerWebSocketController(NotificationsController);
 ```
 
-Handler получает `{ body, clientId, sessionId, signal, authSession? }`. Для каждого сообщения создаётся новый экземпляр найденного контроллера. Возвращённый plain object автоматически отправляется с исходными `controller/event`; `undefined` означает отсутствие ответа.
+Handler получает `{ body, clientId, sessionId, signal }`. Подтверждённая `AuthSession` доступна
+lifecycle hooks, но не обработчику WebSocket-события. Для каждого сообщения создаётся новый
+экземпляр найденного контроллера. Возвращённый plain object автоматически отправляется с исходными
+`controller/event`; `undefined` означает отсутствие ответа.
 
 ```json
 { "controller": "notifications", "event": "subscribe", "body": { "topic": "news" } }
