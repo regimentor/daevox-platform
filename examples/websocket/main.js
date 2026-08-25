@@ -1,10 +1,12 @@
 import { Application } from '../../lib/framework/Application.js';
 import { BrowserController } from './BrowserController.js';
 import { EventsController } from './EventsController.js';
+import { authentication } from './exampleAuthentication.js';
 
 const application = new Application({
+  authentication,
   websocket: {
-    authentication: false,
+    authentication: 'webSocket',
     allowedOrigins: ['http://127.0.0.1:3000'],
     onError(error) {
       console.error(error);

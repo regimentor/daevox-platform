@@ -128,6 +128,110 @@ throw new HttpError(422, {
 
 Неожиданные ошибки преобразуются в ответ `500`. Опция `http.onError(error, ctx)` позволяет записать их в журнал, не раскрывая детали клиенту.
 
+## Authentication strategies
+
+`createAuthentication()` объединяет именованные strategies в required или optional scenarios. Каждый HTTP-маршрут и WebSocket endpoint явно выбирает scenario либо значение `false`. Required scenario отклоняет полный `abstain`; optional scenario продолжает обработку без `ctx.authSession` и `ctx.webSocket`.
+
+Готовые factories только извлекают credential и делегируют его разрешение пользовательскому callback. Framework не хранит authoritative session state, не проверяет JWT/OIDC и не выдаёт одноразовые ticket.
+
+```js
+import { createAuthentication } from './lib/framework/Authentication.js';
+import {
+  bearerToken,
+  cookieSession,
+  oneTimeWebSocketTicket,
+} from './lib/framework/authenticationStrategies.js';
+
+const authentication = createAuthentication({
+  strategies: {
+    browserSession: cookieSession({
+      cookie: { name: '__Host-session' },
+      resolve: (value, { transport, signal }) => sessionStore.resolve(value, { transport, signal }),
+    }),
+    apiToken: bearerToken({
+      verify: (token, { transport, signal }) => tokenProvider.verify(token, { transport, signal }),
+    }),
+    webSocketTicket: oneTimeWebSocketTicket({
+      consume: (ticket, { origin, signal }) => ticketStore.consume(ticket, { origin, signal }),
+    }),
+  },
+  scenarios: {
+    browser: { use: ['browserSession'], required: true },
+    browserOptional: { use: ['browserSession'], required: false },
+    api: { use: ['apiToken'], required: true },
+    webSocket: { use: ['webSocketTicket'], required: true },
+  },
+});
+
+const application = new Application({
+  authentication,
+  websocket: {
+    authentication: 'webSocket',
+    allowedOrigins: ['https://app.example.com'],
+  },
+});
+```
+
+Selector каждого HTTP-маршрута также явный:
+
+```js
+static routes = [
+  {
+    method: 'GET',
+    path: '/session',
+    handler: 'session',
+    authentication: 'browserOptional',
+  },
+  { method: 'GET', path: '/public', handler: 'public', authentication: false },
+];
+```
+
+`cookieSession` и `bearerToken` работают для HTTP-запросов и WebSocket-handshake. `oneTimeWebSocketTicket` читает только единственный query parameter `ticket` WebSocket-handshake; его однократное атомарное погашение выполняет callback `consume`. Отсутствующий credential даёт `abstain`, а malformed, неизвестный, истёкший или уже использованный credential — `rejected`.
+
+`AuthSession` — подтверждённая общая identity с непрозрачным `authSessionId`. Она не совпадает с `WebSocketSession`, обозначающей одно физическое соединение, и с `WebSocketClient`, являющимся технической стороной этого соединения. Поэтому две вкладки могут иметь разные `sessionId` и `clientId`, но одну `AuthSession`.
+
+### Browser cookie flow и server push
+
+Запустите пример:
+
+```sh
+npm run example:websocket
+```
+
+Откройте `http://127.0.0.1:3000` в нескольких вкладках и создайте demo session. Пример использует browser cookie для HTTP и WebSocket, optional-маршрут `/session`, required-маршрут `/push/browser` и exact Origin allowlist `http://127.0.0.1:3000`.
+
+Авторизованный HTTP-обработчик получает request-scoped capability:
+
+```js
+const result = ctx.webSocket.send({
+  controller: 'events',
+  event: 'changed',
+  body: { revision: 7 },
+});
+// { matched: 2, queued: 2, dropped: 0 }
+```
+
+`matched` — число локальных WebSocket-соединений той же `AuthSession`, `queued` — число принявших frame очередей, `dropped` — число отказавших очередей. `{ matched: 0, queued: 0, dropped: 0 }` является штатным успехом. Результат подтверждает только локальный enqueue: он не обещает доставку или обработку браузером и не меняет HTTP status автоматически.
+
+### Bearer → one-time ticket flow
+
+Тот же пример предоставляет пользовательский issuance-маршрут `/tickets`. Framework проверяет Bearer credential, но ticket создаёт и хранит код приложения:
+
+```js
+const response = await fetch('http://127.0.0.1:3000/tickets', {
+  method: 'POST',
+  headers: { authorization: 'Bearer demo-api-token' },
+});
+const { ticket } = await response.json();
+
+const socket = new WebSocket(
+  `ws://127.0.0.1:3000/websocket?ticket=${encodeURIComponent(ticket)}`,
+  'daevox.v1',
+);
+```
+
+`consume` обязан атомарно удалить ticket; replay и expiry возвращают `rejected`. Server push остаётся локальным, ephemeral и best-effort: authorization policy, distributed fan-out, retries, durable delivery и acknowledgements приложение реализует отдельно.
+
 ## WebSocket-протокол daevox.v1
 
 Все WebSocket-соединения используют единый endpoint `/websocket` и обязаны предложить subprotocol `daevox.v1`. Каждое text-сообщение является точным JSON-envelope `{ controller, event, body }`; binary-сообщения не поддерживаются.
@@ -154,7 +258,7 @@ class NotificationsController extends WebSocketControllerBase {
 application.registerWebSocketController(NotificationsController);
 ```
 
-Handler получает `{ body, clientId, sessionId, signal }`. Для каждого сообщения создаётся новый экземпляр найденного контроллера. Возвращённый plain object автоматически отправляется с исходными `controller/event`; `undefined` означает отсутствие ответа.
+Handler получает `{ body, clientId, sessionId, signal, authSession? }`. Для каждого сообщения создаётся новый экземпляр найденного контроллера. Возвращённый plain object автоматически отправляется с исходными `controller/event`; `undefined` означает отсутствие ответа.
 
 ```json
 { "controller": "notifications", "event": "subscribe", "body": { "topic": "news" } }
@@ -188,7 +292,7 @@ const application = new Application({
 });
 ```
 
-Фреймворк создаёт новые `clientId` и `sessionId` для каждой сессии. WebSocket endpoint явно выбирает Authentication scenario либо `false`; подтверждённая `AuthSession` передаётся lifecycle hooks и связывает локальные WebSocket-сессии. Browser handshake дополнительно проходит exact `allowedOrigins`. Server push до его отдельной интеграции отсутствует. Адресуемые ошибки возвращаются в `body.error.code`: `INVALID_MESSAGE`, `UNKNOWN_CONTROLLER`, `UNKNOWN_EVENT`, `HANDLER_ERROR` или `INVALID_RESPONSE`. Они представлены публичным `WebSocketProtocolError` и также передаются в `websocket.onError`.
+Фреймворк создаёт новые `clientId` и `sessionId` для каждой сессии. WebSocket endpoint явно выбирает Authentication scenario либо `false`; подтверждённая `AuthSession` передаётся lifecycle hooks и связывает локальные WebSocket-сессии. Browser handshake дополнительно проходит exact `allowedOrigins`. Адресуемые ошибки возвращаются в `body.error.code`: `INVALID_MESSAGE`, `UNKNOWN_CONTROLLER`, `UNKNOWN_EVENT`, `HANDLER_ERROR` или `INVALID_RESPONSE`. Они представлены публичным `WebSocketProtocolError` и также передаются в `websocket.onError`.
 
 ## Фоновые задачи
 

@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
+import http from 'node:http';
 import net from 'node:net';
 import test from 'node:test';
 
 import { Application } from '../../lib/framework/Application.js';
 import { createAuthentication } from '../../lib/framework/Authentication.js';
+import { HttpControllerBase } from '../../lib/framework/HttpControllerBase.js';
 import { WebSocketControllerBase } from '../../lib/framework/WebSocketControllerBase.js';
 import { WebSocketProtocolError } from '../../lib/framework/errors.js';
 import { WebSocketTransport } from '../../lib/framework/WebSocketTransport.js';
@@ -14,6 +16,31 @@ function opened(url, protocol = 'daevox.v1') {
     const socket = new WebSocket(url, protocol);
     socket.addEventListener('open', () => resolve(socket), { once: true });
     socket.addEventListener('error', reject, { once: true });
+  });
+}
+
+function httpRequest(address, path) {
+  return new Promise((resolve, reject) => {
+    const request = http.request(
+      {
+        host: address.address,
+        port: address.port,
+        path,
+        method: 'POST',
+      },
+      (response) => {
+        const chunks = [];
+        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('end', () =>
+          resolve({
+            status: response.statusCode,
+            body: Buffer.concat(chunks).toString(),
+          }),
+        );
+      },
+    );
+    request.on('error', reject);
+    request.end();
   });
 }
 
@@ -136,6 +163,94 @@ function notificationsController() {
     }
   };
 }
+
+test('HTTP server push изолирует AuthSession и учитывает partial WebSocket close', async () => {
+  const authentication = createAuthentication({
+    strategies: {
+      session: {
+        authenticate(input) {
+          const authSessionId = input.query.get('credential');
+          if (authSessionId === null) return { status: 'abstain' };
+          return {
+            status: 'authenticated',
+            session: { authSessionId, principal: { id: `principal-${authSessionId}` } },
+          };
+        },
+      },
+    },
+    scenarios: { required: { use: ['session'], required: true } },
+  });
+  class PushController extends HttpControllerBase {
+    static prefix = '/push';
+    static routes = [{ method: 'POST', path: '/', handler: 'send', authentication: 'required' }];
+    send(ctx) {
+      return {
+        status: 202,
+        body: ctx.webSocket.send({
+          controller: 'notifications',
+          event: 'changed',
+          body: { authSessionId: ctx.authSession.authSessionId },
+        }),
+      };
+    }
+  }
+  const app = new Application({
+    authentication,
+    websocket: { authentication: 'required' },
+  });
+  app.registerHttpController(PushController);
+  const address = await app.listen({ port: 0 });
+  const baseUrl = `ws://${address.address}:${address.port}/websocket`;
+  const sockets = [];
+
+  try {
+    assert.deepEqual(await httpRequest(address, '/push/?credential=shared'), {
+      status: 202,
+      body: '{"matched":0,"queued":0,"dropped":0}',
+    });
+
+    const first = await opened(`${baseUrl}?credential=shared`);
+    const second = await opened(`${baseUrl}?credential=shared`);
+    const isolated = await opened(`${baseUrl}?credential=isolated`);
+    sockets.push(first, second, isolated);
+    const firstMessage = nextMessage(first);
+    const secondMessage = nextMessage(second);
+
+    assert.deepEqual(await httpRequest(address, '/push/?credential=shared'), {
+      status: 202,
+      body: '{"matched":2,"queued":2,"dropped":0}',
+    });
+    const sharedEnvelope =
+      '{"controller":"notifications","event":"changed","body":{"authSessionId":"shared"}}';
+    assert.equal(await firstMessage, sharedEnvelope);
+    assert.equal(await secondMessage, sharedEnvelope);
+
+    const isolatedMessage = nextMessage(isolated);
+    assert.deepEqual(await httpRequest(address, '/push/?credential=isolated'), {
+      status: 202,
+      body: '{"matched":1,"queued":1,"dropped":0}',
+    });
+    assert.equal(
+      await isolatedMessage,
+      '{"controller":"notifications","event":"changed","body":{"authSessionId":"isolated"}}',
+    );
+
+    const firstClosed = closed(first);
+    first.close(1000, 'partial close');
+    await firstClosed;
+    const remainingMessage = nextMessage(second);
+    assert.deepEqual(await httpRequest(address, '/push/?credential=shared'), {
+      status: 202,
+      body: '{"matched":1,"queued":1,"dropped":0}',
+    });
+    assert.equal(await remainingMessage, sharedEnvelope);
+  } finally {
+    for (const socket of sockets) {
+      if (socket.readyState === WebSocket.OPEN) socket.close();
+    }
+    await app.close();
+  }
+});
 
 test('неожиданная ошибка HTTP Upgrade возвращает 500 и передаётся в onError', async () => {
   const upgradeError = new Error('headers unavailable');

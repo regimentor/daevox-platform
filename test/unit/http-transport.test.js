@@ -110,6 +110,7 @@ test('HTTP transport сопоставляет HTTP-маршрут и перед�
     assert.equal('request' in seenContext, false);
     assert.equal('response' in seenContext, false);
     assert.equal('socket' in seenContext, false);
+    assert.equal('webSocket' in seenContext, false);
   } finally {
     await app.close();
   }
@@ -556,7 +557,13 @@ test('HTTP transport отображает outcomes Authentication до вызо�
       controllerCreations += 1;
     }
     optional(ctx) {
-      return { status: 200, body: { hasAuthSession: Object.hasOwn(ctx, 'authSession') } };
+      return {
+        status: 200,
+        body: {
+          hasAuthSession: Object.hasOwn(ctx, 'authSession'),
+          hasWebSocket: Object.hasOwn(ctx, 'webSocket'),
+        },
+      };
     }
     required(ctx) {
       authenticatedContext = ctx;
@@ -585,7 +592,7 @@ test('HTTP transport отображает outcomes Authentication до вызо�
 
     const optional = await request(address, { path: '/auth/optional?source=test' });
     assert.equal(optional.status, 200);
-    assert.equal(optional.body, '{"hasAuthSession":false}');
+    assert.equal(optional.body, '{"hasAuthSession":false,"hasWebSocket":false}');
 
     const required = await request(address, { path: '/auth/required' });
     assert.equal(required.status, 401);
@@ -641,6 +648,54 @@ test('HTTP transport отображает outcomes Authentication до вызо�
     assert.equal('request' in attempts[0], false);
     assert.equal('socket' in attempts[0], false);
     assert.equal(observed[0].error.cause.message, 'credential details');
+  } finally {
+    await app.close();
+  }
+});
+
+test('авторизованный HttpRequestContext получает request-scoped WebSocket sender', async () => {
+  let seenContext;
+  let sendResult;
+  const authentication = createAuthentication({
+    strategies: {
+      session: {
+        authenticate: () => ({
+          status: 'authenticated',
+          session: { authSessionId: 'session-42', principal: { id: 'user-42' } },
+        }),
+      },
+    },
+    scenarios: { required: { use: ['session'], required: true } },
+  });
+  class PushController extends HttpControllerBase {
+    static prefix = '/push';
+    static routes = [{ method: 'POST', path: '/', handler: 'send', authentication: 'required' }];
+    send(ctx) {
+      seenContext = ctx;
+      sendResult = ctx.webSocket.send({
+        controller: 'notifications',
+        event: 'changed',
+        body: { resourceId: 'resource-1' },
+      });
+      return { status: 202, body: sendResult };
+    }
+  }
+  const app = new Application({
+    authentication,
+    websocket: { authentication: false },
+  });
+  app.registerHttpController(PushController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const response = await request(address, { method: 'POST', path: '/push/' });
+
+    assert.equal(response.status, 202);
+    assert.equal(response.body, '{"matched":0,"queued":0,"dropped":0}');
+    assert.ok(Object.isFrozen(seenContext.webSocket));
+    assert.deepEqual(Object.keys(seenContext.webSocket), ['send']);
+    assert.ok(Object.isFrozen(sendResult));
+    assert.deepEqual(Object.keys(sendResult), ['matched', 'queued', 'dropped']);
   } finally {
     await app.close();
   }

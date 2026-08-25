@@ -1,4 +1,5 @@
 import { HttpControllerBase } from '../../lib/framework/HttpControllerBase.js';
+import { issueTicket } from './exampleAuthentication.js';
 
 const page = `<!doctype html>
 <html lang="ru">
@@ -17,55 +18,133 @@ const page = `<!doctype html>
   </head>
   <body>
     <h1>WebSocket-протокол daevox.v1</h1>
-    <p>Сообщение адресуется WebSocket-контроллеру <code>events</code> и событию <code>echo</code>.</p>
-    <output id="status">Подключение…</output>
+    <p>Cookie связывает HTTP-запросы и WebSocket-соединения одной <code>AuthSession</code>. Откройте страницу в нескольких вкладках: push получит каждая вкладка этой session.</p>
+    <output id="status">Проверка session…</output>
+    <button id="login" hidden>Создать demo session</button>
     <form id="form">
-      <input id="message" autocomplete="off" placeholder="Сообщение" required>
-      <button>Отправить</button>
+      <input id="revision" type="number" value="1" min="0" required>
+      <button>Отправить server push</button>
     </form>
+    <p><code>send()</code>: <output id="send-result">ещё не вызывался</output></p>
     <ul id="messages"></ul>
     <script>
       const status = document.querySelector('#status');
+      const login = document.querySelector('#login');
       const form = document.querySelector('#form');
-      const input = document.querySelector('#message');
+      const revision = document.querySelector('#revision');
+      const sendResult = document.querySelector('#send-result');
       const messages = document.querySelector('#messages');
-      const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-      const socket = new WebSocket(protocol + '://' + location.host + '/websocket', 'daevox.v1');
+      let socket;
 
-      socket.addEventListener('open', () => {
-        status.value = 'Подключено по протоколу ' + socket.protocol;
+      async function connect() {
+        const response = await fetch('/session');
+        const session = await response.json();
+        if (!session.authenticated) {
+          status.value = 'Нет browser session';
+          login.hidden = false;
+          form.hidden = true;
+          return;
+        }
+        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        socket = new WebSocket(protocol + '://' + location.host + '/websocket', 'daevox.v1');
+        socket.addEventListener('open', () => {
+          status.value = 'Подключено: ' + session.authSessionId;
+          form.hidden = false;
+        });
+        socket.addEventListener('close', (event) => {
+          status.value = 'Соединение закрыто: ' + event.code + ' ' + event.reason;
+        });
+        socket.addEventListener('message', (event) => {
+          const data = JSON.parse(event.data);
+          const item = document.createElement('li');
+          item.textContent = JSON.stringify(data);
+          messages.prepend(item);
+        });
+      }
+
+      login.addEventListener('click', async () => {
+        await fetch('/login', { method: 'POST' });
+        location.reload();
       });
-      socket.addEventListener('close', () => {
-        status.value = 'Соединение закрыто';
-      });
-      socket.addEventListener('message', (event) => {
-        const data = JSON.parse(event.data);
-        const item = document.createElement('li');
-        item.textContent = data.body.message + ' (' + data.controller + '/' + data.event + ')';
-        messages.prepend(item);
-      });
-      form.addEventListener('submit', (event) => {
+      form.addEventListener('submit', async (event) => {
         event.preventDefault();
-        socket.send(JSON.stringify({
-          controller: 'events',
-          event: 'echo',
-          body: { message: input.value },
-        }));
-        input.value = '';
+        const response = await fetch('/push/browser', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ revision: Number(revision.value) }),
+        });
+        sendResult.value = JSON.stringify(await response.json());
       });
+      connect();
     </script>
   </body>
 </html>`;
 
 export class BrowserController extends HttpControllerBase {
   static prefix = '/';
-  static routes = [{ method: 'GET', path: '/', handler: 'index', authentication: false }];
+  static routes = [
+    { method: 'GET', path: '/', handler: 'index', authentication: false },
+    { method: 'POST', path: '/login', handler: 'login', authentication: false },
+    {
+      method: 'GET',
+      path: '/session',
+      handler: 'session',
+      authentication: 'browserOptional',
+    },
+    {
+      method: 'POST',
+      path: '/tickets',
+      handler: 'ticket',
+      authentication: 'api',
+    },
+    {
+      method: 'POST',
+      path: '/push/browser',
+      handler: 'push',
+      authentication: 'browserRequired',
+    },
+    { method: 'POST', path: '/push/api', handler: 'push', authentication: 'api' },
+  ];
 
   index() {
     return {
       status: 200,
       headers: new Headers({ 'content-type': 'text/html; charset=utf-8' }),
       body: page,
+    };
+  }
+
+  login() {
+    return {
+      status: 204,
+      headers: new Headers({
+        'set-cookie': 'session=browser-demo-cookie; Path=/; HttpOnly; SameSite=Strict',
+      }),
+    };
+  }
+
+  session(ctx) {
+    if (!Object.hasOwn(ctx, 'authSession')) {
+      return { status: 200, body: { authenticated: false } };
+    }
+    return {
+      status: 200,
+      body: { authenticated: true, authSessionId: ctx.authSession.authSessionId },
+    };
+  }
+
+  ticket(ctx) {
+    return { status: 201, body: { ticket: issueTicket(ctx.authSession) } };
+  }
+
+  push(ctx) {
+    return {
+      status: 200,
+      body: ctx.webSocket.send({
+        controller: 'events',
+        event: 'changed',
+        body: { revision: ctx.body.revision },
+      }),
     };
   }
 }
