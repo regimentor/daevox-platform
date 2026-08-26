@@ -30,7 +30,7 @@ const page = `<!doctype html>
       const input = document.querySelector('#message');
       const messages = document.querySelector('#messages');
       const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-      const socket = new WebSocket(protocol + '://' + location.host + '/websocket', 'daevox.v1');
+      const socket = new WebSocket(protocol + '://' + location.host + '/websocket?token=demo', 'daevox.v1');
 
       socket.addEventListener('open', () => {
         status.value = 'Подключено по протоколу ' + socket.protocol;
@@ -41,7 +41,7 @@ const page = `<!doctype html>
       socket.addEventListener('message', (event) => {
         const data = JSON.parse(event.data);
         const item = document.createElement('li');
-        item.textContent = data.body.message + ' (' + data.controller + '/' + data.event + ')';
+        item.textContent = data.body.message + ' #' + data.body.messageCount + ' (' + data.controller + '/' + data.event + ')';
         messages.prepend(item);
       });
       form.addEventListener('submit', (event) => {

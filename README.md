@@ -63,7 +63,8 @@ HTML-версия находится в [`docs/api/`](docs/api/).
 
 `Application.registerHttpController()` принимает класс, напрямую наследующий `HttpControllerBase`. Класс объявляет собственные статические поля `prefix` и `routes`, а каждый указанный HTTP-обработчик должен быть собственным методом его прототипа.
 
-Объявление HTTP-маршрута содержит ровно три поля:
+Объявление HTTP-маршрута содержит обязательные поля `method`, `path` и `handler`, а также может
+содержать необязательный массив `middleware`:
 
 ```js
 { method: 'GET', path: '/:id', handler: 'getById' }
@@ -80,7 +81,9 @@ HTML-версия находится в [`docs/api/`](docs/api/).
 }
 ```
 
-HTTP-контроллеры можно регистрировать только до вызова `listen()`. Для каждого найденного HTTP-маршрута приложение создаёт новый экземпляр HTTP-контроллера.
+HTTP-контроллеры можно регистрировать только до вызова `listen()`. Для каждого найденного
+HTTP-маршрута приложение создаёт новый экземпляр HTTP-контроллера, только если middleware-цепочка
+дошла до HTTP-обработчика.
 
 ### Контекст HTTP-запроса
 
@@ -95,6 +98,8 @@ HTTP-обработчик получает объект `ctx`:
   headers, // WHATWG Headers
   body,    // разобранное JSON-тело или undefined
   signal,  // AbortSignal запроса
+  state,   // изменяемое состояние одного HTTP-запроса
+  route,   // замороженные { method, path, handler } найденного HTTP-маршрута
 }
 ```
 
@@ -126,6 +131,137 @@ throw new HttpError(422, {
 
 Неожиданные ошибки преобразуются в ответ `500`. Опция `http.onError(error, ctx)` позволяет записать их в журнал, не раскрывая детали клиенту.
 
+## Middleware обработчиков
+
+HTTP- и WebSocket-обработчики используют единый контракт middleware:
+
+```js
+async function middleware(ctx, next) {
+  // Действия до следующих middleware и обработчика.
+  const result = await next();
+  // Действия после обработчика в обратном порядке цепочки.
+  return result;
+}
+```
+
+`next()` не принимает аргументов и может быть вызван не более одного раза. Middleware может быть
+синхронной или асинхронной, завершить цепочку без `next()` (short-circuit), вернуть исходный
+результат либо заменить его. Функция вызывается без прикладного `this`.
+
+Для HTTP три уровня задаются независимо:
+
+```js
+import { Application } from './lib/framework/Application.js';
+import { HttpControllerBase } from './lib/framework/HttpControllerBase.js';
+import { HttpError } from './lib/framework/errors.js';
+
+async function attachRequestId(ctx, next) {
+  ctx.state.requestId = crypto.randomUUID();
+  const response = await next();
+  response.headers ??= new Headers();
+  response.headers.set('x-request-id', ctx.state.requestId);
+  return response;
+}
+
+function requireAuthentication(ctx, next) {
+  if (!ctx.headers.has('authorization')) {
+    return { status: 401, body: { error: 'Unauthorized' } };
+  }
+  ctx.state.role = ctx.headers.get('x-role');
+  return next();
+}
+
+function requireAdmin(ctx, next) {
+  if (ctx.state.role !== 'admin') throw new HttpError(403);
+  return next();
+}
+
+class UsersController extends HttpControllerBase {
+  static prefix = '/users';
+  static middleware = [requireAuthentication];
+  static routes = [
+    {
+      method: 'DELETE',
+      path: '/:id',
+      handler: 'deleteById',
+      middleware: [requireAdmin],
+    },
+  ];
+
+  async deleteById(ctx) {
+    return { status: 204 };
+  }
+}
+
+const application = new Application({
+  http: { middleware: [attachRequestId] },
+});
+```
+
+Цепочка HTTP-запроса выполняется как `http.middleware → HttpController.middleware →
+HttpRoute.middleware → HttpHandler`, после чего разворачивается обратно. Новый объект `ctx.state`
+с null prototype принадлежит одному HTTP-запросу. Замороженный `ctx.route` содержит объявленные
+`{ method, path, handler }`; `ctx.method` и `ctx.path` по-прежнему описывают фактический запрос.
+Middleware не вызываются для ошибок, возникших до успешного поиска HTTP-маршрута и разбора тела.
+
+Для сообщений WebSocket используются те же три уровня:
+
+```js
+import { Application } from './lib/framework/Application.js';
+import { WebSocketControllerBase } from './lib/framework/WebSocketControllerBase.js';
+import { WebSocketEventError } from './lib/framework/errors.js';
+
+function countMessages(ctx, next) {
+  ctx.state.messageCount = (ctx.state.messageCount ?? 0) + 1;
+  return next();
+}
+
+function requireAuthentication(ctx, next) {
+  if (!ctx.state.auth) throw new WebSocketEventError('UNAUTHORIZED');
+  return next();
+}
+
+function requireTopic(ctx, next) {
+  if (typeof ctx.body.topic !== 'string') {
+    throw new WebSocketEventError('INVALID_TOPIC');
+  }
+  return next();
+}
+
+class NotificationsController extends WebSocketControllerBase {
+  static name = 'notifications';
+  static middleware = [requireAuthentication];
+  static events = [
+    {
+      name: 'subscribe',
+      handler: 'subscribe',
+      middleware: [requireTopic],
+    },
+  ];
+
+  subscribe(ctx) {
+    return { topic: ctx.body.topic, messageCount: ctx.state.messageCount };
+  }
+}
+
+const application = new Application({
+  websocket: { middleware: [countMessages] },
+});
+```
+
+Порядок — `websocket.middleware → WebSocketController.middleware → WebSocketEvent.middleware →
+handler` и обратное разворачивание. Контекст сообщения содержит `controller`, `event` и
+session-scoped `state`. Одна ссылка `state` доступна в `onConnect`, во всех сообщениях сессии, в
+`onDisconnect` и в контексте ошибок известной сессии; разные сессии получают разные объекты.
+Middleware не вызываются для неверного envelope, неизвестного WebSocket-контроллера или события.
+
+Массивы middleware строго проверяются и копируются при создании `Application` или регистрации
+контроллера. Повторный `next()` создаёт публичный `MiddlewareExecutionError` и обрабатывается как
+неожиданная ошибка транспорта. В HTTP ожидаемый отказ выражается `HttpError`, а прочие ошибки дают
+`500` и передаются в `http.onError`. В WebSocket `WebSocketEventError` возвращает прикладной
+`body.error.code` без вызова `websocket.onError`; прочие ошибки возвращают `HANDLER_ERROR`,
+наблюдаются через `websocket.onError` и не закрывают сессию.
+
 ## WebSocket-протокол daevox.v1
 
 Все WebSocket-соединения используют единый endpoint `/websocket` и обязаны предложить subprotocol `daevox.v1`. Каждое text-сообщение является точным JSON-envelope `{ controller, event, body }`; binary-сообщения не поддерживаются.
@@ -152,7 +288,10 @@ class NotificationsController extends WebSocketControllerBase {
 application.registerWebSocketController(NotificationsController);
 ```
 
-Handler получает `{ body, clientId, sessionId, signal }`. Для каждого сообщения создаётся новый экземпляр найденного контроллера. Возвращённый plain object автоматически отправляется с исходными `controller/event`; `undefined` означает отсутствие ответа.
+Handler получает `{ body, clientId, sessionId, controller, event, signal, state }`. Для каждого
+сообщения создаётся новый экземпляр найденного контроллера, только если middleware-цепочка дошла до
+handler. Возвращённый plain object автоматически отправляется с исходными `controller/event`;
+`undefined` означает отсутствие ответа.
 
 ```json
 { "controller": "notifications", "event": "subscribe", "body": { "topic": "news" } }
@@ -184,7 +323,38 @@ const application = new Application({
 });
 ```
 
-Фреймворк создаёт новые `clientId` и `sessionId` для каждой сессии. Авторизация, объединение сессий пользователя и server push в `daevox.v1` отсутствуют. Адресуемые ошибки возвращаются в `body.error.code`: `INVALID_MESSAGE`, `UNKNOWN_CONTROLLER`, `UNKNOWN_EVENT`, `HANDLER_ERROR` или `INVALID_RESPONSE`. Они представлены публичным `WebSocketProtocolError` и также передаются в `websocket.onError`.
+Фреймворк создаёт новые `clientId` и `sessionId` для каждой сессии. Встроенная авторизация,
+объединение сессий пользователя и server push в `daevox.v1` отсутствуют. Адресуемые ошибки
+фреймворка возвращаются в `body.error.code`: `INVALID_MESSAGE`, `UNKNOWN_CONTROLLER`,
+`UNKNOWN_EVENT`, `HANDLER_ERROR` или `INVALID_RESPONSE`. Они представлены публичным
+`WebSocketProtocolError` и также передаются в `websocket.onError`.
+
+Прикладную аутентификацию можно выполнить один раз в глобальном `onConnect`. Проверка JWT остаётся
+кодом приложения и не добавляет зависимости фреймворку:
+
+```js
+const application = new Application({
+  websocket: {
+    async onConnect(ctx) {
+      const token = readBearerToken(ctx.headers);
+      if (!token) {
+        throw new HttpError(401, {
+          headers: new Headers({ 'www-authenticate': 'Bearer' }),
+          body: { error: 'Unauthorized' },
+        });
+      }
+
+      const claims = await verifyJwt(token);
+      ctx.state.auth = { subjectId: claims.sub, roles: claims.roles ?? [] };
+    },
+  },
+});
+```
+
+`HttpError` из `onConnect` отклоняет HTTP handshake заданным статусом, заголовками и телом без
+вызова `websocket.onError`. Любая другая ошибка даёт безопасный `500` и передаётся в `onError`.
+`onConnect` и `onDisconnect` остаются одиночными lifecycle callbacks; `connectionMiddleware` не
+поддерживается.
 
 ## Фоновые задачи
 
@@ -259,6 +429,41 @@ curl -i -X POST http://127.0.0.1:3000/jobs/sum \
 ```
 
 Успешный ответ содержит `{"sum":6}`.
+
+## Пример аутентификации и авторизации через middleware
+
+Запустите приложение:
+
+```sh
+npm run example:middleware-auth
+```
+
+Application-level middleware распознаёт демонстрационный Bearer-токен и сохраняет principal в
+`ctx.state.auth`. Controller-level middleware требует аутентификацию, а route-level middleware
+разрешает `/auth/admin` только роли `admin`.
+
+```sh
+# Аутентифицированный пользователь: 200
+curl -i http://127.0.0.1:3000/auth/profile \
+  -H 'authorization: Bearer user-token'
+
+# Аутентифицирован, но не авторизован: 403
+curl -i http://127.0.0.1:3000/auth/admin \
+  -H 'authorization: Bearer user-token'
+
+# Аутентифицирован и авторизован: 200
+curl -i http://127.0.0.1:3000/auth/admin \
+  -H 'authorization: Bearer admin-token'
+```
+
+Запрос без токена или с неизвестным токеном получает `401` и заголовок `WWW-Authenticate`.
+
+Black-box тест внутри примера проверяет анонимный запрос, неизвестный токен, обычного пользователя
+и пользователя с ролью `admin`:
+
+```sh
+npm run example:middleware-auth:test
+```
 
 ## Пример WebSocket-приложения
 

@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import { Application } from '../../lib/framework/Application.js';
 import { HttpControllerBase } from '../../lib/framework/HttpControllerBase.js';
-import { HttpError } from '../../lib/framework/errors.js';
+import { HttpError, MiddlewareExecutionError } from '../../lib/framework/errors.js';
 import { JobsController } from '../../examples/jobs-http/JobsController.js';
 
 function request(address, options = {}) {
@@ -93,6 +93,259 @@ test('HTTP transport сопоставляет HTTP-маршрут и перед�
     assert.equal('request' in seenContext, false);
     assert.equal('response' in seenContext, false);
     assert.equal('socket' in seenContext, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test('HTTP middleware выполняются на трёх уровнях вокруг HTTP-обработчика', async () => {
+  const calls = [];
+  const contexts = [];
+  const middleware = (name) =>
+    async function (ctx, next) {
+      assert.equal(this, undefined);
+      contexts.push(ctx);
+      calls.push(`${name}:before`);
+      ctx.state[name] = true;
+      const result = await next();
+      calls.push(`${name}:after`);
+      return result;
+    };
+
+  class MiddlewareController extends HttpControllerBase {
+    static prefix = '/middleware';
+    static middleware = [middleware('controller')];
+    static routes = [
+      {
+        method: 'GET',
+        path: '/:id',
+        handler: 'get',
+        middleware: [middleware('route')],
+      },
+    ];
+    get(ctx) {
+      contexts.push(ctx);
+      calls.push('handler');
+      return { status: 200, body: { state: ctx.state, route: ctx.route } };
+    }
+  }
+
+  const app = new Application({ http: { middleware: [middleware('application')] } });
+  app.registerHttpController(MiddlewareController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const response = await request(address, { path: '/middleware/value' });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(calls, [
+      'application:before',
+      'controller:before',
+      'route:before',
+      'handler',
+      'route:after',
+      'controller:after',
+      'application:after',
+    ]);
+    assert.ok(contexts.every((ctx) => ctx === contexts[0]));
+    assert.ok(Object.isFrozen(contexts[0]));
+    assert.equal(Object.getPrototypeOf(contexts[0].state), null);
+    assert.ok(Object.isFrozen(contexts[0].route));
+    assert.deepEqual(contexts[0].route, {
+      method: 'GET',
+      path: '/middleware/:id',
+      handler: 'get',
+    });
+    assert.deepEqual(JSON.parse(response.body), {
+      state: { application: true, controller: true, route: true },
+      route: { method: 'GET', path: '/middleware/:id', handler: 'get' },
+    });
+  } finally {
+    await app.close();
+  }
+});
+
+test('HTTP middleware short-circuit не создаёт HTTP-контроллер', async () => {
+  let instances = 0;
+  let laterCalled = false;
+  class ProtectedController extends HttpControllerBase {
+    static prefix = '/protected';
+    static routes = [{ method: 'GET', path: '/', handler: 'get' }];
+    constructor(options) {
+      super(options);
+      instances += 1;
+    }
+    get() {
+      laterCalled = true;
+    }
+  }
+  const app = new Application({
+    http: {
+      middleware: [() => ({ status: 401, body: { error: 'Unauthorized' } })],
+    },
+  });
+  app.registerHttpController(ProtectedController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const response = await request(address, { path: '/protected' });
+    assert.equal(response.status, 401);
+    assert.equal(response.body, '{"error":"Unauthorized"}');
+    assert.equal(instances, 0);
+    assert.equal(laterCalled, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test('HTTP middleware не выполняются для инфраструктурных ошибок до маршрутизации', async () => {
+  let calls = 0;
+  class InputController extends HttpControllerBase {
+    static prefix = '/input';
+    static routes = [{ method: 'POST', path: '/', handler: 'post' }];
+    post() {
+      return { status: 204 };
+    }
+  }
+  const app = new Application({
+    http: {
+      bodyLimit: 4,
+      middleware: [
+        (_ctx, next) => {
+          calls += 1;
+          return next();
+        },
+      ],
+    },
+  });
+  app.registerHttpController(InputController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const responses = await Promise.all([
+      request(address, { path: '/missing' }),
+      request(address, { method: 'GET', path: '/input' }),
+      request(address, {
+        method: 'POST',
+        path: '/input',
+        headers: { 'content-type': 'application/json' },
+        body: '{',
+      }),
+      request(address, {
+        method: 'POST',
+        path: '/input',
+        headers: { 'content-type': 'application/json' },
+        body: '{"a":1}',
+      }),
+    ]);
+    assert.deepEqual(
+      responses.map((response) => response.status),
+      [404, 405, 400, 413],
+    );
+    assert.equal(calls, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test('HTTP middleware используют снимки массивов и изолируют state параллельных запросов', async () => {
+  const applicationMiddleware = [
+    (ctx, next) => {
+      ctx.state.requestId = ctx.headers.get('x-request-id');
+      return next();
+    },
+  ];
+  const controllerMiddleware = [(_ctx, next) => next()];
+  const routeMiddleware = [(_ctx, next) => next()];
+  let release;
+  const bothStarted = new Promise((resolve) => {
+    release = resolve;
+  });
+  let started = 0;
+
+  class StateController extends HttpControllerBase {
+    static prefix = '/state';
+    static middleware = controllerMiddleware;
+    static routes = [{ method: 'GET', path: '/', handler: 'get', middleware: routeMiddleware }];
+    async get(ctx) {
+      started += 1;
+      if (started === 2) release();
+      await bothStarted;
+      return { status: 200, body: { requestId: ctx.state.requestId } };
+    }
+  }
+
+  const app = new Application({ http: { middleware: applicationMiddleware } });
+  app.registerHttpController(StateController);
+  applicationMiddleware.push(() => ({ status: 500 }));
+  controllerMiddleware.push(() => ({ status: 500 }));
+  routeMiddleware.push(() => ({ status: 500 }));
+  StateController.routes[0].middleware = [() => ({ status: 500 })];
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const responses = await Promise.all([
+      request(address, { path: '/state', headers: { 'x-request-id': 'first' } }),
+      request(address, { path: '/state', headers: { 'x-request-id': 'second' } }),
+    ]);
+    assert.deepEqual(responses.map((response) => JSON.parse(response.body).requestId).toSorted(), [
+      'first',
+      'second',
+    ]);
+  } finally {
+    await app.close();
+  }
+});
+
+test('ошибки HTTP middleware изолированы и сохраняют транспортную семантику', async () => {
+  const observed = [];
+  class HealthyController extends HttpControllerBase {
+    static prefix = '/middleware-errors';
+    static routes = [{ method: 'GET', path: '/:mode', handler: 'get' }];
+    get(ctx) {
+      return { status: 200, body: { mode: ctx.params.mode } };
+    }
+  }
+  const app = new Application({
+    http: {
+      middleware: [
+        async (ctx, next) => {
+          if (ctx.params.mode === 'expected') {
+            throw new HttpError(403, { body: { error: 'Forbidden' } });
+          }
+          if (ctx.params.mode === 'unexpected') throw new Error('middleware secret');
+          if (ctx.params.mode === 'duplicate-next') {
+            await next();
+            return next();
+          }
+          return next();
+        },
+      ],
+      onError(error, ctx) {
+        observed.push({ error, path: ctx.path });
+      },
+    },
+  });
+  app.registerHttpController(HealthyController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const [unexpected, healthy] = await Promise.all([
+      request(address, { path: '/middleware-errors/unexpected' }),
+      request(address, { path: '/middleware-errors/healthy' }),
+    ]);
+    const expected = await request(address, { path: '/middleware-errors/expected' });
+    const duplicate = await request(address, { path: '/middleware-errors/duplicate-next' });
+
+    assert.equal(unexpected.status, 500);
+    assert.equal(unexpected.body, '{"error":"Internal Server Error"}');
+    assert.equal(healthy.status, 200);
+    assert.equal(expected.status, 403);
+    assert.equal(expected.body, '{"error":"Forbidden"}');
+    assert.equal(duplicate.status, 500);
+    assert.equal(observed.length, 2);
+    assert.equal(observed[0].error.message, 'middleware secret');
+    assert.ok(observed[1].error instanceof MiddlewareExecutionError);
   } finally {
     await app.close();
   }

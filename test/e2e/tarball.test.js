@@ -98,9 +98,32 @@ test('внешнее приложение устанавливает tarball и 
   });
 
   assert.deepEqual(JSON.parse(stdout), {
-    http: { status: 200, body: { sum: 6 } },
+    http: {
+      status: 200,
+      body: {
+        sum: 6,
+        state: { application: true, controller: true, route: '/calculations/sum' },
+      },
+    },
     httpError: { status: 422, body: { error: 'values must be finite numbers' } },
+    httpFailure: { status: 500, body: { error: 'Internal Server Error' } },
+    httpRecovery: {
+      status: 200,
+      body: {
+        sum: 9,
+        state: { application: true, controller: true, route: '/calculations/sum' },
+      },
+    },
+    httpShortCircuit: {
+      status: 401,
+      body: { error: 'Middleware short-circuit' },
+    },
     websocketError: { code: 'UNKNOWN_EVENT' },
-    websocket: { message: 'hello from tarball' },
+    websocketFailure: { code: 'HANDLER_ERROR' },
+    websocketShortCircuit: { shortCircuit: true },
+    websocket: {
+      message: 'hello from tarball',
+      state: { messageCount: 3, controller: true, event: 'echo' },
+    },
   });
 });
