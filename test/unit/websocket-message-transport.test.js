@@ -5,7 +5,12 @@ import test from 'node:test';
 
 import { Application } from '../../lib/framework/Application.js';
 import { WebSocketControllerBase } from '../../lib/framework/WebSocketControllerBase.js';
-import { WebSocketProtocolError } from '../../lib/framework/errors.js';
+import {
+  HttpError,
+  MiddlewareExecutionError,
+  WebSocketEventError,
+  WebSocketProtocolError,
+} from '../../lib/framework/errors.js';
 import { WebSocketTransport } from '../../lib/framework/WebSocketTransport.js';
 
 function opened(url, protocol = 'daevox.v1') {
@@ -241,17 +246,320 @@ test('daevox.v1 маршрутизирует envelope и формирует ре
     assert.deepEqual(Object.keys(contexts[0]).toSorted(), [
       'body',
       'clientId',
+      'controller',
+      'event',
       'sessionId',
       'signal',
+      'state',
     ]);
     assert.equal(contexts[0].body.topic, 'news');
     assert.equal(contexts[0].clientId, contexts[1].clientId);
     assert.equal(contexts[0].sessionId, contexts[1].sessionId);
     assert.ok(contexts[0].signal instanceof AbortSignal);
+    assert.equal(contexts[0].controller, 'notifications');
+    assert.equal(contexts[0].event, 'subscribe');
+    assert.equal(Object.getPrototypeOf(contexts[0].state), null);
   } finally {
     socket.close();
     await app.close();
   }
+});
+
+test('WebSocket middleware short-circuit не создаёт контроллер и сохраняет очередь', async () => {
+  let instances = 0;
+  class ShortCircuitController extends WebSocketControllerBase {
+    static name = 'short-circuit';
+    static events = [
+      { name: 'silent', handler: 'handle' },
+      { name: 'reply', handler: 'handle' },
+    ];
+    constructor(options) {
+      super(options);
+      instances += 1;
+    }
+    handle(ctx) {
+      return { event: ctx.event };
+    }
+  }
+  const app = new Application({
+    websocket: {
+      middleware: [(ctx, next) => (ctx.event === 'silent' ? undefined : next())],
+    },
+  });
+  app.registerWebSocketController(ShortCircuitController);
+  const address = await app.listen({ port: 0 });
+  const socket = await opened(`ws://${address.address}:${address.port}/websocket`);
+
+  try {
+    const response = nextMessage(socket);
+    socket.send(JSON.stringify({ controller: 'short-circuit', event: 'silent', body: {} }));
+    socket.send(JSON.stringify({ controller: 'short-circuit', event: 'reply', body: {} }));
+    assert.deepEqual(JSON.parse(await response).body, { event: 'reply' });
+    assert.equal(instances, 1);
+  } finally {
+    socket.close();
+    await app.close();
+  }
+});
+
+test('ошибки WebSocket middleware изолированы и сохраняют WebSocket-сессию', async () => {
+  const errors = [];
+  class ErrorController extends WebSocketControllerBase {
+    static name = 'middleware-errors';
+    static events = [
+      { name: 'expected', handler: 'handle' },
+      { name: 'unexpected', handler: 'handle' },
+      { name: 'duplicate-next', handler: 'handle' },
+      { name: 'healthy', handler: 'handle' },
+    ];
+    handle(ctx) {
+      return { event: ctx.event };
+    }
+  }
+  const app = new Application({
+    websocket: {
+      middleware: [
+        async (ctx, next) => {
+          if (ctx.event === 'expected') throw new WebSocketEventError('ACCESS_DENIED');
+          if (ctx.event === 'unexpected') throw new Error('middleware secret');
+          if (ctx.event === 'duplicate-next') {
+            await next();
+            return next();
+          }
+          return next();
+        },
+      ],
+      onError(error, ctx) {
+        errors.push({ error, ctx });
+      },
+    },
+  });
+  app.registerWebSocketController(ErrorController);
+  const address = await app.listen({ port: 0 });
+  const url = `ws://${address.address}:${address.port}/websocket`;
+  const firstSession = await opened(url);
+  const secondSession = await opened(url);
+
+  try {
+    for (const [event, code] of [
+      ['expected', 'ACCESS_DENIED'],
+      ['unexpected', 'HANDLER_ERROR'],
+      ['duplicate-next', 'HANDLER_ERROR'],
+    ]) {
+      const response = nextMessage(firstSession);
+      firstSession.send(JSON.stringify({ controller: 'middleware-errors', event, body: {} }));
+      assert.equal(JSON.parse(await response).body.error.code, code);
+      assert.equal(firstSession.readyState, WebSocket.OPEN);
+    }
+
+    const responses = [nextMessage(firstSession), nextMessage(secondSession)];
+    firstSession.send(
+      JSON.stringify({ controller: 'middleware-errors', event: 'healthy', body: {} }),
+    );
+    secondSession.send(
+      JSON.stringify({ controller: 'middleware-errors', event: 'healthy', body: {} }),
+    );
+    assert.deepEqual(
+      (await Promise.all(responses)).map((response) => JSON.parse(response).body),
+      [{ event: 'healthy' }, { event: 'healthy' }],
+    );
+    assert.equal(errors.length, 2);
+    assert.equal(errors[0].error.message, 'middleware secret');
+    assert.ok(errors[1].error instanceof MiddlewareExecutionError);
+    assert.ok(errors.every(({ ctx }) => Object.getPrototypeOf(ctx.state) === null));
+  } finally {
+    firstSession.close();
+    secondSession.close();
+    await app.close();
+  }
+});
+
+test('WebSocket state изолирован между сессиями', async () => {
+  class StateController extends WebSocketControllerBase {
+    static name = 'session-state';
+    static events = [{ name: 'increment', handler: 'increment' }];
+    increment(ctx) {
+      return { count: ctx.state.count };
+    }
+  }
+  const app = new Application({
+    websocket: {
+      middleware: [
+        (ctx, next) => {
+          ctx.state.count = (ctx.state.count ?? 0) + 1;
+          return next();
+        },
+      ],
+    },
+  });
+  app.registerWebSocketController(StateController);
+  const address = await app.listen({ port: 0 });
+  const url = `ws://${address.address}:${address.port}/websocket`;
+  const firstSession = await opened(url);
+  const secondSession = await opened(url);
+
+  const send = async (socket) => {
+    const response = nextMessage(socket);
+    socket.send(JSON.stringify({ controller: 'session-state', event: 'increment', body: {} }));
+    return JSON.parse(await response).body.count;
+  };
+  try {
+    assert.deepEqual(await Promise.all([send(firstSession), send(secondSession)]), [1, 1]);
+    assert.equal(await send(firstSession), 2);
+  } finally {
+    firstSession.close();
+    secondSession.close();
+    await app.close();
+  }
+});
+
+test('WebSocket middleware используют снимки и не выполняются до маршрутизации', async () => {
+  let calls = 0;
+  const applicationMiddleware = [
+    (_ctx, next) => {
+      calls += 1;
+      return next();
+    },
+  ];
+  const controllerMiddleware = [(_ctx, next) => next()];
+  const eventMiddleware = [(_ctx, next) => next()];
+  class SnapshotMiddlewareController extends WebSocketControllerBase {
+    static name = 'snapshot-middleware';
+    static middleware = controllerMiddleware;
+    static events = [{ name: 'run', handler: 'run', middleware: eventMiddleware }];
+    run() {
+      return { ok: true };
+    }
+  }
+  const app = new Application({ websocket: { middleware: applicationMiddleware } });
+  app.registerWebSocketController(SnapshotMiddlewareController);
+  applicationMiddleware.push(() => ({ changed: true }));
+  controllerMiddleware.push(() => ({ changed: true }));
+  eventMiddleware.push(() => ({ changed: true }));
+  SnapshotMiddlewareController.events[0].middleware = [() => ({ changed: true })];
+  const address = await app.listen({ port: 0 });
+  const socket = await opened(`ws://${address.address}:${address.port}/websocket`);
+
+  try {
+    for (const [message, code] of [
+      [
+        { controller: 'snapshot-middleware', event: 'run', body: {}, extra: true },
+        'INVALID_MESSAGE',
+      ],
+      [{ controller: 'missing', event: 'run', body: {} }, 'UNKNOWN_CONTROLLER'],
+      [{ controller: 'snapshot-middleware', event: 'missing', body: {} }, 'UNKNOWN_EVENT'],
+    ]) {
+      const response = nextMessage(socket);
+      socket.send(JSON.stringify(message));
+      assert.equal(JSON.parse(await response).body.error.code, code);
+    }
+    assert.equal(calls, 0);
+
+    const response = nextMessage(socket);
+    socket.send(JSON.stringify({ controller: 'snapshot-middleware', event: 'run', body: {} }));
+    assert.deepEqual(JSON.parse(await response).body, { ok: true });
+    assert.equal(calls, 1);
+  } finally {
+    socket.close();
+    await app.close();
+  }
+});
+
+test('WebSocket middleware выполняются на трёх уровнях с состоянием WebSocket-сессии', async () => {
+  const calls = [];
+  const messageContexts = [];
+  let connectContext;
+  let disconnectContext;
+  let disconnected;
+  const disconnectCalled = new Promise((resolve) => {
+    disconnected = resolve;
+  });
+  const middleware = (name) =>
+    async function (ctx, next) {
+      assert.equal(this, undefined);
+      messageContexts.push(ctx);
+      calls.push(`${name}:before`);
+      ctx.state[name] = (ctx.state[name] ?? 0) + 1;
+      const result = await next();
+      calls.push(`${name}:after`);
+      return result;
+    };
+
+  class MiddlewareController extends WebSocketControllerBase {
+    static name = 'middleware';
+    static middleware = [middleware('controller')];
+    static events = [
+      {
+        name: 'run',
+        handler: 'run',
+        middleware: [middleware('event')],
+      },
+    ];
+    run(ctx) {
+      messageContexts.push(ctx);
+      calls.push('handler');
+      return { state: ctx.state, controller: ctx.controller, event: ctx.event };
+    }
+  }
+
+  const app = new Application({
+    websocket: {
+      middleware: [middleware('application')],
+      onConnect(ctx) {
+        connectContext = ctx;
+        ctx.state.connected = true;
+      },
+      onDisconnect(ctx) {
+        disconnectContext = ctx;
+        disconnected();
+      },
+    },
+  });
+  app.registerWebSocketController(MiddlewareController);
+  const address = await app.listen({ port: 0 });
+  const socket = await opened(`ws://${address.address}:${address.port}/websocket`);
+
+  try {
+    for (const count of [1, 2]) {
+      const response = nextMessage(socket);
+      socket.send(JSON.stringify({ controller: 'middleware', event: 'run', body: {} }));
+      assert.deepEqual(JSON.parse(await response).body, {
+        state: { connected: true, application: count, controller: count, event: count },
+        controller: 'middleware',
+        event: 'run',
+      });
+    }
+    assert.deepEqual(calls, [
+      'application:before',
+      'controller:before',
+      'event:before',
+      'handler',
+      'event:after',
+      'controller:after',
+      'application:after',
+      'application:before',
+      'controller:before',
+      'event:before',
+      'handler',
+      'event:after',
+      'controller:after',
+      'application:after',
+    ]);
+    assert.ok(
+      messageContexts.every(
+        (ctx) => ctx === messageContexts[0] || ctx.state === connectContext.state,
+      ),
+    );
+    assert.ok(messageContexts.every((ctx) => Object.isFrozen(ctx)));
+    assert.equal(Object.getPrototypeOf(connectContext.state), null);
+    assert.equal(messageContexts[0].state, connectContext.state);
+  } finally {
+    socket.close();
+    await disconnectCalled;
+    await app.close();
+  }
+  assert.equal(disconnectContext.state, connectContext.state);
+  assert.equal(disconnectContext.signal.aborted, true);
 });
 
 test('маршрутизация использует копию метаданных на момент регистрации', async () => {
@@ -851,6 +1159,45 @@ test('ошибка onConnect отклоняет handshake с 500, ошибка o
   assert.equal(errors.at(-1).error, disconnectError);
   assert.equal(typeof errors.at(-1).ctx.sessionId, 'string');
   await app.close();
+});
+
+test('HttpError из onConnect ожидаемо отклоняет WebSocket handshake', async () => {
+  const errors = [];
+  let disconnects = 0;
+  const app = new Application({
+    websocket: {
+      onConnect() {
+        throw new HttpError(401, {
+          headers: new Headers({ 'www-authenticate': 'Bearer' }),
+          body: { error: 'Unauthorized' },
+        });
+      },
+      onDisconnect() {
+        disconnects += 1;
+      },
+      onError(error) {
+        errors.push(error);
+      },
+    },
+  });
+  const address = await app.listen({ port: 0 });
+  const { data, socket } = await rawRequest(
+    address,
+    `GET /websocket HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Protocol: daevox.v1\r\n\r\n`,
+  );
+
+  try {
+    const response = data.toString();
+    assert.match(response, /^HTTP\/1\.1 401 Unauthorized/);
+    assert.match(response.toLowerCase(), /www-authenticate: bearer/);
+    assert.match(response, /\{"error":"Unauthorized"\}$/);
+    assert.deepEqual(errors, []);
+    assert.equal(disconnects, 0);
+  } finally {
+    socket.destroy();
+    await app.close();
+  }
+  assert.equal(disconnects, 0);
 });
 
 test('отклонённый Promise websocket.onError безопасно передаётся в console.error', async (t) => {

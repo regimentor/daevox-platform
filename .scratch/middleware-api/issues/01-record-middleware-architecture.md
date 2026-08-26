@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: ready-for-human
 
 # Зафиксировать архитектуру middleware
 
@@ -33,3 +33,5 @@ production-кода.
 
 ## Comments
 
+Архитектура middleware зафиксирована в принятом ADR 0009, а согласованные термины добавлены в
+`CONTEXT.md`. Связанные ADR, Markdown и общий набор проверок репозитория проверены.

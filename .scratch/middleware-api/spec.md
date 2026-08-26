@@ -1,6 +1,6 @@
 # Middleware HTTP- и WebSocket-обработчиков
 
-Status: draft
+Status: accepted — [ADR 0009](../../docs/adr/0009-handler-middleware.md)
 
 ## Назначение
 
@@ -14,10 +14,6 @@ WebSocket-событий. Middleware поддерживаются на трёх 
 Middleware WebSocket применяются только к сообщениям протокола. Подключение и отключение
 WebSocket-сессии остаются глобальными lifecycle callbacks `websocket.onConnect` и
 `websocket.onDisconnect`; `connectionMiddleware` не вводится.
-
-Спецификация является текущим архитектурным наброском, а не принятым ADR. Она расширяет строгие
-декларации HTTP-маршрутов и WebSocket-событий и требует отдельного архитектурного решения перед
-реализацией.
 
 ## План реализации
 
@@ -109,9 +105,7 @@ class UsersController extends HttpControllerBase {
   static prefix = '/users';
   static middleware = [requireAuthentication];
 
-  static routes = [
-    { method: 'GET', path: '/:id', handler: 'getById' },
-  ];
+  static routes = [{ method: 'GET', path: '/:id', handler: 'getById' }];
 
   async getById(ctx) {}
 }
@@ -122,9 +116,7 @@ class NotificationsController extends WebSocketControllerBase {
   static name = 'notifications';
   static middleware = [requireAuthentication];
 
-  static events = [
-    { name: 'subscribe', handler: 'subscribe' },
-  ];
+  static events = [{ name: 'subscribe', handler: 'subscribe' }];
 
   async subscribe(ctx) {}
 }
@@ -446,7 +438,7 @@ Middleware предоставляет место для аутентификац
 ## Публичные ошибки
 
 `MiddlewareExecutionError extends Error` создаётся фреймворком при нарушении runtime-контракта
-middleware, в текущем draft — при повторном вызове одного `next()`. Ошибка передаётся в
+middleware — при повторном вызове одного `next()`. Ошибка передаётся в
 соответствующий error hook как неожиданная ошибка текущей операции.
 
 `WebSocketEventError extends Error` представляет ожидаемый прикладной отказ middleware или
@@ -504,7 +496,7 @@ throw new WebSocketEventError('FORBIDDEN');
 После изменения production-кода в `lib/framework/*.js` необходимо добавить двуязычный JSDoc ко
 всем новым и изменённым сущностям, выполнить `npm run docs:build` и затем полный `npm run check`.
 
-## Принятые решения draft
+## Принятые решения
 
 - Повторный вызов `next()` создаёт публичный `MiddlewareExecutionError`.
 - Ожидаемый отказ `websocket.onConnect` выражается существующим `HttpError`; отдельная ошибка

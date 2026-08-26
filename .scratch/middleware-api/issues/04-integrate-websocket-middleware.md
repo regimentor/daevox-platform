@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: ready-for-human
 Blocked by: 02
 
 # Интегрировать middleware в WebSocket transport
@@ -43,3 +43,6 @@ WebSocket-протокола и связать состояние с lifecycle �
 
 ## Comments
 
+Middleware трёх WebSocket-уровней, session-scoped `state`, прикладные коды ошибок и handshake через
+`HttpError` интегрированы с сохранением очереди и сессии. WebSocket-тесты, документация и полный
+набор проверок выполнены.

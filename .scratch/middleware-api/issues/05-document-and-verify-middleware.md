@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: ready-for-human
 Blocked by: 03, 04
 
 # Документировать и проверить middleware end-to-end
@@ -34,3 +34,5 @@ Blocked by: 03, 04
 
 ## Comments
 
+README, примеры, публичные импорты и сквозные HTTP/WebSocket-сценарии обновлены. Markdown/HTML API,
+`npm run check` и полный `npm test` успешно проверены перед передачей на человеческое ревью.

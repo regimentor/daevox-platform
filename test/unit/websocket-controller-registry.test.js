@@ -87,6 +87,44 @@ test('WebSocket-событие имеет точную форму и собст�
   }
 });
 
+test('WebSocket-контроллер и событие строго и атомарно проверяют middleware', async () => {
+  class MiddlewareController extends WebSocketControllerBase {
+    static name = 'middleware';
+    static middleware = [null];
+    static events = [{ name: 'run', handler: 'run', middleware: [null] }];
+    run() {}
+  }
+  const app = new Application();
+
+  assert.throws(
+    () => app.registerWebSocketController(MiddlewareController),
+    InvalidWebSocketControllerError,
+  );
+  MiddlewareController.middleware = [];
+  MiddlewareController.events[0].middleware = [];
+  assert.equal(app.registerWebSocketController(MiddlewareController), app);
+  await app.close();
+
+  for (const Controller of [
+    class UndefinedControllerMiddleware extends WebSocketControllerBase {
+      static name = 'undefined-controller-middleware';
+      static middleware = undefined;
+      static events = [{ name: 'run', handler: 'run' }];
+      run() {}
+    },
+    class UndefinedEventMiddleware extends WebSocketControllerBase {
+      static name = 'undefined-event-middleware';
+      static events = [{ name: 'run', handler: 'run', middleware: undefined }];
+      run() {}
+    },
+  ]) {
+    assert.throws(
+      () => new Application().registerWebSocketController(Controller),
+      InvalidWebSocketControllerError,
+    );
+  }
+});
+
 test('регистрация отклоняет повторные классы, имена и события атомарно', () => {
   class FirstController extends WebSocketControllerBase {
     static name = 'shared';
@@ -132,6 +170,7 @@ test('Application строго проверяет конфигурацию ед�
     websocket: {
       path: '/socket',
       maxPayload: 0,
+      middleware: [noop],
       onConnect: noop,
       onDisconnect: noop,
       onError: noop,
@@ -139,6 +178,11 @@ test('Application строго проверяет конфигурацию ед�
   });
   await app.close();
 
+  const sparseMiddleware = Array(1);
+  const extendedMiddleware = [noop];
+  extendedMiddleware.extra = true;
+  const symbolMiddleware = [noop];
+  symbolMiddleware[Symbol('extra')] = true;
   for (const websocket of [
     null,
     [],
@@ -150,6 +194,12 @@ test('Application строго проверяет конфигурацию ед�
     { onConnect: true },
     { onDisconnect: true },
     { onError: true },
+    { middleware: null },
+    { middleware: [null] },
+    { middleware: sparseMiddleware },
+    { middleware: extendedMiddleware },
+    { middleware: symbolMiddleware },
+    { connectionMiddleware: [] },
     { unknown: true },
   ]) {
     assert.throws(() => new Application({ websocket }), InvalidWebSocketOptionsError);

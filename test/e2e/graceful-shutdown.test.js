@@ -13,6 +13,7 @@ import {
 import ShutdownJob from '../fixtures/jobs/shutdown-job.js';
 
 const HTTP_SHUTDOWN_TIMEOUT = 250;
+const JOB_POOL_SIZE = 2;
 const JOB_TIMEOUT = 30;
 const TERMINATION_GRACE_PERIOD = 30;
 const JOB_SHUTDOWN_TIMEOUT = 50;
@@ -128,6 +129,10 @@ function createHarness(iteration) {
   const timedJobState = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT);
   const shutdownJobState = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT);
   const queuedJobState = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT);
+  const warmJobStates = Array.from(
+    { length: JOB_POOL_SIZE },
+    () => new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT),
+  );
 
   class ShutdownHttpController extends HttpControllerBase {
     static prefix = '/shutdown';
@@ -137,6 +142,7 @@ function createHarness(iteration) {
       { method: 'GET', path: '/job-timed', handler: 'timed' },
       { method: 'GET', path: '/job-running', handler: 'running' },
       { method: 'GET', path: '/job-queued', handler: 'queued' },
+      { method: 'GET', path: '/job-warm', handler: 'warm' },
     ];
 
     async quick() {
@@ -207,6 +213,13 @@ function createHarness(iteration) {
       queuedJobSettled.resolve(value);
       return { status: 200, body: value };
     }
+
+    async warm() {
+      const results = await Promise.all(
+        warmJobStates.map((state) => this.jobRunner.run(ShutdownJob, { mode: 'complete', state })),
+      );
+      return { status: 200, body: results };
+    }
   }
 
   class ShutdownWebSocketController extends WebSocketControllerBase {
@@ -225,7 +238,7 @@ function createHarness(iteration) {
   const application = new Application({
     http: { shutdownTimeout: HTTP_SHUTDOWN_TIMEOUT },
     jobs: {
-      poolSize: 2,
+      poolSize: JOB_POOL_SIZE,
       queueSize: 1,
       shutdownTimeout: JOB_SHUTDOWN_TIMEOUT,
       terminationGracePeriod: TERMINATION_GRACE_PERIOD,
@@ -273,6 +286,10 @@ async function runScenario(iteration) {
   let closing;
 
   try {
+    assert.deepEqual(await withWatchdog(request(address, '/shutdown/job-warm'), 'Worker warmup'), {
+      body: '[{"completed":true},{"completed":true}]',
+      status: 200,
+    });
     socket = await withWatchdog(openedWebSocket(webSocketUrl), 'WebSocket connection');
     const socketClosed = closedWebSocket(socket);
     socket.send(JSON.stringify({ controller: 'shutdown', event: 'wait', body: {} }));

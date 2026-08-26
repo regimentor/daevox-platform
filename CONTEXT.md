@@ -32,6 +32,15 @@ _Избегать_: контекст запроса, request, payload.
 Явно заданный HTTP-обработчиком статус, заголовки и тело результата обработки HTTP-запроса.
 _Избегать_: ответ, result, response object.
 
+**HTTP middleware (`HttpMiddleware`)**:
+Функция `(ctx, next)`, окружающая выполнение найденного HTTP-обработчика на уровне приложения,
+HTTP-контроллера или HTTP-маршрута.
+_Избегать_: hook, interceptor, middleware запроса.
+
+**Состояние HTTP-запроса (`HttpRequestState`)**:
+Изменяемый объект `ctx.state` с временем жизни одного успешно маршрутизированного HTTP-запроса.
+_Избегать_: глобальное состояние, состояние приложения, session state.
+
 **WebSocket-контроллер (`WebSocketController`)**:
 Именованная группа связанных WebSocket-событий протокола.
 _Избегать_: контроллер, socket handler, channel, endpoint.
@@ -55,6 +64,21 @@ _Избегать_: пользователь, аккаунт, несколько
 **Хранилище WebSocket-сессий (`WebSocketSessionStore`)**:
 Внутренний каталог WebSocket-сессий и связанных с ними WebSocket-клиентов.
 _Избегать_: controller state, client registry.
+
+**Middleware сообщения WebSocket (`WebSocketMessageMiddleware`)**:
+Функция `(ctx, next)`, окружающая выполнение обработчика успешно маршрутизированного
+WebSocket-события на уровне приложения, WebSocket-контроллера или WebSocket-события.
+_Избегать_: connection middleware, WebSocket hook, middleware сессии.
+
+**Состояние WebSocket-сессии (`WebSocketSessionState`)**:
+Изменяемый объект `ctx.state`, общая ссылка на который живёт от `onConnect` до `onDisconnect` одной
+WebSocket-сессии и доступна обработчикам её сообщений.
+_Избегать_: состояние WebSocket-сообщения, глобальное состояние, user state.
+
+**Цепочка middleware (`MiddlewareChain`)**:
+Упорядоченное выполнение middleware приложения, контроллера и декларации обработчика вокруг
+HTTP-обработчика или обработчика WebSocket-события.
+_Избегать_: pipeline, lifecycle, middleware stack.
 
 **Исполнитель задач (`Job Runner`)**:
 Внутренний компонент приложения, принимающий классы задач и передающий их на выполнение в пул работников.

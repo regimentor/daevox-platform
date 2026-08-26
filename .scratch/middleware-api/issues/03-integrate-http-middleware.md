@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: ready-for-human
 Blocked by: 02
 
 # Интегрировать middleware в HTTP transport
@@ -38,3 +38,6 @@ Blocked by: 02
 
 ## Comments
 
+Middleware трёх HTTP-уровней, request-scoped `state`, `route`, снимки метаданных и транспортные
+ошибки интегрированы без изменения нормализации ответа. HTTP-тесты, документация и полный набор
+проверок выполнены.

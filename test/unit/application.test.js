@@ -157,7 +157,7 @@ test('HTTP-обработчик должен быть собственным м�
   }
 });
 
-test('декларация HTTP-маршрута содержит ровно три строковых поля', () => {
+test('декларация HTTP-маршрута содержит обязательные строковые поля', () => {
   for (const definition of [
     null,
     { method: 'GET', path: '/', handler: 'list', extra: true },
@@ -276,6 +276,11 @@ test('Application проверяет вложенную конфигурацию
 });
 
 test('Application строго проверяет вложенную конфигурацию http', () => {
+  const sparseMiddleware = Array(1);
+  const extendedMiddleware = [() => {}];
+  extendedMiddleware.extra = true;
+  const symbolMiddleware = [() => {}];
+  symbolMiddleware[Symbol('extra')] = true;
   for (const http of [
     null,
     [],
@@ -283,10 +288,48 @@ test('Application строго проверяет вложенную конфи�
     { bodyLimit: 1.5 },
     { shutdownTimeout: -1 },
     { onError: true },
+    { middleware: null },
+    { middleware: [null] },
+    { middleware: sparseMiddleware },
+    { middleware: extendedMiddleware },
+    { middleware: symbolMiddleware },
     { unknown: true },
   ]) {
     assert.throws(() => new Application({ http }), InvalidHttpOptionsError);
   }
+});
+
+test('HTTP-контроллер и HTTP-маршрут строго и атомарно проверяют middleware', () => {
+  const invalidController = controller();
+  invalidController.middleware = [null];
+  const invalidRoute = controller({
+    routes: [{ method: 'GET', path: '/', handler: 'list', middleware: [null] }],
+  });
+  const undefinedController = controller();
+  undefinedController.middleware = undefined;
+  const undefinedRoute = controller({
+    routes: [{ method: 'GET', path: '/', handler: 'list', middleware: undefined }],
+  });
+
+  for (const HttpController of [
+    invalidController,
+    invalidRoute,
+    undefinedController,
+    undefinedRoute,
+  ]) {
+    const app = new Application();
+    assert.throws(() => app.registerHttpController(HttpController), TypeError);
+
+    HttpController.middleware = [];
+    HttpController.routes[0].middleware = [];
+    assert.equal(app.registerHttpController(HttpController), app);
+  }
+});
+
+test('Application принимает HTTP middleware в конфигурации транспорта', async () => {
+  const app = new Application({ http: { middleware: [() => {}] } });
+
+  await app.close();
 });
 
 test('Application не раскрывает JobRunner или WorkerPool публичными свойствами', async () => {
