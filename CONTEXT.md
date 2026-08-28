@@ -58,12 +58,18 @@ _Избегать_: WebSocket frame, payload, request, response.
 _Избегать_: клиент, вкладка, socket.
 
 **WebSocket-клиент (`WebSocketClient`)**:
-Созданная фреймворком техническая сторона одной WebSocket-сессии, имеющая уникальный `clientId` на время этой сессии.
+Созданная фреймворком техническая сторона одной или нескольких WebSocket-сессий, объединённых
+стабильным `clientId` на время их активности.
 _Избегать_: пользователь, аккаунт, несколько соединений.
 
 **Хранилище WebSocket-сессий (`WebSocketSessionStore`)**:
-Внутренний каталог WebSocket-сессий и связанных с ними WebSocket-клиентов.
+Внутренний каталог WebSocket-сессий и индекс `clientId → Set<sessionId>` активных сессий.
 _Избегать_: controller state, client registry.
+
+**WebSocket sender (`WebSocketSender`)**:
+Узкий application-wide фасад, через который HTTP-контроллер отправляет envelope `daevox.v1` в
+активные WebSocket-сессии по `clientId` и, при необходимости, выбранным `sessionIds`.
+_Избегать_: raw socket, session store, push channel.
 
 **Middleware сообщения WebSocket (`WebSocketMessageMiddleware`)**:
 Функция `(ctx, next)`, окружающая выполнение обработчика успешно маршрутизированного

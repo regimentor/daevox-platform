@@ -23,12 +23,14 @@ const page = `<!doctype html>
       <input id="message" autocomplete="off" placeholder="Сообщение" required>
       <button>Отправить</button>
     </form>
+    <button id="broadcast" type="button">Отправить server push из HTTP</button>
     <ul id="messages"></ul>
     <script>
       const status = document.querySelector('#status');
       const form = document.querySelector('#form');
       const input = document.querySelector('#message');
       const messages = document.querySelector('#messages');
+      const broadcast = document.querySelector('#broadcast');
       const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
       const socket = new WebSocket(protocol + '://' + location.host + '/websocket?token=demo', 'daevox.v1');
 
@@ -52,6 +54,10 @@ const page = `<!doctype html>
           body: { message: input.value },
         }));
         input.value = '';
+      });
+      broadcast.addEventListener('click', async () => {
+        const response = await fetch('/broadcast');
+        status.value = 'HTTP server push: ' + JSON.stringify(await response.json());
       });
     </script>
   </body>

@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import { Application } from '../../lib/framework/Application.js';
 import { WebSocketControllerBase } from '../../lib/framework/WebSocketControllerBase.js';
+import { HttpControllerBase } from '../../lib/framework/HttpControllerBase.js';
 import {
   HttpError,
   MiddlewareExecutionError,
@@ -169,7 +170,11 @@ test('неожиданная ошибка HTTP Upgrade возвращает 500 
 test('daevox.v1 принимает handshake только на едином endpoint с subprotocol', async () => {
   const connections = [];
   const app = new Application({
-    websocket: { onConnect: (ctx) => connections.push(ctx) },
+    websocket: {
+      onConnect: (ctx) => {
+        connections.push(ctx);
+      },
+    },
   });
   app.registerWebSocketController(notificationsController());
   const address = await app.listen({ port: 0 });
@@ -195,6 +200,84 @@ test('daevox.v1 принимает handshake только на едином endp
     assert.ok(connections[0].signal instanceof AbortSignal);
     socket.close();
   } finally {
+    await app.close();
+  }
+});
+
+test('onConnect может назначить clientId, который сохраняется в message и disconnect contexts', async () => {
+  let messageContext;
+  let disconnectContext;
+  let resolveDisconnected;
+  const disconnected = new Promise((resolve) => {
+    resolveDisconnected = resolve;
+  });
+  const app = new Application({
+    websocket: {
+      onConnect: () => 'stable-client',
+      onDisconnect: (ctx) => {
+        disconnectContext = ctx;
+        resolveDisconnected();
+      },
+    },
+  });
+  class ContextController extends WebSocketControllerBase {
+    static name = 'context';
+    static events = [{ name: 'read', handler: 'read' }];
+    read(ctx) {
+      messageContext = ctx;
+      return { clientId: ctx.clientId };
+    }
+  }
+  app.registerWebSocketController(ContextController);
+  const address = await app.listen({ port: 0 });
+  const socket = await opened(`ws://${address.address}:${address.port}/websocket`);
+
+  try {
+    const message = nextMessage(socket);
+    socket.send(JSON.stringify({ controller: 'context', event: 'read', body: {} }));
+    assert.deepEqual(JSON.parse(await message).body, { clientId: 'stable-client' });
+    socket.close();
+    await disconnected;
+    assert.equal(messageContext.clientId, 'stable-client');
+    assert.equal(disconnectContext.clientId, 'stable-client');
+  } finally {
+    await app.close();
+  }
+});
+
+test('HTTP-контроллер отправляет server push через this.websocket', async () => {
+  const app = new Application({
+    websocket: { onConnect: () => 'push-client' },
+  });
+  app.registerWebSocketController(notificationsController());
+  class PushController extends HttpControllerBase {
+    static prefix = '/push';
+    static routes = [{ method: 'GET', path: '/', handler: 'send' }];
+    send() {
+      return {
+        status: 200,
+        body: this.websocket.send(
+          { clientId: 'push-client' },
+          { controller: 'notifications', event: 'published', body: { id: 42 } },
+        ),
+      };
+    }
+  }
+  app.registerHttpController(PushController);
+  const address = await app.listen({ port: 0 });
+  const socket = await opened(`ws://${address.address}:${address.port}/websocket`);
+
+  try {
+    const message = nextMessage(socket);
+    const response = await fetch(`http://${address.address}:${address.port}/push/`);
+    assert.deepEqual(await response.json(), { sent: 1, skipped: 0 });
+    assert.deepEqual(JSON.parse(await message), {
+      controller: 'notifications',
+      event: 'published',
+      body: { id: 42 },
+    });
+  } finally {
+    socket.close();
     await app.close();
   }
 });

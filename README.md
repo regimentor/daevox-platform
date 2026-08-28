@@ -85,6 +85,22 @@ HTTP-контроллеры можно регистрировать только
 HTTP-маршрута приложение создаёт новый экземпляр HTTP-контроллера, только если middleware-цепочка
 дошла до HTTP-обработчика.
 
+Каждый HTTP-контроллер получает `this.websocket` — узкий application-wide sender для server push:
+
+```js
+const result = this.websocket.send(
+  { clientId, sessionIds },
+  { controller: 'notifications', event: 'updated', body: { id: 42 } },
+);
+// { sent, skipped }
+```
+
+Без `sessionIds` сообщение отправляется во все активные сессии `clientId`; пустой массив ничего
+не отправляет. Дубликаты устраняются, закрытые и чужие сессии учитываются в `skipped`. Неизвестный
+`clientId` вызывает `WebSocketClientNotFoundError`, а неверная цель или сообщение —
+`InvalidWebSocketSendError`. Отправка синхронна и best-effort: `sent` означает принятие frame
+локальным socket для записи.
+
 ### Контекст HTTP-запроса
 
 HTTP-обработчик получает объект `ctx`:
@@ -305,6 +321,11 @@ handler. Возвращённый plain object автоматически отп
 
 Endpoint, lifecycle hooks, максимальный размер входящего и исходящего сообщения и обработчик ошибок задаются в конфигурации:
 
+`onConnect` получает сгенерированный `ctx.clientId` и может вернуть непустую строку стабильного
+прикладного идентификатора; `undefined` сохраняет сгенерированный идентификатор. Итоговый
+идентификатор доступен в контекстах WebSocket и `onDisconnect`. Несколько сессий могут использовать
+один `clientId`.
+
 ```js
 const application = new Application({
   websocket: {
@@ -467,10 +488,20 @@ npm run example:middleware-auth:test
 
 ## Пример WebSocket-приложения
 
+Пример показывает входящее событие `events/echo` и server push из HTTP-маршрута
+`GET /broadcast`. `onConnect` возвращает стабильный `clientId`, а HTTP-контроллер отправляет
+envelope `notifications/updated` через `this.websocket`.
+
 Запустите приложение:
 
 ```sh
 npm run example:websocket
+```
+
+Black-box тест примера проверяет HTTP-результат sender и полученный WebSocket envelope:
+
+```sh
+npm run example:websocket:test
 ```
 
 Откройте `http://127.0.0.1:3000`. Страница подключается к `/websocket` с subprotocol `daevox.v1`, отправляет событие `events/echo` и показывает необязательный реактивный ответ с исходным адресом.
