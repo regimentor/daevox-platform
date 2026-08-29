@@ -1,12 +1,17 @@
-# Daevox
+# Daevox Platform
 
-Монорепозиторий Daevox управляется через npm workspaces. Каждый публикуемый или исполняемый
-module владеет своим production-кодом, тестами, примерами и документацией.
+Daevox Platform — платформа для agentic-задач. Целевые возможности и границы компонентов
+описаны в [обзоре платформы](docs/platform.md).
+
+Монорепозиторий управляется через npm workspaces. Каждый публикуемый или исполняемый module
+владеет своим production-кодом, тестами, примерами и документацией.
 
 ## Workspaces
 
+- [`@daevox/web-client`](apps/web-client/) — frontend Daevox Platform.
+- `apps/backend` — планируемый backend; workspace ещё не настроен.
 - [`@daevox/framework`](lib/framework/README.md) — транспортный фреймворк Node.js 26 без
-  runtime-зависимостей.
+  runtime-зависимостей, разрабатываемый как основа backend.
 
 ## Разработка
 
