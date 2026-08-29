@@ -15,6 +15,7 @@ const SCHEDULED_THRESHOLDS = Object.freeze({
 const MODES = Object.freeze({
   short: {
     durationMs: 4_000,
+    eventErrorEvery: 257,
     jobTimeoutMs: 15,
     operationConcurrency: 4,
     sampleIntervalMs: 250,
@@ -24,6 +25,7 @@ const MODES = Object.freeze({
   },
   scheduled: {
     durationMs: 4 * HOUR,
+    eventErrorEvery: 257,
     jobTimeoutMs: 100,
     operationConcurrency: 16,
     sampleIntervalMs: 30_000,
@@ -58,6 +60,7 @@ export function createSoakConfig(mode, overrides = {}) {
   };
   for (const name of [
     'durationMs',
+    'eventErrorEvery',
     'jobTimeoutMs',
     'operationConcurrency',
     'sampleIntervalMs',

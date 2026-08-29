@@ -30,8 +30,11 @@ test('soak profiles bound local and scheduled execution explicitly', () => {
   assert.ok(scheduled.durationMs >= 3 * 60 * 60 * 1_000);
   assert.ok(scheduled.timeoutMs > scheduled.durationMs);
   assert.ok(scheduled.sampleIntervalMs > short.sampleIntervalMs);
+  assert.equal(short.eventErrorEvery, 257);
+  assert.equal(scheduled.eventErrorEvery, 257);
   assert.equal(scheduled.thresholds.maxHeapSlopeBytesPerMinute, 256 * 1024);
   assert.equal(scheduled.thresholds.maxRssSlopeBytesPerMinute, 512 * 1024);
+  assert.throws(() => createSoakConfig('short', { eventErrorEvery: 0 }), /eventErrorEvery/);
 });
 
 test('memory slope excludes warm-up and reports bytes per minute', () => {

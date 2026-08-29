@@ -110,9 +110,9 @@ export const modules = [
       {
         id: 'response-error-code',
         description: 'use INVALID_MESSAGE for an invalid handler response',
-        find: "if (!isPlainObject(body) || Object.hasOwn(body, 'error') || !isCompatible(body)) {\n    throw new WebSocketProtocolError('INVALID_RESPONSE', { controller, event });\n  }",
+        find: "    !isPlainObject(body) ||\n    Object.hasOwn(body, 'error') ||\n    !isCompatible(body)\n  ) {\n    throw new WebSocketProtocolError('INVALID_RESPONSE', { controller, event });\n  }",
         replace:
-          "if (!isPlainObject(body) || Object.hasOwn(body, 'error') || !isCompatible(body)) {\n    throw new WebSocketProtocolError('INVALID_MESSAGE', { controller, event });\n  }",
+          "    !isPlainObject(body) ||\n    Object.hasOwn(body, 'error') ||\n    !isCompatible(body)\n  ) {\n    throw new WebSocketProtocolError('INVALID_MESSAGE', { controller, event });\n  }",
       },
     ],
   },

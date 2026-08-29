@@ -10,6 +10,27 @@ import SumJob from './sum-job.js';
 
 const applicationEvents = [];
 const applicationEventErrors = [];
+const eventFlow = {
+  accepted: [],
+  errors: [],
+  fast: [],
+  independent: false,
+  slowCompleted: [],
+  slowInvoked: [],
+};
+let acceptedOrder = 0;
+let releaseFirstSlow;
+const firstSlowGate = new Promise((resolve) => {
+  releaseFirstSlow = resolve;
+});
+let resolveFastFirst;
+const fastFirst = new Promise((resolve) => {
+  resolveFastFirst = resolve;
+});
+let resolveSlowFirst;
+const slowFirst = new Promise((resolve) => {
+  resolveSlowFirst = resolve;
+});
 let resolveApplicationEvents;
 const applicationEventsSettled = new Promise((resolve) => {
   resolveApplicationEvents = resolve;
@@ -38,6 +59,48 @@ class TransportEventListener extends EventListenerBase {
   }
 }
 
+class BatchEvent {
+  constructor(order, poison) {
+    this.order = order;
+    this.poison = poison;
+  }
+}
+
+class FastBatchListener extends EventListenerBase {
+  static name = 'batch-fast';
+  static events = [{ name: 'handled', data: BatchEvent, handler: 'handled' }];
+
+  handled(data) {
+    eventFlow.fast.push(data.order);
+    if (data.order === 0) resolveFastFirst();
+  }
+}
+
+class SlowBatchListener extends EventListenerBase {
+  static name = 'batch-slow';
+  static events = [{ name: 'handled', data: BatchEvent, handler: 'handled' }];
+
+  async handled(data) {
+    eventFlow.slowInvoked.push(data.order);
+    if (data.order === 0) {
+      resolveSlowFirst();
+      await firstSlowGate;
+    } else {
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    }
+    if (data.poison) throw new Error('batch poison');
+    eventFlow.slowCompleted.push(data.order);
+  }
+}
+
+function pushBatchEvent(sender, poison) {
+  const order = acceptedOrder++;
+  const event = new BatchEvent(order, poison === true);
+  sender.push({ listener: 'batch-slow', event: 'handled' }, event);
+  sender.push({ listener: 'batch-fast', event: 'handled' }, event);
+  return order;
+}
+
 function markHttpController(ctx, next) {
   ctx.state.controller = true;
   return next();
@@ -51,7 +114,17 @@ function markHttpRoute(ctx, next) {
 class CalculationsHttpController extends HttpControllerBase {
   static prefix = '/calculations';
   static middleware = [markHttpController];
-  static routes = [{ method: 'POST', path: '/sum', handler: 'sum', middleware: [markHttpRoute] }];
+  static routes = [
+    { method: 'POST', path: '/sum', handler: 'sum', middleware: [markHttpRoute] },
+    { method: 'POST', path: '/event', handler: 'event' },
+  ];
+
+  event(ctx) {
+    return {
+      status: 202,
+      body: { acceptedOrder: pushBatchEvent(this.events, ctx.body?.poison) },
+    };
+  }
 
   async sum(ctx) {
     const values = ctx.body?.values;
@@ -85,6 +158,7 @@ class EventsWebSocketController extends WebSocketControllerBase {
   static middleware = [markWebSocketController];
   static events = [
     { name: 'echo', handler: 'echo', middleware: [markWebSocketEvent] },
+    { name: 'publish', handler: 'publish' },
     { name: 'short-circuit', handler: 'echo' },
     { name: 'fail', handler: 'echo' },
   ];
@@ -95,6 +169,10 @@ class EventsWebSocketController extends WebSocketControllerBase {
       new TransportEvent('websocket'),
     );
     return { message: ctx.body.message, state: ctx.state };
+  }
+
+  publish(ctx) {
+    return { acceptedOrder: pushBatchEvent(this.events, ctx.body?.poison) };
   }
 }
 
@@ -112,8 +190,11 @@ async function receiveMessage(webSocket) {
 const application = new Application({
   events: {
     onError(error) {
-      applicationEventErrors.push(error.message);
-      settleApplicationEvents();
+      if (error.message === 'batch poison') eventFlow.errors.push(error.message);
+      else {
+        applicationEventErrors.push(error.message);
+        settleApplicationEvents();
+      }
     },
   },
   jobs: { poolSize: 1 },
@@ -144,8 +225,11 @@ const application = new Application({
 application.registerHttpController(CalculationsHttpController);
 application.registerWebSocketController(EventsWebSocketController);
 application.registerEventListener(TransportEventListener);
+application.registerEventListener(FastBatchListener);
+application.registerEventListener(SlowBatchListener);
 
 let webSocket;
+const batchWebSockets = [];
 
 try {
   const address = await application.listen({ port: 0 });
@@ -209,11 +293,51 @@ try {
   }).then(readJson);
   await applicationEventsSettled;
 
+  const firstBatch = await fetch(`${httpUrl}/calculations/event`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ poison: true }),
+  }).then(readJson);
+  await Promise.all([fastFirst, slowFirst]);
+  eventFlow.independent = true;
+  releaseFirstSlow();
+
+  for (let index = 0; index < 4; index += 1) {
+    const socket = new WebSocket(websocketUrl, 'daevox.v1');
+    batchWebSockets.push(socket);
+    await once(socket, 'open', { signal: AbortSignal.timeout(2_000) });
+  }
+  const httpBatch = Array.from({ length: 3 }, () =>
+    fetch(`${httpUrl}/calculations/event`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    }).then(readJson),
+  );
+  const websocketBatch = batchWebSockets.map(async (socket) => {
+    const message = receiveMessage(socket);
+    socket.send(JSON.stringify({ controller: 'events', event: 'publish', body: {} }));
+    return message;
+  });
+  const batchResults = await Promise.all([...httpBatch, ...websocketBatch]);
+  eventFlow.accepted = [
+    firstBatch.body.acceptedOrder,
+    ...batchResults.map((result) => result.body.acceptedOrder),
+  ].toSorted((left, right) => left - right);
+
   const closePromise = once(webSocket, 'close', {
     signal: AbortSignal.timeout(2_000),
   });
   webSocket.close(1000);
   await closePromise;
+  await Promise.all(
+    batchWebSockets.map(async (socket) => {
+      const closed = once(socket, 'close', { signal: AbortSignal.timeout(2_000) });
+      socket.close(1000);
+      await closed;
+    }),
+  );
+  await application.close();
 
   process.stdout.write(
     JSON.stringify({
@@ -230,9 +354,14 @@ try {
         handled: applicationEvents.toSorted(),
         errors: applicationEventErrors,
       },
+      eventFlow,
     }),
   );
 } finally {
   if (webSocket && webSocket.readyState !== WebSocket.CLOSED) webSocket.close();
+  for (const socket of batchWebSockets) {
+    if (socket.readyState !== WebSocket.CLOSED) socket.close();
+  }
+  releaseFirstSlow();
   await application.close();
 }

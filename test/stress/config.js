@@ -7,6 +7,27 @@ function positiveInteger(value, name) {
   return value;
 }
 
+function seededRandom(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+    return state;
+  };
+}
+
+export function createShutdownChaosPlan(seed, iterations) {
+  positiveInteger(seed, 'eventChaosSeed');
+  positiveInteger(iterations, 'eventShutdownIterations');
+  const random = seededRandom(seed);
+  return Array.from({ length: iterations }, () => {
+    const operationCount = 3 + (random() % 6);
+    const producers = Array.from({ length: operationCount }, () =>
+      random() % 2 === 0 ? 'http' : 'websocket',
+    );
+    return { closeDelayMs: random() % 3, producers };
+  });
+}
+
 export function createStressConfig(overrides = {}) {
   const cpuCount = availableParallelism();
   const limits = {
@@ -37,9 +58,16 @@ export function createStressConfig(overrides = {}) {
   const aboveCpu = Math.min(cpuCount + 1, limits.maxWorkers);
   const poolSizes = [...new Set([1, nearCpu, aboveCpu])];
   const queueSize = positiveInteger(overrides.queueSize ?? 32, 'queueSize');
+  const eventChaosSeed = positiveInteger(overrides.eventChaosSeed ?? 0x0dae_2026, 'eventChaosSeed');
+  const eventShutdownIterations = positiveInteger(
+    overrides.eventShutdownIterations ?? 20,
+    'eventShutdownIterations',
+  );
 
   return {
     cpuCount,
+    eventChaosSeed,
+    eventShutdownIterations,
     jobDurationsMs: { long: 40, short: 2 },
     limits,
     poolSizes,
@@ -72,6 +100,7 @@ export function smokeStressConfig() {
     maxMemoryBytes: 512 * MIB,
     maxWorkers: 2,
     queueSize: 4,
+    eventShutdownIterations: 4,
     recoveryDurationMs: 150,
     stepConcurrency: [1, 2, 4],
     stepDurationMs: 150,

@@ -78,6 +78,16 @@ WebSocket-профили измеряют handshake, idle-сессии, посл
 отклонённый handshake с неверным subprotocol. Смешанный профиль одновременно выполняет
 обычный HTTP-запрос, независимое WebSocket-событие и длинную задачу.
 
+Application events дополнительно проходят два встроенных профиля. Throughput ramp смешивает
+HTTP- и WebSocket-producers, направляет события быстрым и медленным listener, измеряет время
+ожидания mailbox и после каждой ступени сверяет принятые и обработанные идентификаторы, FIFO,
+дубли и ожидаемые ошибки handler. Shutdown-chaos использует сохранённый в artifact seed,
+выполняет 4 итерации в smoke и 20 в полном режиме и для каждой требует равенство
+`accepted = handled + dropped + abortedActive` без `unhandledRejection`.
+Для точного повтора transport-решений seed из artifact передаётся командой
+`npm run stress:smoke -- --event-chaos-seed <seed>`; artifact сохраняет seed, порядок решений,
+счётчики и сгруппированные причины producer-отказов.
+
 Каждая ступень сохраняет throughput, p50/p95/p99 latency, error rate, queue wait, execution
 time, RSS, heap, event-loop lag, число клиентских соединений и число фактически наблюдавшихся
 Worker. Первая ступень задаёт локальную базу. Ступень считается деградировавшей при error rate
@@ -227,6 +237,10 @@ npm run soak:scheduled
 Оба профиля непрерывно чередуют HTTP request/response, WebSocket connect/message/disconnect и
 успешные, отменённые клиентом и завершившиеся по timeout задачи. WebSocket-сессии регулярно
 пересоздаются; количество `onConnect` и `onDisconnect` сверяется после `Application.close()`.
+Каждый transport-handler также отправляет внутреннее событие одному из двух listener. Быстрый
+listener выполняется синхронно, медленный добавляет задержку 2 мс, а каждое 257-е событие
+завершается ожидаемой ошибкой после фиксации обработки. Harness хранит только монотонные order,
+счётчики и checksum, поэтому объём event-accounting не растёт с длительностью scheduled-прогона.
 Каждый период сохраняет RSS, heap used, event-loop lag p95/p99, active handles и их типы,
 listener, timer, клиентские соединения, наблюдавшиеся Worker, throughput по виду операции и
 общую latency p50/p95/p99.
@@ -240,6 +254,8 @@ listener, timer, клиентские соединения, наблюдавши
 - отношение p95 последней трети к первой трети — не более 1,35;
 - отношение p99 последней трети к первой трети — не более 1,5;
 - ни одной неожиданной ошибки mixed workload;
+- accepted/handled и checksum application events совпадают, FIFO violations, duplicates, drops и
+  queue rejections отсутствуют, expected/observed handler errors совпадают;
 - после `Application.close()` нет прироста active handles, listener, timer, соединений и Worker
   относительно состояния до создания приложения.
 
@@ -262,6 +278,7 @@ npm run soak:short -- --inject-leak timer
 npm run soak:short -- --inject-leak socket
 ```
 
-Длительность, разогрев и период измерений можно временно переопределить аргументами
-`--duration-ms`, `--warmup-ms` и `--sample-interval-ms`; итоговый artifact всегда содержит
-фактически использованную конфигурацию.
+Длительность, разогрев, период измерений и cadence ожидаемых event-ошибок можно временно
+переопределить аргументами `--duration-ms`, `--warmup-ms`, `--sample-interval-ms` и
+`--event-error-every`; итоговый artifact schema v2 всегда содержит фактически использованную
+конфигурацию и `summary.applicationEvents`.
