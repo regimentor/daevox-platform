@@ -9,7 +9,7 @@ npm run fuzz:corpus
 ```
 
 Тесты самого fuzz harness входят в общую команду `npm run test:checks` и находятся в
-`test/fuzz/corpus.test.js`.
+`test/fuzz/corpus.test.ts`.
 
 Corpus передаёт повреждённые HTTP-запросы и WebSocket frames через реальные TCP-соединения.
 Он покрывает fragmentation и continuation, control frames между фрагментами, opcode, RSV,
@@ -144,7 +144,7 @@ throughput, error rate, latency p50/p95/p99, event-loop lag, CPU и RSS. Job-п�
 точному fingerprint однородного окружения. При несовпадении режима или fingerprint
 performance gate помечается `skipped`; абсолютный RPS между машинами не сравнивается. Любая
 ошибка операции всё равно проваливает запуск. Начальные относительные пороги заданы явно в
-`test/benchmark/config.js`: падение throughput более 25%, рост p95 latency более 35% или рост error
+`test/benchmark/config.ts`: падение throughput более 25%, рост p95 latency более 35% или рост error
 rate более чем на один процентный пункт. Для job тот же порог p95 отдельно применяется к
 ожиданию очереди и исполнению.
 

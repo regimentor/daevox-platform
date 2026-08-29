@@ -21,11 +21,16 @@
 - Node.js 26 или новее.
 - npm 12 или новее.
 
+Рукописный код проекта использует нативный TypeScript: Node.js запускает `.ts` напрямую встроенным
+type stripping, без loader, transpilation или emit. TypeScript 7 нужен только для `npm run typecheck`
+и поддержки редактора. Рабочий сценарий — запуск из checkout; публикация и исполнение пакета из
+`node_modules` временно не поддерживаются.
+
 ## Быстрый старт
 
-```js
-import { Application } from './lib/framework/Application.js';
-import { HttpControllerBase } from './lib/framework/HttpControllerBase.js';
+```ts
+import { Application } from './lib/framework/Application.ts';
+import { HttpControllerBase } from './lib/framework/HttpControllerBase.ts';
 
 class UsersController extends HttpControllerBase {
   static prefix = '/users';
@@ -63,17 +68,20 @@ HTML-версия находится в [`docs/api/`](docs/api/).
 ## HTTP-контроллеры и маршруты
 
 `Application.registerHttpController()` принимает класс, напрямую наследующий `HttpControllerBase`. Класс объявляет собственные статические поля `prefix` и `routes`, а каждый указанный HTTP-обработчик должен быть собственным методом его прототипа.
+TypeScript проверяет наличие и форму `prefix`, `routes` и необязательного `middleware` в точке
+регистрации; runtime дополнительно проверяет, что поля собственные, метаданные точные, а обработчики
+действительно объявлены классом.
 
 Объявление HTTP-маршрута содержит обязательные поля `method`, `path` и `handler`, а также может
 содержать необязательный массив `middleware`:
 
-```js
+```ts
 { method: 'GET', path: '/:id', handler: 'getById' }
 ```
 
 После регистрации оно нормализуется с учётом префикса HTTP-контроллера:
 
-```js
+```ts
 {
   method: 'GET',
   path: '/users/:id',
@@ -88,7 +96,7 @@ HTTP-маршрута приложение создаёт новый экзем�
 
 Каждый HTTP-контроллер получает `this.websocket` — узкий application-wide sender для server push:
 
-```js
+```ts
 const result = this.websocket.send(
   { clientId, sessionIds },
   { controller: 'notifications', event: 'updated', body: { id: 42 } },
@@ -106,7 +114,7 @@ const result = this.websocket.send(
 
 HTTP-обработчик получает объект `ctx`:
 
-```js
+```ts
 {
   method,  // HTTP-метод
   path,    // путь запроса
@@ -126,7 +134,7 @@ HTTP-обработчик получает объект `ctx`:
 
 HTTP-обработчик возвращает объект со статусом и необязательными WHATWG-заголовками и телом:
 
-```js
+```ts
 return {
   status: 200,
   headers: new Headers({ 'x-result': 'success' }),
@@ -138,8 +146,8 @@ return {
 
 Для ожидаемой ошибки HTTP-обработчик может выбросить `HttpError`:
 
-```js
-import { HttpError } from './lib/framework/errors.js';
+```ts
+import { HttpError } from './lib/framework/errors.ts';
 
 throw new HttpError(422, {
   body: { error: 'email is required' },
@@ -152,7 +160,7 @@ throw new HttpError(422, {
 
 HTTP- и WebSocket-обработчики используют единый контракт middleware:
 
-```js
+```ts
 async function middleware(ctx, next) {
   // Действия до следующих middleware и обработчика.
   const result = await next();
@@ -167,10 +175,10 @@ async function middleware(ctx, next) {
 
 Для HTTP три уровня задаются независимо:
 
-```js
-import { Application } from './lib/framework/Application.js';
-import { HttpControllerBase } from './lib/framework/HttpControllerBase.js';
-import { HttpError } from './lib/framework/errors.js';
+```ts
+import { Application } from './lib/framework/Application.ts';
+import { HttpControllerBase } from './lib/framework/HttpControllerBase.ts';
+import { HttpError } from './lib/framework/errors.ts';
 
 async function attachRequestId(ctx, next) {
   ctx.state.requestId = crypto.randomUUID();
@@ -223,10 +231,10 @@ Middleware не вызываются для ошибок, возникших д�
 
 Для сообщений WebSocket используются те же три уровня:
 
-```js
-import { Application } from './lib/framework/Application.js';
-import { WebSocketControllerBase } from './lib/framework/WebSocketControllerBase.js';
-import { WebSocketEventError } from './lib/framework/errors.js';
+```ts
+import { Application } from './lib/framework/Application.ts';
+import { WebSocketControllerBase } from './lib/framework/WebSocketControllerBase.ts';
+import { WebSocketEventError } from './lib/framework/errors.ts';
 
 function countMessages(ctx, next) {
   ctx.state.messageCount = (ctx.state.messageCount ?? 0) + 1;
@@ -283,10 +291,14 @@ Middleware не вызываются для неверного envelope, неи�
 
 Все WebSocket-соединения используют единый endpoint `/websocket` и обязаны предложить subprotocol `daevox.v1`. Каждое text-сообщение является точным JSON-envelope `{ controller, event, body }`; binary-сообщения не поддерживаются.
 
-`Application.registerWebSocketController()` принимает класс, напрямую наследующий `WebSocketControllerBase`. Контроллер объявляет собственные `static name` и `static events`:
+`Application.registerWebSocketController()` принимает класс, напрямую наследующий `WebSocketControllerBase`. Контроллер объявляет собственные `static name` и `static events`.
+TypeScript проверяет форму `name`, `events` и необязательного `middleware` в точке регистрации;
+проверка собственных полей, wire-имён и методов обработчиков остаётся runtime-инвариантом.
 
-```js
-import { WebSocketControllerBase } from './lib/framework/WebSocketControllerBase.js';
+Пример:
+
+```ts
+import { WebSocketControllerBase } from './lib/framework/WebSocketControllerBase.ts';
 
 class NotificationsController extends WebSocketControllerBase {
   static name = 'notifications';
@@ -327,7 +339,7 @@ Endpoint, lifecycle hooks, максимальный размер входяще�
 идентификатор доступен в контекстах WebSocket и `onDisconnect`. Несколько сессий могут использовать
 один `clientId`.
 
-```js
+```ts
 const application = new Application({
   websocket: {
     path: '/websocket',
@@ -354,7 +366,7 @@ const application = new Application({
 Прикладную аутентификацию можно выполнить один раз в глобальном `onConnect`. Проверка JWT остаётся
 кодом приложения и не добавляет зависимости фреймворку:
 
-```js
+```ts
 const application = new Application({
   websocket: {
     async onConnect(ctx) {
@@ -383,8 +395,8 @@ const application = new Application({
 Адрес `{ listener, event }` выбирает ровно один handler одного `EventListener`; механизм не является
 pub/sub и не выполняет fan-out. DTO — обычный прикладной класс без базового класса фреймворка:
 
-```js
-import { EventListenerBase } from './lib/framework/EventListenerBase.js';
+```ts
+import { EventListenerBase } from './lib/framework/EventListenerBase.ts';
 
 class OrderCreated {
   constructor(orderId) {
@@ -408,7 +420,7 @@ application.registerEventListener(AuditEventListener);
 
 HTTP- и WebSocket-контроллеры получают одинаковый узкий фасад `this.events`:
 
-```js
+```ts
 const result = this.events.push(
   { listener: 'audit', event: 'OrderCreated' },
   new OrderCreated(order.id),
@@ -424,7 +436,7 @@ DTO, переполнения или закрытого sender синхронн�
 Некорректная секция `events` создаёт `InvalidEventOptionsError`, неверный контракт listener —
 `InvalidEventListenerError`, а повтор класса, listener name или адреса —
 `EventListenerConflictError`. Все восемь event error-классов экспортируются из
-`lib/framework/errors.js` и поддерживают `instanceof`.
+`lib/framework/errors.ts` и поддерживают `instanceof`.
 
 Один долгоживущий экземпляр listener обрабатывает свой FIFO mailbox строго последовательно;
 разные listener работают независимо. Доставка in-memory и at-most-once: persistence, retry,
@@ -433,7 +445,7 @@ acknowledgements, подписок и listener middleware нет. Listener вы�
 получает `this.websocket`, но не получает `this.events`, поэтому не может строить цепочки внутренних
 событий.
 
-```js
+```ts
 const application = new Application({
   events: {
     queueSize: 1000,
@@ -461,8 +473,8 @@ cutoff. Затем mailboxes опустошаются до `events.shutdownTimeo
 
 Фоновая задача должна напрямую наследовать `Job`, экспортироваться по умолчанию из собственного ESM-модуля, объявлять `static metaUrl = import.meta.url` и иметь собственный метод `run()`:
 
-```js
-import { Job } from './lib/framework/Job.js';
+```ts
+import { Job } from './lib/framework/Job.ts';
 
 export default class SumJob extends Job {
   static metaUrl = import.meta.url;
@@ -475,7 +487,7 @@ export default class SumJob extends Job {
 
 Экземпляр HTTP-контроллера получает принадлежащий приложению исполнитель задач как `this.jobRunner`:
 
-```js
+```ts
 const result = await this.jobRunner.run(SumJob, ctx.body, {
   signal: ctx.signal,
   timeout: 5_000,
@@ -488,7 +500,7 @@ Payload и результат задачи должны поддерживать
 
 Пул настраивается при создании приложения:
 
-```js
+```ts
 const application = new Application({
   jobs: {
     poolSize: 4,
@@ -508,7 +520,7 @@ WebSocket-ввод, закрывает WebSocket-сессии, затем пос
 `jobs.shutdownTimeout`. Transport-handler отслеживаются до settlement даже после уничтожения HTTP
 response или закрытия WebSocket-сессии. После закрытия приложение нельзя запустить повторно.
 
-```js
+```ts
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.once(signal, async () => {
     await application.close();

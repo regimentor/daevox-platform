@@ -1,6 +1,6 @@
 # Конкурентный HTTP benchmark
 
-Изолированные приложения запускаются из `server.js`, а единый генератор нагрузки находится в `run.js`.
+Изолированные приложения запускаются из `server.ts`, а единый генератор нагрузки находится в `run.ts`.
 Все приложения реализуют `POST /benchmark`, принимают JSON и возвращают одинаковый JSON. В тесте используется
 один keep-alive HTTP-клиент с одинаковой конкурентностью, warmup и измерительной фазой.
 
@@ -8,7 +8,7 @@
 
 ```sh
 npm install --prefix benchmark/competitors
-node benchmark/competitors/run.js
+node benchmark/competitors/run.ts
 ```
 
 По умолчанию используется повышенная нагрузка: 64 параллельных запроса, warmup 2 s и измерение 10 s.
