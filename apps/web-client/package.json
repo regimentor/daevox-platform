@@ -1,0 +1,49 @@
+{
+  "name": "@daevox/web-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "npm run css:types && react-router build",
+    "css:types": "tcm app --pattern '**/*.module.css'",
+    "css:types:check": "tcm app --pattern '**/*.module.css' --listDifferent",
+    "css:types:watch": "tcm app --pattern '**/*.module.css' --watch",
+    "dev": "react-router dev",
+    "start": "react-router-serve ./build/server/index.js",
+    "storybook": "storybook dev -p 6006",
+    "storybook:build": "storybook build",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "typecheck": "npm run css:types && react-router typegen && tsc",
+    "verify": "npm run typecheck && npm run test:coverage && npm run build && npm run storybook:build"
+  },
+  "dependencies": {
+    "@mantine/core": "^9.5.2",
+    "@mantine/hooks": "^9.5.2",
+    "@react-router/node": "^8.3.1",
+    "@react-router/serve": "^8.3.1",
+    "isbot": "^5",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router": "^8.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@react-router/dev": "^8.3.1",
+    "@storybook/addon-a11y": "^10.5.10",
+    "@storybook/addon-vitest": "^10.5.10",
+    "@storybook/react-vite": "^10.5.10",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.6",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitest/coverage-v8": "^4.1.11",
+    "jsdom": "^30.0.1",
+    "storybook": "^10.5.10",
+    "typed-css-modules": "^0.9.1",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  }
+}

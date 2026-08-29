@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "workspaces": [
+    "apps/*",
     "lib/*"
   ],
   "type": "module",
@@ -16,6 +17,7 @@
     "lint:fix": "oxlint . --fix --deny-warnings",
     "test": "npm test --workspaces --if-present",
     "test:checks": "npm run test:checks --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "verify": "npm run verify --workspaces --if-present"
   },
