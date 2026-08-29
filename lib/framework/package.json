@@ -1,0 +1,55 @@
+{
+  "name": "@daevox/framework",
+  "version": "0.0.1",
+  "description": "Zero-runtime-dependency transport framework for Node.js 26",
+  "keywords": [],
+  "files": [
+    "src/",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "benchmark:full": "node test/benchmark/run.ts --mode full",
+    "benchmark:smoke": "node test/benchmark/run.ts --mode smoke",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run docs:check",
+    "docs:build": "node scripts/docs.ts build",
+    "docs:check": "node scripts/docs.ts check",
+    "docs:lint": "documentation lint src/*.ts --shallow",
+    "example:jobs-http": "node examples/jobs-http/main.ts",
+    "example:application-events": "node examples/application-events/main.ts",
+    "example:middleware-auth": "node examples/middleware-auth/main.ts",
+    "example:middleware-auth:test": "node --test examples/middleware-auth/authorization.test.ts",
+    "example:websocket": "node examples/websocket/main.ts",
+    "example:websocket:test": "node --test examples/websocket/*.test.ts",
+    "fuzz:corpus": "node test/fuzz/run.ts",
+    "fuzz:full": "node test/fuzz/run.ts --mode full",
+    "fuzz:replay": "node test/fuzz/run.ts",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint . --deny-warnings",
+    "lint:fix": "oxlint . --fix --deny-warnings",
+    "mutation:changed": "node test/mutation/run.ts --mode changed",
+    "mutation:full": "node test/mutation/run.ts --mode full",
+    "soak:scheduled": "node --expose-gc test/soak/run.ts --mode scheduled",
+    "soak:short": "node --expose-gc test/soak/run.ts --mode short",
+    "stress": "node test/stress/run.ts --mode full",
+    "stress:smoke": "node test/stress/run.ts --mode smoke",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:checks": "node --test test/benchmark/*.test.ts test/fuzz/*.test.ts test/mutation/*.test.ts test/soak/analysis.test.ts test/stress/*.test.ts",
+    "test:e2e": "node --test test/e2e/*.test.ts",
+    "test:races": "node --test test/e2e/races.test.ts",
+    "test:shutdown": "node --test test/e2e/graceful-shutdown.test.ts",
+    "test:soak-harness": "node --test test/soak/harness.test.ts",
+    "test:coverage": "node --test --experimental-test-coverage test/unit/*.test.ts test/e2e/*.test.ts",
+    "test:unit": "node --test test/unit/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "engines": {
+    "node": ">= 26",
+    "npm": ">= 12"
+  }
+}

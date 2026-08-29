@@ -1,6 +1,6 @@
 node_modules/
-test/benchmark/results/
-test/stress/results/
-test/soak/results/
-test/fuzz/failures/
-test/mutation/results/
+lib/framework/test/benchmark/results/
+lib/framework/test/stress/results/
+lib/framework/test/soak/results/
+lib/framework/test/fuzz/failures/
+lib/framework/test/mutation/results/
