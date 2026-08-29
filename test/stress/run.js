@@ -1,4 +1,6 @@
 import { spawn } from 'node:child_process';
+
+// oxlint-disable typescript/no-extraneous-class -- DTO classes intentionally provide nominal identity.
 import { mkdir, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import { availableParallelism, cpus, platform, release } from 'node:os';
@@ -8,10 +10,12 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { Application } from '../../lib/framework/Application.js';
+import { EventListenerBase } from '../../lib/framework/EventListenerBase.js';
 import { HttpControllerBase } from '../../lib/framework/HttpControllerBase.js';
 import { WebSocketControllerBase } from '../../lib/framework/WebSocketControllerBase.js';
+import { EventDroppedError, EventQueueFullError } from '../../lib/framework/errors.js';
 import { classifySteps, distribution } from './analysis.js';
-import { createStressConfig, smokeStressConfig } from './config.js';
+import { createShutdownChaosPlan, createStressConfig, smokeStressConfig } from './config.js';
 import StressJob from './fixtures/stress-job.js';
 
 const root = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
@@ -355,6 +359,475 @@ async function queueScenario(config) {
   }
 }
 
+async function applicationEventScenario(config) {
+  let releaseSerial;
+  const serialGate = new Promise((resolve) => {
+    releaseSerial = resolve;
+  });
+  let resolveSerialStarted;
+  const serialStarted = new Promise((resolve) => {
+    resolveSerialStarted = resolve;
+  });
+  let resolveParallelHandled;
+  const parallelHandled = new Promise((resolve) => {
+    resolveParallelHandled = resolve;
+  });
+  const handled = [];
+  const unhandled = [];
+  const onUnhandled = (error) => unhandled.push(error);
+  process.on('unhandledRejection', onUnhandled);
+
+  class StressEvent {
+    constructor(label) {
+      this.label = label;
+    }
+  }
+  class SerialEventListener extends EventListenerBase {
+    static name = 'stress-serial';
+    static events = [{ name: 'work', data: StressEvent, handler: 'work' }];
+    async work(data) {
+      handled.push(data.label);
+      if (data.label === 'active') {
+        resolveSerialStarted();
+        await serialGate;
+      }
+    }
+  }
+  class ParallelEventListener extends EventListenerBase {
+    static name = 'stress-parallel';
+    static events = [{ name: 'work', data: StressEvent, handler: 'work' }];
+    work(data) {
+      handled.push(data.label);
+      resolveParallelHandled();
+    }
+  }
+  class EventController extends HttpControllerBase {
+    static prefix = '/stress/events';
+    static routes = [{ method: 'POST', path: '/', handler: 'push' }];
+    push(ctx) {
+      const listener = ctx.body.parallel ? 'stress-parallel' : 'stress-serial';
+      try {
+        this.events.push({ listener, event: 'work' }, new StressEvent(ctx.body.label));
+        return { status: 202, body: { accepted: true } };
+      } catch (error) {
+        if (error instanceof EventQueueFullError) {
+          return { status: 503, body: { error: 'EventQueueFullError' } };
+        }
+        throw error;
+      }
+    }
+  }
+
+  const application = new Application({ events: { queueSize: config.queueSize } });
+  application.registerEventListener(SerialEventListener);
+  application.registerEventListener(ParallelEventListener);
+  application.registerHttpController(EventController);
+  const address = await application.listen({ port: 0 });
+  try {
+    await request(address, '/stress/events', { label: 'active' });
+    await serialStarted;
+    for (let index = 0; index < config.queueSize; index += 1) {
+      const accepted = await request(address, '/stress/events', { label: `queued-${index}` });
+      if (accepted.status !== 202) throw new Error('event mailbox rejected within capacity');
+    }
+    const overflow = await request(address, '/stress/events', { label: 'overflow' });
+    if (overflow.status !== 503 || overflow.value.error !== 'EventQueueFullError') {
+      throw new Error(`unexpected event overflow result: ${JSON.stringify(overflow)}`);
+    }
+    const parallel = await request(address, '/stress/events', {
+      label: 'parallel',
+      parallel: true,
+    });
+    await parallelHandled;
+    if (parallel.status !== 202) throw new Error('parallel listener was blocked');
+    releaseSerial();
+    await application.close();
+    await new Promise((resolve) => setImmediate(resolve));
+    if (unhandled.length > 0) throw new Error('application events produced unhandled rejection');
+    return {
+      handled: handled.length,
+      overflow: { error: overflow.value.error, status: overflow.status },
+      parallel: true,
+      queueSize: config.queueSize,
+      unhandledRejections: unhandled.length,
+    };
+  } finally {
+    releaseSerial();
+    process.off('unhandledRejection', onUnhandled);
+    await application.close();
+  }
+}
+
+async function applicationEventThroughput(config) {
+  const acceptedIds = new Set();
+  const handledIds = new Set();
+  const queueWaitMs = [];
+  const listenerOrders = { fast: 0, slow: 0 };
+  const handledOrders = { fast: 0, slow: 0 };
+  let duplicates = 0;
+  let expectedErrors = 0;
+  let fifoViolations = 0;
+  let nextId = 1;
+  let observedErrors = 0;
+  let rejected = 0;
+
+  class ThroughputEvent {
+    constructor({ acceptedAt, id, listener, order, poison }) {
+      this.acceptedAt = acceptedAt;
+      this.id = id;
+      this.listener = listener;
+      this.order = order;
+      this.poison = poison;
+    }
+  }
+
+  function record(data) {
+    if (handledIds.has(data.id)) duplicates += 1;
+    handledIds.add(data.id);
+    if (data.order !== handledOrders[data.listener]) fifoViolations += 1;
+    handledOrders[data.listener] += 1;
+    queueWaitMs.push(performance.now() - data.acceptedAt);
+  }
+
+  class FastThroughputListener extends EventListenerBase {
+    static name = 'throughput-fast';
+    static events = [{ name: 'work', data: ThroughputEvent, handler: 'work' }];
+    work(data) {
+      record(data);
+      if (data.poison) throw new Error(`event poison:${data.id}`);
+    }
+  }
+
+  class SlowThroughputListener extends EventListenerBase {
+    static name = 'throughput-slow';
+    static events = [{ name: 'work', data: ThroughputEvent, handler: 'work' }];
+    async work(data) {
+      record(data);
+      await new Promise((resolve) => setTimeout(resolve, 2));
+      if (data.poison) throw new Error(`event poison:${data.id}`);
+    }
+  }
+
+  function push(sender, input) {
+    const listener = input.listener === 'slow' ? 'slow' : 'fast';
+    const id = nextId++;
+    const poison = (acceptedIds.size + 1) % 97 === 0;
+    const data = new ThroughputEvent({
+      acceptedAt: performance.now(),
+      id,
+      listener,
+      order: listenerOrders[listener],
+      poison,
+    });
+    try {
+      sender.push({ listener: `throughput-${listener}`, event: 'work' }, data);
+      listenerOrders[listener] += 1;
+      acceptedIds.add(id);
+      if (poison) expectedErrors += 1;
+      return { accepted: true, id };
+    } catch (error) {
+      if (!(error instanceof EventQueueFullError)) throw error;
+      rejected += 1;
+      return { accepted: false, error: 'EventQueueFullError' };
+    }
+  }
+
+  class ThroughputHttpController extends HttpControllerBase {
+    static prefix = '/stress/event-throughput';
+    static routes = [{ method: 'POST', path: '/', handler: 'push' }];
+    push(ctx) {
+      const result = push(this.events, ctx.body);
+      return { status: result.accepted ? 202 : 503, body: result };
+    }
+  }
+
+  class ThroughputWebSocketController extends WebSocketControllerBase {
+    static name = 'event-throughput';
+    static events = [{ name: 'push', handler: 'push' }];
+    push(ctx) {
+      return push(this.events, ctx.body);
+    }
+  }
+
+  const application = new Application({
+    events: {
+      onError: () => {
+        observedErrors += 1;
+      },
+      queueSize: Math.max(config.queueSize, config.limits.maxConcurrency * 16),
+    },
+  });
+  application.registerEventListener(FastThroughputListener);
+  application.registerEventListener(SlowThroughputListener);
+  application.registerHttpController(ThroughputHttpController);
+  application.registerWebSocketController(ThroughputWebSocketController);
+  const address = await application.listen({ port: 0 });
+  const sockets = await Promise.all(
+    Array.from(
+      { length: config.limits.maxConcurrency },
+      async () => (await openWebSocket(`ws://${address.address}:${address.port}/websocket`)).socket,
+    ),
+  );
+  let operationIndex = 0;
+
+  async function measureEventStep(step) {
+    const queueWaitStart = queueWaitMs.length;
+    const acceptedStart = acceptedIds.size;
+    const metrics = await measureStep({
+      ...step,
+      connections: sockets.length,
+      limits: config.limits,
+      operation: async (worker) => {
+        const current = operationIndex++;
+        const body = { listener: current % 2 === 0 ? 'fast' : 'slow' };
+        if (current % 2 === 0) {
+          return request(address, '/stress/event-throughput', body);
+        }
+        return webSocketRequest(sockets[worker], {
+          controller: 'event-throughput',
+          event: 'push',
+          body,
+        });
+      },
+    });
+    await waitFor(
+      () => handledIds.size >= acceptedIds.size,
+      `event throughput drain after ${step.concurrency}`,
+    );
+    metrics.eventQueueWaitMs = distribution(queueWaitMs.slice(queueWaitStart));
+    metrics.eventsAccepted = acceptedIds.size - acceptedStart;
+    return metrics;
+  }
+
+  try {
+    const steps = [];
+    for (const step of config.steps) {
+      steps.push({ concurrency: step.concurrency, metrics: await measureEventStep(step) });
+    }
+    const recovery = await measureEventStep({
+      concurrency: config.steps[0].concurrency,
+      durationMs: config.recoveryDurationMs,
+    });
+    const accounting = {
+      accepted: acceptedIds.size,
+      duplicates,
+      expectedErrors,
+      fifoViolations,
+      handled: handledIds.size,
+      observedErrors,
+      rejected,
+    };
+    if (
+      accounting.accepted !== accounting.handled ||
+      duplicates !== 0 ||
+      fifoViolations !== 0 ||
+      expectedErrors !== observedErrors
+    ) {
+      throw new Error(`application event accounting failed: ${JSON.stringify(accounting)}`);
+    }
+    return {
+      accounting,
+      analysis: classifySteps(
+        steps.map((step) => ({
+          ...step.metrics,
+          queueWaitMs: step.metrics.eventQueueWaitMs,
+        })),
+        {
+          ...config.thresholds,
+          recovery: { ...recovery, queueWaitMs: recovery.eventQueueWaitMs },
+        },
+      ),
+      name: 'application-event-throughput',
+      recovery,
+      steps,
+    };
+  } finally {
+    await Promise.all(sockets.map(closeWebSocket));
+    await application.close();
+  }
+}
+
+async function applicationEventShutdownChaos(config) {
+  const decisions = createShutdownChaosPlan(config.eventChaosSeed, config.eventShutdownIterations);
+  const iterations = [];
+
+  for (const decision of decisions) {
+    let abortFirst;
+    let accepted = 0;
+    let abortedActive = 0;
+    let dropped = 0;
+    let duplicates = 0;
+    let handled = 0;
+    let resolveFirstStarted;
+    const firstStarted = new Promise((resolve) => {
+      resolveFirstStarted = resolve;
+    });
+    const seen = new Set();
+    const producerFailures = {};
+    const unexpectedErrors = [];
+    const unhandled = [];
+    const onUnhandled = (error) => unhandled.push(error);
+    process.on('unhandledRejection', onUnhandled);
+
+    function recordProducerFailure(reason) {
+      producerFailures[reason] = (producerFailures[reason] ?? 0) + 1;
+    }
+
+    async function observeProducer(producer, operation) {
+      try {
+        const result = await operation;
+        if (producer === 'http' && result.status !== 202) {
+          recordProducerFailure(`HTTP_${result.status}`);
+        }
+        const code = result.value?.body?.error?.code;
+        if (producer === 'websocket' && code) recordProducerFailure(code);
+        return result;
+      } catch (error) {
+        recordProducerFailure(error.code ?? error.message ?? error.constructor.name);
+        return undefined;
+      }
+    }
+
+    class ChaosEvent {
+      constructor(id) {
+        this.id = id;
+      }
+    }
+
+    class ChaosListener extends EventListenerBase {
+      static name = 'chaos';
+      static events = [{ name: 'work', data: ChaosEvent, handler: 'work' }];
+      async work(data, { signal }) {
+        if (seen.has(data.id)) duplicates += 1;
+        seen.add(data.id);
+        if (data.id === 0) {
+          resolveFirstStarted();
+          await new Promise((resolve) => {
+            abortFirst = () => {
+              abortedActive += 1;
+              resolve();
+            };
+            signal.addEventListener('abort', abortFirst, { once: true });
+          });
+          return;
+        }
+        handled += 1;
+      }
+    }
+
+    function push(sender, id) {
+      sender.push({ listener: 'chaos', event: 'work' }, new ChaosEvent(id));
+      accepted += 1;
+      return { accepted: true, id };
+    }
+
+    class ChaosHttpController extends HttpControllerBase {
+      static prefix = '/stress/event-chaos';
+      static routes = [{ method: 'POST', path: '/', handler: 'push' }];
+      push(ctx) {
+        return { status: 202, body: push(this.events, ctx.body.id) };
+      }
+    }
+
+    class ChaosWebSocketController extends WebSocketControllerBase {
+      static name = 'event-chaos';
+      static events = [{ name: 'push', handler: 'push' }];
+      push(ctx) {
+        return push(this.events, ctx.body.id);
+      }
+    }
+
+    const application = new Application({
+      events: {
+        onError(error) {
+          if (error instanceof EventDroppedError) dropped += 1;
+          else unexpectedErrors.push(error.message);
+        },
+        queueSize: config.queueSize,
+        shutdownTimeout: 5,
+      },
+      http: { shutdownTimeout: 50 },
+      websocket: { shutdownTimeout: 50 },
+    });
+    application.registerEventListener(ChaosListener);
+    application.registerHttpController(ChaosHttpController);
+    application.registerWebSocketController(ChaosWebSocketController);
+    const address = await application.listen({ port: 0 });
+    const websocketUrl = `ws://${address.address}:${address.port}/websocket`;
+    const operationCount = decision.producers.length;
+    const sockets = await Promise.all(
+      Array.from(
+        { length: operationCount },
+        async () => (await openWebSocket(websocketUrl)).socket,
+      ),
+    );
+
+    try {
+      const first = request(address, '/stress/event-chaos', { id: 0 });
+      await firstStarted;
+      const operations = [];
+      for (let id = 1; id <= operationCount; id += 1) {
+        const producer = decision.producers[id - 1];
+        if (producer === 'http') {
+          operations.push(
+            observeProducer(producer, request(address, '/stress/event-chaos', { id })),
+          );
+        } else {
+          operations.push(
+            observeProducer(
+              producer,
+              webSocketRequest(sockets[id - 1], {
+                controller: 'event-chaos',
+                event: 'push',
+                body: { id },
+              }),
+            ),
+          );
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, decision.closeDelayMs));
+      const startedAt = performance.now();
+      const closing = application.close();
+      await Promise.allSettled([first, ...operations]);
+      await closing;
+      const closeMs = performance.now() - startedAt;
+      if (unexpectedErrors.length > 0) {
+        throw new Error(`unexpected chaos errors: ${unexpectedErrors.join(', ')}`);
+      }
+      const result = {
+        abortedActive,
+        accepted,
+        closeMs,
+        dropped,
+        duplicates,
+        handled,
+        producerFailures,
+        unhandledRejections: unhandled.length,
+      };
+      if (
+        accepted !== handled + dropped + abortedActive ||
+        duplicates !== 0 ||
+        unhandled.length !== 0
+      ) {
+        throw new Error(`application event shutdown accounting failed: ${JSON.stringify(result)}`);
+      }
+      iterations.push(result);
+    } finally {
+      abortFirst?.();
+      await Promise.all(sockets.map(closeWebSocket));
+      await application.close();
+      process.off('unhandledRejection', onUnhandled);
+    }
+  }
+
+  return {
+    decisions,
+    iterations,
+    name: 'application-event-shutdown-chaos',
+    seed: config.eventChaosSeed,
+  };
+}
+
 async function createWebSocketApplication() {
   class StressWebSocketController extends WebSocketControllerBase {
     static name = 'stress';
@@ -658,6 +1131,9 @@ async function childMain(config, outputPath) {
     }
   }
   profiles.queue = await queueScenario(config);
+  profiles.applicationEvents = await applicationEventScenario(config);
+  profiles['application-event-throughput'] = await applicationEventThroughput(config);
+  profiles['application-event-shutdown-chaos'] = await applicationEventShutdownChaos(config);
   Object.assign(profiles, await websocketProfiles(config));
   profiles.protocolErrors = await protocolErrorScenario();
   profiles.mixed = await mixedProfile(config);
@@ -690,13 +1166,25 @@ async function main() {
   }
   const mode = argument('mode', 'full');
   let config = mode === 'smoke' ? smokeStressConfig() : createStressConfig();
+  const eventChaosSeed = numberArgument('event-chaos-seed', config.eventChaosSeed);
+  const eventShutdownIterations = numberArgument(
+    'event-shutdown-iterations',
+    config.eventShutdownIterations,
+  );
   const stepMs = numberArgument('step-ms', config.steps[0].durationMs);
   const stepValues = argument('steps');
-  if (stepValues || stepMs !== config.steps[0].durationMs) {
+  if (
+    stepValues ||
+    stepMs !== config.steps[0].durationMs ||
+    eventChaosSeed !== config.eventChaosSeed ||
+    eventShutdownIterations !== config.eventShutdownIterations
+  ) {
     config = createStressConfig({
       ...config.limits,
       maxDurationMs: config.limits.maxDurationMs,
       maxMemoryBytes: config.limits.maxMemoryBytes,
+      eventChaosSeed,
+      eventShutdownIterations,
       queueSize: config.queueSize,
       recoveryDurationMs: stepMs,
       stepConcurrency: stepValues

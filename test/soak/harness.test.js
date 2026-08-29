@@ -19,6 +19,8 @@ function runHarness(outputDir, injectLeak) {
     '100',
     '--output-dir',
     outputDir,
+    '--event-error-every',
+    '17',
   ];
   if (injectLeak) childArguments.push('--inject-leak', injectLeak);
   return new Promise((resolve, reject) => {
@@ -56,6 +58,7 @@ test(
     assert.equal(result.signal, null);
     assert.equal(result.code, 0, result.stderr);
     assert.equal(artifact.analysis.passed, true);
+    assert.equal(artifact.schemaVersion, 2);
     assert.ok(artifact.samples.length >= 5);
     assert.ok(artifact.summary.operations.http.successes > 0);
     assert.ok(artifact.summary.operations.websocket.successes > 0);
@@ -63,6 +66,18 @@ test(
     assert.ok(artifact.summary.operations.jobCancelled.successes > 0);
     assert.ok(artifact.summary.operations.jobTimeout.successes > 0);
     assert.equal(artifact.lifecycle.connected, artifact.lifecycle.disconnected);
+    assert.equal(
+      artifact.summary.applicationEvents.accepted,
+      artifact.summary.applicationEvents.handled,
+    );
+    assert.ok(artifact.summary.applicationEvents.expectedErrors > 0);
+    assert.equal(
+      artifact.summary.applicationEvents.expectedErrors,
+      artifact.summary.applicationEvents.observedErrors,
+    );
+    assert.equal(artifact.summary.applicationEvents.duplicates, 0);
+    assert.equal(artifact.summary.applicationEvents.fifoViolations, 0);
+    assert.equal(artifact.analysis.thresholds.applicationEvents.status, 'passed');
     assert.deepEqual(artifact.analysis.thresholds.resourcesReturned.excess, {
       activeHandles: 0,
       connections: 0,

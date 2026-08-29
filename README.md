@@ -6,6 +6,7 @@
 
 - HTTP runtime на `node:http`.
 - Встроенный WebSocket-протокол `daevox.v1` с декларативными контроллерами и событиями.
+- Адресуемые fire-and-forget события приложения с FIFO mailbox для каждого listener.
 - Декларативная регистрация HTTP-контроллеров и параметризованных HTTP-маршрутов.
 - JSON-запросы и нормализованные JSON, текстовые и бинарные HTTP-ответы.
 - Отмена операций через `AbortSignal`.
@@ -377,6 +378,85 @@ const application = new Application({
 `onConnect` и `onDisconnect` остаются одиночными lifecycle callbacks; `connectionMiddleware` не
 поддерживается.
 
+## Внутренние события приложения
+
+Адрес `{ listener, event }` выбирает ровно один handler одного `EventListener`; механизм не является
+pub/sub и не выполняет fan-out. DTO — обычный прикладной класс без базового класса фреймворка:
+
+```js
+import { EventListenerBase } from './lib/framework/EventListenerBase.js';
+
+class OrderCreated {
+  constructor(orderId) {
+    this.orderId = orderId;
+  }
+}
+
+class AuditEventListener extends EventListenerBase {
+  static name = 'audit';
+  static events = [{ name: 'OrderCreated', data: OrderCreated, handler: 'orderCreated' }];
+
+  async orderCreated(data, { signal }) {
+    console.log('order created', data.orderId);
+    // CPU-heavy работу следует явно передавать в this.jobRunner.
+    // await this.jobRunner.run(AuditJob, data, { signal });
+  }
+}
+
+application.registerEventListener(AuditEventListener);
+```
+
+HTTP- и WebSocket-контроллеры получают одинаковый узкий фасад `this.events`:
+
+```js
+const result = this.events.push(
+  { listener: 'audit', event: 'OrderCreated' },
+  new OrderCreated(order.id),
+);
+// result === undefined
+```
+
+`push()` синхронно проверяет точный адрес, DTO и свободное место в mailbox, копирует и замораживает
+адрес и возвращает `undefined` сразу после принятия. DTO передаётся той же ссылкой. Ошибки адреса,
+DTO, переполнения или закрытого sender синхронно представлены `InvalidEventPushError`,
+`EventQueueFullError` и `EventSenderClosedError`.
+
+Некорректная секция `events` создаёт `InvalidEventOptionsError`, неверный контракт listener —
+`InvalidEventListenerError`, а повтор класса, listener name или адреса —
+`EventListenerConflictError`. Все восемь event error-классов экспортируются из
+`lib/framework/errors.js` и поддерживают `instanceof`.
+
+Один долгоживущий экземпляр listener обрабатывает свой FIFO mailbox строго последовательно;
+разные listener работают независимо. Доставка in-memory и at-most-once: persistence, retry,
+acknowledgements, подписок и listener middleware нет. Listener выполняется в основном потоке, поэтому
+синхронная CPU-heavy работа блокирует event loop; для неё доступен `this.jobRunner`. Listener также
+получает `this.websocket`, но не получает `this.events`, поэтому не может строить цепочки внутренних
+событий.
+
+```js
+const application = new Application({
+  events: {
+    queueSize: 1000,
+    handlerTimeout: 30_000,
+    shutdownTimeout: 30_000,
+    onError(error, context) {
+      console.error(error, context.listener, context.event);
+    },
+  },
+});
+```
+
+Escaping error handler не влияет на HTTP-ответ или WebSocket-result и передаётся без обёртки в
+`events.onError(error, context)`. Контекст — замороженный `{ listener, event }` без DTO. Timeout
+отменяет `signal` с `EventHandlerTimeoutError` как `reason`, но следующий элемент FIFO запускается
+только после фактического settlement текущего handler. Без `onError` ошибка попадает в
+`console.error`.
+
+При `Application.close()` sender запечатывается после settlement transport-handler или их forced
+cutoff. Затем mailboxes опустошаются до `events.shutdownTimeout`; при timeout активные сигналы
+отменяются, а каждый ожидающий элемент наблюдается как `EventDroppedError`. Только после event drain
+закрывается `Job Runner`.
+
 ## Фоновые задачи
 
 Фоновая задача должна напрямую наследовать `Job`, экспортироваться по умолчанию из собственного ESM-модуля, объявлять `static metaUrl = import.meta.url` и иметь собственный метод `run()`:
@@ -422,7 +502,11 @@ const application = new Application({
 
 ## Жизненный цикл
 
-`Application.listen()` можно вызвать один раз. `Application.close()` прекращает приём новых HTTP-запросов, ожидает активные запросы в пределах `http.shutdownTimeout`, а затем закрывает пул Worker. После закрытия приложение нельзя запустить повторно.
+`Application.listen()` можно вызвать один раз. `Application.close()` прекращает новый HTTP- и
+WebSocket-ввод, закрывает WebSocket-сессии, затем последовательно применяет независимые бюджеты
+`http.shutdownTimeout`, `websocket.shutdownTimeout`, `events.shutdownTimeout` и
+`jobs.shutdownTimeout`. Transport-handler отслеживаются до settlement даже после уничтожения HTTP
+response или закрытия WebSocket-сессии. После закрытия приложение нельзя запустить повторно.
 
 ```js
 for (const signal of ['SIGINT', 'SIGTERM']) {
@@ -450,6 +534,23 @@ curl -i -X POST http://127.0.0.1:3000/jobs/sum \
 ```
 
 Успешный ответ содержит `{"sum":6}`.
+
+## Пример внутренних событий
+
+Минимальное приложение регистрирует `AuditEventListener`, а HTTP-контроллер принимает заказ и
+отправляет `OrderCreated` через `this.events.push()`:
+
+```sh
+npm run example:application-events
+```
+
+```sh
+curl -i -X POST http://127.0.0.1:3000/orders \
+  -H 'content-type: application/json' \
+  -d '{"orderId":"order-1"}'
+```
+
+HTTP сразу отвечает `202`, а listener независимо записывает событие в stdout.
 
 ## Пример аутентификации и авторизации через middleware
 
@@ -533,12 +634,15 @@ npm run docs:serve
 
 ## Архитектура
 
-`Application` служит общей точкой композиции для транспортов фреймворка и владеет жизненным циклом HTTP/WebSocket runtime и исполнителя задач.
+`Application` служит общей точкой композиции для транспортов фреймворка и владеет жизненным циклом
+HTTP/WebSocket runtime, адресуемых внутренних событий и исполнителя задач.
 
 1. `Application` регистрирует HTTP- и WebSocket-контроллеры, запускает оба транспорта на одном `node:http` server и координирует завершение работы.
 2. Внутренний `HttpRouter` регистрирует и сопоставляет HTTP-маршруты.
 3. Внутренние WebSocket transport и session store обслуживают единый endpoint и протокол `daevox.v1`.
-4. Внутренний `Job Runner` принимает классы задач и передаёт их в Worker Pool.
-5. Внутренний Worker Pool управляет потоками Worker, очередью и завершением задач.
+4. Внутренние registry, dispatcher и FIFO mailbox доставляют адресуемые события одному
+   `EventListener`; решение зафиксировано в [ADR 0011](docs/adr/0011-addressed-application-events.md).
+5. Внутренний `Job Runner` принимает классы задач и передаёт их в Worker Pool.
+6. Внутренний Worker Pool управляет потоками Worker, очередью и завершением задач.
 
 `HttpRouter`, `Job Runner` и Worker Pool не входят в пользовательский публичный API. Принятые архитектурные решения и их обоснования находятся в [`docs/adr/`](docs/adr/).

@@ -42,6 +42,7 @@ test('npm tarball содержит публичный API без тестов и
   assert.ok(packagedPaths.includes('README.md'));
   assert.ok(packagedPaths.includes('lib/framework/Application.js'));
   assert.ok(packagedPaths.includes('lib/framework/HttpControllerBase.js'));
+  assert.ok(packagedPaths.includes('lib/framework/EventListenerBase.js'));
   assert.ok(packagedPaths.includes('lib/framework/WebSocketControllerBase.js'));
   assert.ok(packagedPaths.includes('lib/framework/Job.js'));
   assert.ok(packagedPaths.every((packagedPath) => !packagedPath.startsWith('test/')));
@@ -124,6 +125,18 @@ test('внешнее приложение устанавливает tarball и 
     websocket: {
       message: 'hello from tarball',
       state: { messageCount: 3, controller: true, event: 'echo' },
+    },
+    applicationEvents: {
+      handled: ['http:6', 'http:9', 'websocket'],
+      errors: ['isolated listener failure'],
+    },
+    eventFlow: {
+      accepted: [0, 1, 2, 3, 4, 5, 6, 7],
+      errors: ['batch poison'],
+      fast: [0, 1, 2, 3, 4, 5, 6, 7],
+      independent: true,
+      slowCompleted: [1, 2, 3, 4, 5, 6, 7],
+      slowInvoked: [0, 1, 2, 3, 4, 5, 6, 7],
     },
   });
 });

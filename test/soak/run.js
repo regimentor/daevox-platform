@@ -9,8 +9,10 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { Application } from '../../lib/framework/Application.js';
+import { EventListenerBase } from '../../lib/framework/EventListenerBase.js';
 import { HttpControllerBase } from '../../lib/framework/HttpControllerBase.js';
 import { WebSocketControllerBase } from '../../lib/framework/WebSocketControllerBase.js';
+import { EventDroppedError, EventQueueFullError } from '../../lib/framework/errors.js';
 import { analyzeSoak, distribution } from './analysis.js';
 import { createSoakConfig } from './config.js';
 import SoakJob from './fixtures/soak-job.js';
@@ -297,11 +299,98 @@ function snapshot({ elapsedMs, leakState, metrics, openSockets }) {
   };
 }
 
+// oxlint-disable-next-line typescript/no-extraneous-class -- DTO class provides nominal identity.
+class SoakApplicationEvent {
+  constructor({ listener, order, poison, sequence, source }) {
+    this.listener = listener;
+    this.order = order;
+    this.poison = poison;
+    this.sequence = sequence;
+    this.source = source;
+  }
+}
+
+function createApplicationEventAccounting(errorEvery) {
+  const listeners = {
+    fast: { accepted: 0, acceptedChecksum: 0n, handled: 0, handledChecksum: 0n },
+    slow: { accepted: 0, acceptedChecksum: 0n, handled: 0, handledChecksum: 0n },
+  };
+  const state = {
+    dropped: 0,
+    duplicates: 0,
+    expectedErrors: 0,
+    fifoViolations: 0,
+    observedErrors: 0,
+    rejected: 0,
+    unexpectedErrors: [],
+  };
+
+  function push(sender, sequence, source) {
+    const listener = sequence % 2 === 0 ? 'fast' : 'slow';
+    const ledger = listeners[listener];
+    const order = ledger.accepted;
+    const poison = (listeners.fast.accepted + listeners.slow.accepted + 1) % errorEvery === 0;
+    const data = new SoakApplicationEvent({ listener, order, poison, sequence, source });
+    try {
+      sender.push({ listener: `soak-${listener}`, event: 'work' }, data);
+    } catch (error) {
+      if (error instanceof EventQueueFullError) state.rejected += 1;
+      throw error;
+    }
+    ledger.accepted += 1;
+    ledger.acceptedChecksum += BigInt(order + 1);
+    if (poison) state.expectedErrors += 1;
+  }
+
+  function recordHandled(data) {
+    const ledger = listeners[data.listener];
+    if (data.order < ledger.handled) state.duplicates += 1;
+    if (data.order !== ledger.handled) state.fifoViolations += 1;
+    ledger.handled += 1;
+    ledger.handledChecksum += BigInt(data.order + 1);
+  }
+
+  function report(error) {
+    if (error instanceof EventDroppedError) state.dropped += 1;
+    else if (error.message.startsWith('soak event poison:')) state.observedErrors += 1;
+    else if (state.unexpectedErrors.length < 20) state.unexpectedErrors.push(error.message);
+  }
+
+  function accounting() {
+    const accepted = listeners.fast.accepted + listeners.slow.accepted;
+    const handled = listeners.fast.handled + listeners.slow.handled;
+    const acceptedChecksum = listeners.fast.acceptedChecksum + listeners.slow.acceptedChecksum;
+    const handledChecksum = listeners.fast.handledChecksum + listeners.slow.handledChecksum;
+    return {
+      accepted,
+      acceptedChecksum: String(acceptedChecksum),
+      dropped: state.dropped,
+      duplicates: state.duplicates,
+      expectedErrors: state.expectedErrors,
+      fifoViolations: state.fifoViolations,
+      handled,
+      handledChecksum: String(handledChecksum),
+      listeners: Object.fromEntries(
+        Object.entries(listeners).map(([name, ledger]) => [
+          name,
+          { accepted: ledger.accepted, handled: ledger.handled },
+        ]),
+      ),
+      observedErrors: state.observedErrors,
+      rejected: state.rejected,
+      unexpectedErrors: state.unexpectedErrors,
+    };
+  }
+
+  return { accounting, push, recordHandled, report };
+}
+
 async function main() {
   const mode = argument('mode', 'short');
   const overrides = Object.fromEntries(
     [
       ['durationMs', numberArgument('duration-ms')],
+      ['eventErrorEvery', numberArgument('event-error-every')],
       ['sampleIntervalMs', numberArgument('sample-interval-ms')],
       ['timeoutMs', numberArgument('timeout-ms')],
       ['warmupMs', numberArgument('warmup-ms')],
@@ -315,6 +404,7 @@ async function main() {
   const artifactPath = path.join(outputDir, `${timestamp}-${mode}.json`);
   const diagnosticsPath = path.join(outputDir, `${timestamp}-${mode}-diagnostics.json`);
   const metrics = createMetrics();
+  const applicationEvents = createApplicationEventAccounting(config.eventErrorEvery);
   const lifecycle = { connected: 0, disconnected: 0 };
   const openSockets = new Set();
   const leakState = { emitter: new EventEmitter() };
@@ -344,13 +434,16 @@ async function main() {
       { method: 'POST', path: '/job/timeout', handler: 'jobTimeout' },
     ];
     async echo(ctx) {
+      applicationEvents.push(this.events, ctx.body.sequence, 'http');
       return { status: 200, body: ctx.body };
     }
     async jobSuccess(ctx) {
+      applicationEvents.push(this.events, ctx.body.sequence, 'jobSuccess');
       const result = await this.jobRunner.run(SoakJob, { delayMs: 2, sequence: ctx.body.sequence });
       return { status: 200, body: result };
     }
     async jobCancel(ctx) {
+      applicationEvents.push(this.events, ctx.body.sequence, 'jobCancelled');
       try {
         await this.jobRunner.run(
           SoakJob,
@@ -363,6 +456,7 @@ async function main() {
       }
     }
     async jobTimeout(ctx) {
+      applicationEvents.push(this.events, ctx.body.sequence, 'jobTimeout');
       try {
         await this.jobRunner.run(
           SoakJob,
@@ -380,12 +474,36 @@ async function main() {
     static name = 'soak';
     static events = [{ name: 'echo', handler: 'echo' }];
     async echo(ctx) {
+      applicationEvents.push(this.events, ctx.body.sequence, 'websocket');
       return ctx.body;
+    }
+  }
+
+  class FastSoakEventListener extends EventListenerBase {
+    static name = 'soak-fast';
+    static events = [{ name: 'work', data: SoakApplicationEvent, handler: 'work' }];
+    work(data) {
+      applicationEvents.recordHandled(data);
+      if (data.poison) throw new Error(`soak event poison:${data.sequence}`);
+    }
+  }
+
+  class SlowSoakEventListener extends EventListenerBase {
+    static name = 'soak-slow';
+    static events = [{ name: 'work', data: SoakApplicationEvent, handler: 'work' }];
+    async work(data) {
+      applicationEvents.recordHandled(data);
+      await new Promise((resolve) => setTimeout(resolve, 2));
+      if (data.poison) throw new Error(`soak event poison:${data.sequence}`);
     }
   }
 
   try {
     application = new Application({
+      events: {
+        onError: applicationEvents.report,
+        queueSize: config.operationConcurrency * 8,
+      },
       http: { shutdownTimeout: 5_000 },
       jobs: {
         poolSize: Math.min(2, availableParallelism()),
@@ -407,6 +525,8 @@ async function main() {
     });
     application.registerHttpController(SoakHttpController);
     application.registerWebSocketController(SoakWebSocketController);
+    application.registerEventListener(FastSoakEventListener);
+    application.registerEventListener(SlowSoakEventListener);
     const address = await application.listen({ port: 0 });
     const websocketUrl = `ws://${address.address}:${address.port}/websocket`;
     const deadline = startedAt + config.durationMs;
@@ -540,6 +660,21 @@ async function main() {
     disconnected: lifecycle.disconnected,
     status: lifecycle.connected === lifecycle.disconnected ? 'passed' : 'failed',
   };
+  const applicationEventSummary = applicationEvents.accounting();
+  analysis.thresholds.applicationEvents = {
+    ...applicationEventSummary,
+    status:
+      applicationEventSummary.accepted === applicationEventSummary.handled &&
+      applicationEventSummary.acceptedChecksum === applicationEventSummary.handledChecksum &&
+      applicationEventSummary.dropped === 0 &&
+      applicationEventSummary.duplicates === 0 &&
+      applicationEventSummary.expectedErrors === applicationEventSummary.observedErrors &&
+      applicationEventSummary.fifoViolations === 0 &&
+      applicationEventSummary.rejected === 0 &&
+      applicationEventSummary.unexpectedErrors.length === 0
+        ? 'passed'
+        : 'failed',
+  };
   analysis.passed &&= Object.values(analysis.thresholds).every(
     (threshold) => threshold.status === 'passed',
   );
@@ -551,8 +686,8 @@ async function main() {
     generatedAt,
     lifecycle,
     samples,
-    schemaVersion: 1,
-    summary: { operations: summary(metrics) },
+    schemaVersion: 2,
+    summary: { applicationEvents: applicationEventSummary, operations: summary(metrics) },
   };
   await mkdir(outputDir, { recursive: true });
   if (!analysis.passed) {
