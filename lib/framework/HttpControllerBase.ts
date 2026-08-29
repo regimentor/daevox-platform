@@ -1,13 +1,15 @@
 import { InvalidHttpControllerError } from './errors.ts';
-import type { EventSender } from './EventSender.ts';
-import type { JobRunner } from './JobRunner.ts';
-import type { WebSocketSender } from './WebSocketSender.ts';
+import type {
+  EventSenderCapability,
+  JobRunnerCapability,
+  WebSocketSenderCapability,
+} from './capabilities.ts';
 
 /** Dependencies supplied to an HTTP controller. / Зависимости HTTP-контроллера. @public */
 export interface HttpControllerOptions {
-  jobRunner: Pick<JobRunner, 'run' | 'close'>;
-  websocket: Pick<WebSocketSender, 'send'>;
-  events: Pick<EventSender, 'push'>;
+  readonly jobRunner: JobRunnerCapability;
+  readonly websocket: WebSocketSenderCapability;
+  readonly events: EventSenderCapability;
 }
 
 /**
@@ -25,13 +27,13 @@ export interface HttpControllerOptions {
 // oxlint-disable-next-line typescript/no-extraneous-class
 export class HttpControllerBase {
   /** Application-owned job runner. / Принадлежащий приложению исполнитель задач. @public */
-  declare jobRunner: Pick<JobRunner, 'run' | 'close'>;
+  declare readonly jobRunner: JobRunnerCapability;
 
   /** Application-wide WebSocket sender. / Общий sender WebSocket-приложения. @public */
-  declare websocket: Pick<WebSocketSender, 'send'>;
+  declare readonly websocket: WebSocketSenderCapability;
 
   /** Application-wide event sender. / Общий sender внутренних событий. @public */
-  declare events: Pick<EventSender, 'push'>;
+  declare readonly events: EventSenderCapability;
 
   /**
    * Initializes the framework-owned dependencies exposed to an HTTP controller.

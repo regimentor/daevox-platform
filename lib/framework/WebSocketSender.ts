@@ -28,7 +28,7 @@ export interface WebSocketSendResult {
 /**
  * Sends best-effort `daevox.v1` messages to active WebSocket sessions.
  * Отправляет best-effort сообщения `daevox.v1` в активные WebSocket-сессии.
- * @public
+ * @private
  */
 export class WebSocketSender {
   /** Maximum encoded payload. / Максимальный размер кодированного сообщения. @private */

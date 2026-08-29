@@ -4,6 +4,8 @@ status: accepted
 
 # Адресуемые внутренние события
 
+<!-- adr-contract:events.addressed-delivery -->
+
 `Application` поддерживает fire-and-forget доставку внутренних событий по явному адресу
 `{ listener, event }`. HTTP- и WebSocket-контроллеры передают события через узкий `EventSender`,
 а каждый зарегистрированный `EventListener` является долгоживущим получателем с собственным FIFO
@@ -78,6 +80,8 @@ HTTP-handler, WebSocket message-handler, начатых upgrade, `onConnect` и 
 WebSocket-конфигурация получает `shutdownTimeout` с default `30000` мс, охватывающий активные message-handler, pending upgrade, `onConnect` и
 `onDisconnect`. По истечении transport timeout запечатывается `EventSender`; поздний `push()` из не завершившегося handler выбрасывает
 `EventSenderClosedError`.
+
+<!-- adr-contract:application.shutdown-order -->
 
 Завершение сначала прекращает новый HTTP- и WebSocket-ввод и закрывает WebSocket-сессии, затем последовательно предоставляет
 отдельные grace-бюджеты HTTP- и WebSocket-операциями, запечатывает `EventSender`, ограниченно опустошает mailboxes и только после

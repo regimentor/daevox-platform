@@ -9,7 +9,10 @@
     "README.md"
   ],
   "type": "module",
-  "main": "src/main.ts",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "benchmark:full": "node test/benchmark/run.ts --mode full",
     "benchmark:smoke": "node test/benchmark/run.ts --mode smoke",
@@ -17,7 +20,6 @@
     "docs:build": "node scripts/docs.ts build",
     "docs:check": "node scripts/docs.ts check",
     "docs:lint": "documentation lint lib/framework/*.ts --shallow",
-    "docs:serve": "serve docs/api",
     "example:jobs-http": "node examples/jobs-http/main.ts",
     "example:application-events": "node examples/application-events/main.ts",
     "example:middleware-auth": "node examples/middleware-auth/main.ts",
@@ -52,7 +54,6 @@
     "documentation": "^14.0.3",
     "oxfmt": "^0.64.0",
     "oxlint": "^1.79.0",
-    "serve": "^14.2.6",
     "typescript": "^7.0.2"
   },
   "engines": {

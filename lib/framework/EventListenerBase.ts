@@ -1,11 +1,10 @@
 import { InvalidEventListenerError } from './errors.ts';
-import type { JobRunner } from './JobRunner.ts';
-import type { WebSocketSender } from './WebSocketSender.ts';
+import type { JobRunnerCapability, WebSocketSenderCapability } from './capabilities.ts';
 
 /** Dependencies supplied to an event listener. / Зависимости слушателя событий. @public */
 export interface EventListenerDependencies {
-  jobRunner: Pick<JobRunner, 'run' | 'close'>;
-  websocket: Pick<WebSocketSender, 'send'>;
+  readonly jobRunner: JobRunnerCapability;
+  readonly websocket: WebSocketSenderCapability;
 }
 
 /** Context of one accepted application event. / Контекст принятого события. @public */
@@ -32,10 +31,10 @@ export type ApplicationEventHandler<Data = unknown> = (
 // oxlint-disable-next-line typescript/no-extraneous-class
 export class EventListenerBase {
   /** Application-owned job runner. / Принадлежащий приложению исполнитель задач. @public */
-  declare jobRunner: Pick<JobRunner, 'run' | 'close'>;
+  declare readonly jobRunner: JobRunnerCapability;
 
   /** Application-wide WebSocket sender. / Общий sender WebSocket-приложения. @public */
-  declare websocket: Pick<WebSocketSender, 'send'>;
+  declare readonly websocket: WebSocketSenderCapability;
 
   /**
    * Prevents direct construction of the abstract base.

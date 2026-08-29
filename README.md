@@ -29,8 +29,7 @@ type stripping, без loader, transpilation или emit. TypeScript 7 нуже�
 ## Быстрый старт
 
 ```ts
-import { Application } from './lib/framework/Application.ts';
-import { HttpControllerBase } from './lib/framework/HttpControllerBase.ts';
+import { Application, HttpControllerBase } from 'daevox-node-framework';
 
 class UsersController extends HttpControllerBase {
   static prefix = '/users';
@@ -61,9 +60,11 @@ const address = await application.listen({ port: 3000 });
 console.log(`Listening on http://${address.address}:${address.port}`);
 ```
 
-До появления библиотечной точки входа классы публичного API импортируются напрямую из `lib/framework/`.
-Подробные контракты публичных и внутренних сущностей собраны в [API-документации](docs/API.md);
-HTML-версия находится в [`docs/api/`](docs/api/).
+Явные экспорты [`src/index.ts`](src/index.ts) образуют библиотечную точку входа и окончательно
+определяют состав поддерживаемого public interface для запуска из checkout. Подробные публичные
+контракты собраны по исходным модулям в
+[API-документации](docs/API.md). Поведенческие инварианты, связанные ADR, примеры и seam-тесты
+собраны в [карте interface фреймворка](docs/interface/README.md).
 
 ## HTTP-контроллеры и маршруты
 
@@ -147,7 +148,7 @@ return {
 Для ожидаемой ошибки HTTP-обработчик может выбросить `HttpError`:
 
 ```ts
-import { HttpError } from './lib/framework/errors.ts';
+import { HttpError } from 'daevox-node-framework';
 
 throw new HttpError(422, {
   body: { error: 'email is required' },
@@ -176,9 +177,7 @@ async function middleware(ctx, next) {
 Для HTTP три уровня задаются независимо:
 
 ```ts
-import { Application } from './lib/framework/Application.ts';
-import { HttpControllerBase } from './lib/framework/HttpControllerBase.ts';
-import { HttpError } from './lib/framework/errors.ts';
+import { Application, HttpControllerBase, HttpError } from 'daevox-node-framework';
 
 async function attachRequestId(ctx, next) {
   ctx.state.requestId = crypto.randomUUID();
@@ -232,9 +231,7 @@ Middleware не вызываются для ошибок, возникших д�
 Для сообщений WebSocket используются те же три уровня:
 
 ```ts
-import { Application } from './lib/framework/Application.ts';
-import { WebSocketControllerBase } from './lib/framework/WebSocketControllerBase.ts';
-import { WebSocketEventError } from './lib/framework/errors.ts';
+import { Application, WebSocketControllerBase, WebSocketEventError } from 'daevox-node-framework';
 
 function countMessages(ctx, next) {
   ctx.state.messageCount = (ctx.state.messageCount ?? 0) + 1;
@@ -298,7 +295,7 @@ TypeScript проверяет форму `name`, `events` и необязате�
 Пример:
 
 ```ts
-import { WebSocketControllerBase } from './lib/framework/WebSocketControllerBase.ts';
+import { WebSocketControllerBase } from 'daevox-node-framework';
 
 class NotificationsController extends WebSocketControllerBase {
   static name = 'notifications';
@@ -396,7 +393,7 @@ const application = new Application({
 pub/sub и не выполняет fan-out. DTO — обычный прикладной класс без базового класса фреймворка:
 
 ```ts
-import { EventListenerBase } from './lib/framework/EventListenerBase.ts';
+import { EventListenerBase } from 'daevox-node-framework';
 
 class OrderCreated {
   constructor(orderId) {
@@ -436,7 +433,7 @@ DTO, переполнения или закрытого sender синхронн�
 Некорректная секция `events` создаёт `InvalidEventOptionsError`, неверный контракт listener —
 `InvalidEventListenerError`, а повтор класса, listener name или адреса —
 `EventListenerConflictError`. Все восемь event error-классов экспортируются из
-`lib/framework/errors.ts` и поддерживают `instanceof`.
+библиотечной точки входа и поддерживают `instanceof`.
 
 Один долгоживущий экземпляр listener обрабатывает свой FIFO mailbox строго последовательно;
 разные listener работают независимо. Доставка in-memory и at-most-once: persistence, retry,
@@ -474,7 +471,7 @@ cutoff. Затем mailboxes опустошаются до `events.shutdownTimeo
 Фоновая задача должна напрямую наследовать `Job`, экспортироваться по умолчанию из собственного ESM-модуля, объявлять `static metaUrl = import.meta.url` и иметь собственный метод `run()`:
 
 ```ts
-import { Job } from './lib/framework/Job.ts';
+import { Job } from 'daevox-node-framework';
 
 export default class SumJob extends Job {
   static metaUrl = import.meta.url;
@@ -631,7 +628,6 @@ npm run test:coverage
 npm run check
 npm run docs:build
 npm run docs:check
-npm run docs:serve
 ```
 
 `npm test` последовательно запускает unit-тесты из `test/unit/` и e2e-тесты из `test/e2e/`.
@@ -640,9 +636,12 @@ npm run docs:serve
 `npm run check` выполняет независимые статические проверки: синтаксис, линтинг, форматирование и
 актуальность сгенерированной API-документации.
 
-`npm run docs:build` детерминированно пересобирает коммитимые `docs/API.md` и `docs/api/` из
-двуязычных JSDoc-комментариев в `lib/framework/`. `npm run docs:check` проверяет JSDoc и актуальность
-обоих артефактов без их изменения. `npm run docs:serve` запускает локальный просмотр HTML-версии.
+`npm run docs:build` детерминированно пересобирает индекс `docs/API.md` и отдельные Markdown-файлы
+в `docs/api/` из сущностей, явно экспортированных `src/index.ts`, и их двуязычных
+JSDoc-комментариев с меткой `@public`.
+`npm run docs:check` проверяет public entrypoint, JSDoc, актуальность всех артефактов, дословное
+соответствие помеченных capability-сводок каноническим фрагментам ADR и существование локальных
+ссылок в документации без изменения файлов.
 
 ## Архитектура
 

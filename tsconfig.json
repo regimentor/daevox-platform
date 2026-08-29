@@ -18,5 +18,5 @@
     "src/**/*.ts",
     "test/**/*.ts"
   ],
-  "exclude": [".scratch", "benchmark/competitors/node_modules", "docs/api", "node_modules"]
+  "exclude": [".scratch", "benchmark/competitors/node_modules", "node_modules"]
 }

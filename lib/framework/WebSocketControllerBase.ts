@@ -1,11 +1,10 @@
 import { InvalidWebSocketControllerError } from './errors.ts';
-import type { EventSender } from './EventSender.ts';
-import type { JobRunner } from './JobRunner.ts';
+import type { EventSenderCapability, JobRunnerCapability } from './capabilities.ts';
 
 /** Dependencies supplied to a WebSocket controller. / Зависимости WebSocket-контроллера. @public */
 export interface WebSocketControllerOptions {
-  jobRunner: Pick<JobRunner, 'run' | 'close'>;
-  events: Pick<EventSender, 'push'>;
+  readonly jobRunner: JobRunnerCapability;
+  readonly events: EventSenderCapability;
 }
 
 /**
@@ -23,10 +22,10 @@ export interface WebSocketControllerOptions {
 // oxlint-disable-next-line typescript/no-extraneous-class
 export class WebSocketControllerBase {
   /** Application-owned job runner. / Принадлежащий приложению исполнитель задач. @public */
-  declare jobRunner: Pick<JobRunner, 'run' | 'close'>;
+  declare readonly jobRunner: JobRunnerCapability;
 
   /** Application-wide event sender. / Общий sender внутренних событий. @public */
-  declare events: Pick<EventSender, 'push'>;
+  declare readonly events: EventSenderCapability;
 
   /**
    * Initializes the framework-owned dependencies exposed to a WebSocket controller.
