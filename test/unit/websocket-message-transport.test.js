@@ -1142,6 +1142,45 @@ test('Application.close ожидает асинхронный onDisconnect пр�
   assert.equal(applicationClosed, true);
 });
 
+test('Application.close принудительно завершает WebSocket peer без ответного close', async () => {
+  const app = new Application({ websocket: { shutdownTimeout: 10 } });
+  const address = await app.listen({ port: 0 });
+  const socket = net.connect({
+    allowHalfOpen: true,
+    host: address.address,
+    port: address.port,
+  });
+  const upgraded = new Promise((resolve, reject) => {
+    socket.once('connect', () =>
+      socket.write(
+        'GET /websocket HTTP/1.1\r\n' +
+          'Host: localhost\r\n' +
+          'Upgrade: websocket\r\n' +
+          'Connection: Upgrade\r\n' +
+          'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n' +
+          'Sec-WebSocket-Version: 13\r\n' +
+          'Sec-WebSocket-Protocol: daevox.v1\r\n\r\n',
+      ),
+    );
+    socket.once('data', (data) => {
+      assert.match(data.toString(), /^HTTP\/1\.1 101 Switching Protocols/);
+      resolve();
+    });
+    socket.once('error', reject);
+  });
+
+  await upgraded;
+  const closing = app.close();
+  const result = await Promise.race([
+    closing.then(() => 'closed'),
+    new Promise((resolve) => setTimeout(resolve, 100, 'timeout')),
+  ]);
+  socket.destroy();
+  await closing;
+
+  assert.equal(result, 'closed');
+});
+
 test('исходящий maxPayload возвращает INVALID_RESPONSE или закрывает сессию кодом 1011', async () => {
   class LargeController extends WebSocketControllerBase {
     static name = 'c';
@@ -1244,6 +1283,28 @@ test('ошибка onConnect отклоняет handshake с 500, ошибка o
   await app.close();
 });
 
+test('некорректный результат onConnect отклоняет handshake с 500 и передаётся в onError', async () => {
+  const errors = [];
+  const app = new Application({
+    websocket: {
+      onConnect: () => '',
+      onError: (error) => errors.push(error),
+    },
+  });
+  const address = await app.listen({ port: 0 });
+
+  try {
+    assert.equal(
+      await rejected(`ws://${address.address}:${address.port}/websocket`, 'daevox.v1'),
+      true,
+    );
+    assert.equal(errors.length, 1);
+    assert.match(errors[0].message, /non-empty string/);
+  } finally {
+    await app.close();
+  }
+});
+
 test('HttpError из onConnect ожидаемо отклоняет WebSocket handshake', async () => {
   const errors = [];
   let disconnects = 0;
@@ -1281,6 +1342,39 @@ test('HttpError из onConnect ожидаемо отклоняет WebSocket han
     await app.close();
   }
   assert.equal(disconnects, 0);
+});
+
+test('HttpError из onConnect сохраняет строковое и бинарное тело handshake-ответа', async () => {
+  const app = new Application({
+    websocket: {
+      onConnect(ctx) {
+        const binary = ctx.query.has('binary');
+        throw new HttpError(403, { body: binary ? new Uint8Array([0, 1, 2]) : 'Forbidden' });
+      },
+    },
+  });
+  const address = await app.listen({ port: 0 });
+  const request = (path) =>
+    rawRequest(
+      address,
+      `GET ${path} HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Protocol: daevox.v1\r\n\r\n`,
+    );
+
+  try {
+    let response = await request('/websocket');
+    assert.match(response.data.toString(), /^HTTP\/1\.1 403 Forbidden/);
+    assert.match(response.data.toString().toLowerCase(), /content-type: text\/plain/);
+    assert.ok(response.data.subarray(-9).equals(Buffer.from('Forbidden')));
+    response.socket.destroy();
+
+    response = await request('/websocket?binary');
+    assert.match(response.data.toString(), /^HTTP\/1\.1 403 Forbidden/);
+    assert.match(response.data.toString().toLowerCase(), /content-type: application\/octet-stream/);
+    assert.ok(response.data.subarray(-3).equals(Buffer.from([0, 1, 2])));
+    response.socket.destroy();
+  } finally {
+    await app.close();
+  }
 });
 
 test('отклонённый Promise websocket.onError безопасно передаётся в console.error', async (t) => {

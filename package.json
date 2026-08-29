@@ -19,6 +19,7 @@
     "docs:lint": "documentation lint lib/framework/*.js --shallow",
     "docs:serve": "serve docs/api",
     "example:jobs-http": "node examples/jobs-http/main.js",
+    "example:application-events": "node examples/application-events/main.js",
     "example:middleware-auth": "node examples/middleware-auth/main.js",
     "example:middleware-auth:test": "node --test examples/middleware-auth/authorization.test.js",
     "example:websocket": "node examples/websocket/main.js",

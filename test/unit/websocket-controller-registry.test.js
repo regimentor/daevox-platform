@@ -170,6 +170,7 @@ test('Application строго проверяет конфигурацию ед�
     websocket: {
       path: '/socket',
       maxPayload: 0,
+      shutdownTimeout: 1,
       middleware: [noop],
       onConnect: noop,
       onDisconnect: noop,
@@ -191,6 +192,9 @@ test('Application строго проверяет конфигурацию ед�
     { maxPayload: -1 },
     { maxPayload: 1.5 },
     { maxPayload: Number.POSITIVE_INFINITY },
+    { shutdownTimeout: 0 },
+    { shutdownTimeout: 1.5 },
+    { shutdownTimeout: Number.POSITIVE_INFINITY },
     { onConnect: true },
     { onDisconnect: true },
     { onError: true },

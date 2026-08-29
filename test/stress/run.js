@@ -1,4 +1,6 @@
 import { spawn } from 'node:child_process';
+
+// oxlint-disable typescript/no-extraneous-class -- DTO classes intentionally provide nominal identity.
 import { mkdir, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import { availableParallelism, cpus, platform, release } from 'node:os';
@@ -8,8 +10,10 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { Application } from '../../lib/framework/Application.js';
+import { EventListenerBase } from '../../lib/framework/EventListenerBase.js';
 import { HttpControllerBase } from '../../lib/framework/HttpControllerBase.js';
 import { WebSocketControllerBase } from '../../lib/framework/WebSocketControllerBase.js';
+import { EventQueueFullError } from '../../lib/framework/errors.js';
 import { classifySteps, distribution } from './analysis.js';
 import { createStressConfig, smokeStressConfig } from './config.js';
 import StressJob from './fixtures/stress-job.js';
@@ -355,6 +359,105 @@ async function queueScenario(config) {
   }
 }
 
+async function applicationEventScenario(config) {
+  let releaseSerial;
+  const serialGate = new Promise((resolve) => {
+    releaseSerial = resolve;
+  });
+  let resolveSerialStarted;
+  const serialStarted = new Promise((resolve) => {
+    resolveSerialStarted = resolve;
+  });
+  let resolveParallelHandled;
+  const parallelHandled = new Promise((resolve) => {
+    resolveParallelHandled = resolve;
+  });
+  const handled = [];
+  const unhandled = [];
+  const onUnhandled = (error) => unhandled.push(error);
+  process.on('unhandledRejection', onUnhandled);
+
+  class StressEvent {
+    constructor(label) {
+      this.label = label;
+    }
+  }
+  class SerialEventListener extends EventListenerBase {
+    static name = 'stress-serial';
+    static events = [{ name: 'work', data: StressEvent, handler: 'work' }];
+    async work(data) {
+      handled.push(data.label);
+      if (data.label === 'active') {
+        resolveSerialStarted();
+        await serialGate;
+      }
+    }
+  }
+  class ParallelEventListener extends EventListenerBase {
+    static name = 'stress-parallel';
+    static events = [{ name: 'work', data: StressEvent, handler: 'work' }];
+    work(data) {
+      handled.push(data.label);
+      resolveParallelHandled();
+    }
+  }
+  class EventController extends HttpControllerBase {
+    static prefix = '/stress/events';
+    static routes = [{ method: 'POST', path: '/', handler: 'push' }];
+    push(ctx) {
+      const listener = ctx.body.parallel ? 'stress-parallel' : 'stress-serial';
+      try {
+        this.events.push({ listener, event: 'work' }, new StressEvent(ctx.body.label));
+        return { status: 202, body: { accepted: true } };
+      } catch (error) {
+        if (error instanceof EventQueueFullError) {
+          return { status: 503, body: { error: 'EventQueueFullError' } };
+        }
+        throw error;
+      }
+    }
+  }
+
+  const application = new Application({ events: { queueSize: config.queueSize } });
+  application.registerEventListener(SerialEventListener);
+  application.registerEventListener(ParallelEventListener);
+  application.registerHttpController(EventController);
+  const address = await application.listen({ port: 0 });
+  try {
+    await request(address, '/stress/events', { label: 'active' });
+    await serialStarted;
+    for (let index = 0; index < config.queueSize; index += 1) {
+      const accepted = await request(address, '/stress/events', { label: `queued-${index}` });
+      if (accepted.status !== 202) throw new Error('event mailbox rejected within capacity');
+    }
+    const overflow = await request(address, '/stress/events', { label: 'overflow' });
+    if (overflow.status !== 503 || overflow.value.error !== 'EventQueueFullError') {
+      throw new Error(`unexpected event overflow result: ${JSON.stringify(overflow)}`);
+    }
+    const parallel = await request(address, '/stress/events', {
+      label: 'parallel',
+      parallel: true,
+    });
+    await parallelHandled;
+    if (parallel.status !== 202) throw new Error('parallel listener was blocked');
+    releaseSerial();
+    await application.close();
+    await new Promise((resolve) => setImmediate(resolve));
+    if (unhandled.length > 0) throw new Error('application events produced unhandled rejection');
+    return {
+      handled: handled.length,
+      overflow: { error: overflow.value.error, status: overflow.status },
+      parallel: true,
+      queueSize: config.queueSize,
+      unhandledRejections: unhandled.length,
+    };
+  } finally {
+    releaseSerial();
+    process.off('unhandledRejection', onUnhandled);
+    await application.close();
+  }
+}
+
 async function createWebSocketApplication() {
   class StressWebSocketController extends WebSocketControllerBase {
     static name = 'stress';
@@ -658,6 +761,7 @@ async function childMain(config, outputPath) {
     }
   }
   profiles.queue = await queueScenario(config);
+  profiles.applicationEvents = await applicationEventScenario(config);
   Object.assign(profiles, await websocketProfiles(config));
   profiles.protocolErrors = await protocolErrorScenario();
   profiles.mixed = await mixedProfile(config);

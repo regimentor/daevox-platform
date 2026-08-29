@@ -1,9 +1,42 @@
 import { once } from 'node:events';
+
+// oxlint-disable typescript/no-extraneous-class -- DTO classes intentionally provide nominal identity.
 import { Application } from 'daevox-node-framework/lib/framework/Application.js';
+import { EventListenerBase } from 'daevox-node-framework/lib/framework/EventListenerBase.js';
 import { HttpControllerBase } from 'daevox-node-framework/lib/framework/HttpControllerBase.js';
 import { WebSocketControllerBase } from 'daevox-node-framework/lib/framework/WebSocketControllerBase.js';
 import { HttpError } from 'daevox-node-framework/lib/framework/errors.js';
 import SumJob from './sum-job.js';
+
+const applicationEvents = [];
+const applicationEventErrors = [];
+let resolveApplicationEvents;
+const applicationEventsSettled = new Promise((resolve) => {
+  resolveApplicationEvents = resolve;
+});
+
+function settleApplicationEvents() {
+  if (applicationEvents.length === 3 && applicationEventErrors.length === 1) {
+    resolveApplicationEvents();
+  }
+}
+
+class TransportEvent {
+  constructor(source) {
+    this.source = source;
+  }
+}
+
+class TransportEventListener extends EventListenerBase {
+  static name = 'transport-audit';
+  static events = [{ name: 'handled', data: TransportEvent, handler: 'handled' }];
+
+  handled(data) {
+    applicationEvents.push(data.source);
+    settleApplicationEvents();
+    if (data.source === 'websocket') throw new Error('isolated listener failure');
+  }
+}
 
 function markHttpController(ctx, next) {
   ctx.state.controller = true;
@@ -29,6 +62,10 @@ class CalculationsHttpController extends HttpControllerBase {
     }
 
     const result = await this.jobRunner.run(SumJob, { values }, { signal: ctx.signal });
+    this.events.push(
+      { listener: 'transport-audit', event: 'handled' },
+      new TransportEvent(`http:${result.sum}`),
+    );
     return { status: 200, body: { ...result, state: ctx.state } };
   }
 }
@@ -53,6 +90,10 @@ class EventsWebSocketController extends WebSocketControllerBase {
   ];
 
   echo(ctx) {
+    this.events.push(
+      { listener: 'transport-audit', event: 'handled' },
+      new TransportEvent('websocket'),
+    );
     return { message: ctx.body.message, state: ctx.state };
   }
 }
@@ -69,6 +110,12 @@ async function receiveMessage(webSocket) {
 }
 
 const application = new Application({
+  events: {
+    onError(error) {
+      applicationEventErrors.push(error.message);
+      settleApplicationEvents();
+    },
+  },
   jobs: { poolSize: 1 },
   http: {
     middleware: [
@@ -96,6 +143,7 @@ const application = new Application({
 });
 application.registerHttpController(CalculationsHttpController);
 application.registerWebSocketController(EventsWebSocketController);
+application.registerEventListener(TransportEventListener);
 
 let webSocket;
 
@@ -159,6 +207,7 @@ try {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ values: [4, 5] }),
   }).then(readJson);
+  await applicationEventsSettled;
 
   const closePromise = once(webSocket, 'close', {
     signal: AbortSignal.timeout(2_000),
@@ -177,6 +226,10 @@ try {
       websocketFailure: websocketFailureMessage.body.error,
       websocketShortCircuit: websocketShortCircuitMessage.body,
       websocket: websocketMessage.body,
+      applicationEvents: {
+        handled: applicationEvents.toSorted(),
+        errors: applicationEventErrors,
+      },
     }),
   );
 } finally {
