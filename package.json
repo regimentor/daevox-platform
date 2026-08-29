@@ -22,6 +22,7 @@
     "example:middleware-auth": "node examples/middleware-auth/main.js",
     "example:middleware-auth:test": "node --test examples/middleware-auth/authorization.test.js",
     "example:websocket": "node examples/websocket/main.js",
+    "example:websocket:test": "node --test examples/websocket/*.test.js",
     "fuzz:corpus": "node test/fuzz/run.js",
     "fuzz:full": "node test/fuzz/run.js --mode full",
     "fuzz:replay": "node test/fuzz/run.js",
