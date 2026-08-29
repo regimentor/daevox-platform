@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 Blocked by: 01, 02
 
 # Интегрировать EventListener в Application и контроллеры
@@ -29,3 +29,5 @@ Blocked by: 01, 02
 ## Comments
 
 Полный transport settlement tracking и shutdown вынесены в зависимую задачу 04.
+
+Регистрация listener и зависимости HTTP-, WebSocket-контроллеров и listener интегрированы в `Application` и проверены через публичный interface.

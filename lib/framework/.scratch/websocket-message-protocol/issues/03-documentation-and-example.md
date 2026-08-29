@@ -1,4 +1,4 @@
-Status: ready-for-human
+Status: resolved
 
 # Обновить документацию и WebSocket example для daevox.v1
 

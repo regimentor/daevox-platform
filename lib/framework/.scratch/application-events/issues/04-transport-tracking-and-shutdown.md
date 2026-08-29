@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 Blocked by: 03
 
 # Интегрировать transport tracking и shutdown внутренних событий
@@ -35,3 +35,5 @@ Blocked by: 03
 ## Comments
 
 Текущий shutdown не отслеживает WebSocket message chains и pending upgrade, а HTTP active set связан с response close; задача намеренно пересматривает эти гарантии по ADR 0011.
+
+Transport settlement tracking, запечатывание sender, bounded drain и forced cutoff реализованы и покрыты HTTP/WebSocket e2e-тестами shutdown.

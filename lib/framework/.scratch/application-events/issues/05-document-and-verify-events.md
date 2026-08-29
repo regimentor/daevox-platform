@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 Blocked by: 04
 
 # Документировать и проверить внутренние события end-to-end
@@ -31,3 +31,5 @@ Blocked by: 04
 ## Comments
 
 Глоссарий и ADR 0011 уже созданы во время grilling-сессии; их нужно сверить с фактическим публичным контрактом после реализации.
+
+README, capability-карта, generated API, runnable example, e2e, stress и soak проверки приведены в соответствие с реализованным контрактом.

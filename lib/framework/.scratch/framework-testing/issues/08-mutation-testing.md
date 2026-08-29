@@ -1,4 +1,4 @@
-Status: ready-for-human
+Status: resolved
 
 # Внедрить mutation testing тестовой базы
 

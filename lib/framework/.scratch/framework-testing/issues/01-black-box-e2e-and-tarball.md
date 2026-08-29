@@ -1,4 +1,4 @@
-Status: ready-for-human
+Status: resolved
 
 # Добавить black-box e2e и проверку установки npm tarball
 

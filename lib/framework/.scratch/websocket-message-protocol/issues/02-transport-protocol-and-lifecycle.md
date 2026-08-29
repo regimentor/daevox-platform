@@ -1,4 +1,4 @@
-Status: ready-for-human
+Status: resolved
 
 # Реализовать transport протокола daevox.v1 и lifecycle hooks
 

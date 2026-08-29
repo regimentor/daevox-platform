@@ -1,4 +1,4 @@
-Status: ready-for-human
+Status: resolved
 
 # Добавить короткие воспроизводимые benchmarks и пороги регрессии
 

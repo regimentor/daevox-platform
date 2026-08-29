@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 
 # Реализовать отправку WebSocket-сообщений из HTTP-контроллера
 
@@ -64,3 +64,5 @@ Status: ready-for-agent
 ## Comments
 
 Архитектура согласована в grilling-сессии: фреймворк индексирует `clientId → Set<sessionId>`, а приложение самостоятельно поддерживает `userId → clientId`. Server push использует envelope `daevox.v1` и остаётся best-effort.
+
+`WebSocketSender` и индекс сессий реализованы на TypeScript, интегрированы в HTTP-контроллеры и listener и покрыты unit- и transport-тестами.

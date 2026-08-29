@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 Blocked by: 01
 
 # Реализовать EventSender и actor mailbox
@@ -35,3 +35,5 @@ Blocked by: 01
 ## Comments
 
 Обработка выполняется в основном потоке; CPU-heavy работу приложение явно передаёт в `jobRunner`.
+
+`EventSender` и FIFO mailbox реализованы на TypeScript; acceptance, fairness, timeout и изоляция ошибок покрыты unit-тестами.

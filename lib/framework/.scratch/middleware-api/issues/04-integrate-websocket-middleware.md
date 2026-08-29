@@ -1,4 +1,4 @@
-Status: ready-for-human
+Status: resolved
 Blocked by: 02
 
 # Интегрировать middleware в WebSocket transport

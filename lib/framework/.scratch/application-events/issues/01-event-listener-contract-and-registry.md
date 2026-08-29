@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 
 # Реализовать контракт EventListener и registry
 
@@ -30,3 +30,5 @@ Status: ready-for-agent
 ## Comments
 
 Архитектура и терминология согласованы в ADR 0011 и `CONTEXT.md`.
+
+Контракт, registry, конфигурация и публичные ошибки реализованы на TypeScript и покрыты unit-тестами.

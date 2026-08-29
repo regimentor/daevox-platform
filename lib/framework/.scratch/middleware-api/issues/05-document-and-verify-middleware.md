@@ -1,4 +1,4 @@
-Status: ready-for-human
+Status: resolved
 Blocked by: 03, 04
 
 # Документировать и проверить middleware end-to-end

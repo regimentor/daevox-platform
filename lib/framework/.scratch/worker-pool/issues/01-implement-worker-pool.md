@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 
 # Реализовать выполнение фоновых задач в пуле Worker
 
@@ -27,3 +27,5 @@ Status: ready-for-agent
 - Создание контроллеров и HTTP execution pipeline не реализуются в рамках задачи.
 
 ## Comments
+
+`Job`, `JobRunner` и Worker Pool реализованы на TypeScript; очередь, отмена, timeout, восстановление Worker и shutdown покрыты unit- и race-тестами.

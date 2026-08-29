@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 
 # Реализовать регистрацию HTTP-контроллеров и маршрутизацию
 
@@ -24,3 +24,5 @@ Status: ready-for-agent
 - HTTP runtime и выполнение HTTP-обработчиков не реализуются в рамках задачи.
 
 ## Comments
+
+Регистрация HTTP-контроллеров и детерминированный `HttpRouter` реализованы на TypeScript и покрыты unit-тестами публичного interface.

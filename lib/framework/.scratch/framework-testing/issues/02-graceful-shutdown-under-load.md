@@ -1,4 +1,4 @@
-Status: ready-for-human
+Status: resolved
 
 # Проверить graceful shutdown под совместной нагрузкой
 

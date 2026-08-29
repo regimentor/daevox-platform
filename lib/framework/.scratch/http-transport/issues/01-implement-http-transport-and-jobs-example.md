@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 
 # Реализовать HTTP transport и example запуска задач
 
@@ -33,3 +33,5 @@ Status: ready-for-agent
 - `npm run check` завершается успешно.
 
 ## Comments
+
+HTTP transport, нормализация запросов и ответов, graceful shutdown и runnable jobs example реализованы на TypeScript и покрыты transport-тестами.

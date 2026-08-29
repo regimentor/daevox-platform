@@ -1,4 +1,4 @@
-Status: ready-for-human
+Status: resolved
 Blocked by: 01
 
 # Реализовать общий исполнитель middleware-цепочки

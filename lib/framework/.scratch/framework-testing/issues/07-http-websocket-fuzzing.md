@@ -1,4 +1,4 @@
-Status: ready-for-human
+Status: resolved
 
 # Добавить WebSocket frame и HTTP malformed-input fuzzing
 

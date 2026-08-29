@@ -1,4 +1,4 @@
-Status: ready-for-human
+Status: resolved
 
 # Реализовать каталог WebSocket-контроллеров и диспетчеризацию событий
 

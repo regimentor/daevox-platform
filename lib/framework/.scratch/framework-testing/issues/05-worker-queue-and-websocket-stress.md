@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 
 # Добавить stress-тест очереди задач и WebSocket-сессий
 

@@ -1,4 +1,4 @@
-Status: ready-for-human
+Status: resolved
 
 # Добавить soak-тест утечек и долговременной деградации
 

@@ -1,4 +1,4 @@
-Status: ready-for-human
+Status: resolved
 
 # Покрыть гонки отмены, timeout, завершения задачи и close
 
