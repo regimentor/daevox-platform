@@ -4,6 +4,8 @@ status: accepted
 
 # Middleware HTTP- и WebSocket-обработчиков
 
+<!-- adr-contract:middleware.handler-chain -->
+
 `Application` поддерживает единый контракт middleware `(ctx, next)` для выполнения найденных
 HTTP-обработчиков и обработчиков WebSocket-событий. Middleware может выполнить действия до и после
 `await next()`, завершить цепочку без вызова `next()` и вернуть результат того же контракта, что и
