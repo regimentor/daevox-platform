@@ -626,6 +626,7 @@ npm run test:e2e
 npm run test:checks
 npm run test:coverage
 npm run check
+npm run verify
 npm run docs:build
 npm run docs:check
 ```
@@ -635,6 +636,10 @@ npm run docs:check
 не запуская сами длительные профили. Coverage включает только unit- и e2e-тесты.
 `npm run check` выполняет независимые статические проверки: синтаксис, линтинг, форматирование и
 актуальность сгенерированной API-документации.
+`npm run verify` является стандартным критерием завершения изменения и последовательно запускает
+`check`, unit- и e2e-тесты, `test:checks` и `test:soak-harness`. Дополнительные профильные проверки
+для transport, concurrency, performance, malformed input и resource lifecycle описаны в
+[`docs/system-testing.md`](docs/system-testing.md).
 
 `npm run docs:build` детерминированно пересобирает индекс `docs/API.md` и отдельные Markdown-файлы
 в `docs/api/` из сущностей, явно экспортированных `src/index.ts`, и их двуязычных

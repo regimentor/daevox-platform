@@ -16,7 +16,8 @@
     "lint:fix": "oxlint . --fix --deny-warnings",
     "test": "npm test --workspaces --if-present",
     "test:checks": "npm run test:checks --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "verify": "npm run verify --workspaces --if-present"
   },
   "devDependencies": {
     "@types/node": "^26.4.0",

@@ -1,5 +1,30 @@
 # Системное тестирование
 
+## Матрица завершения работы
+
+Стандартный gate для любого изменения запускается из корня репозитория:
+
+```sh
+npm run verify
+```
+
+Он последовательно выполняет статические проверки, unit- и e2e-тесты, тесты benchmark/fuzz/
+mutation/soak/stress harness'ов и короткий soak-harness с отрицательными контролями. Изменение
+завершено, когда стандартный gate проходит и выполнены все дополнительные профили из затронутых
+строк таблицы.
+
+| Затронутая область                                         | Дополнительная проверка                                            |
+| ---------------------------------------------------------- | ------------------------------------------------------------------ |
+| HTTP/WebSocket parsing или malformed input                 | `npm run fuzz:full --workspace @daevox/framework -- --seed <seed>` |
+| Очереди, concurrency, shutdown или восстановление          | `npm run stress --workspace @daevox/framework`                     |
+| Performance-sensitive путь                                 | `npm run benchmark:full --workspace @daevox/framework`             |
+| Удержание ресурсов или длительная деградация               | `npm run soak:scheduled --workspace @daevox/framework`             |
+| Риск недостаточной чувствительности тестов production-кода | `npm run mutation:changed --workspace @daevox/framework`           |
+
+Полные benchmark и soak-профили требуют однородного выделенного окружения. Если оно недоступно,
+зафиксировать непройденный профиль при передаче результата; успешный `npm run verify` не заменяет
+его.
+
 ## Fuzzing повреждённого HTTP и WebSocket-ввода
 
 Короткий фиксированный corpus отделён от unit- и e2e-тестов и запускается отдельно:

@@ -12,9 +12,11 @@ module владеет своим production-кодом, тестами, прим
 
 ```sh
 npm install
-npm test
-npm run check
+npm run verify
 ```
+
+`npm run verify` запускает для каждого workspace статические проверки, unit- и e2e-тесты,
+проверки вспомогательных harness'ов и короткий soak-harness.
 
 Команду одного module можно запустить через npm workspace:
 

@@ -46,7 +46,8 @@
     "test:soak-harness": "node --test test/soak/harness.test.ts",
     "test:coverage": "node --test --experimental-test-coverage test/unit/*.test.ts test/e2e/*.test.ts",
     "test:unit": "node --test test/unit/*.test.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "verify": "npm run check && npm test"
   },
   "engines": {
     "node": ">= 26",
