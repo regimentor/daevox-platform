@@ -1,10 +1,14 @@
 import { int, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-const usersTable = sqliteTable('users_table', {
+const users = sqliteTable('users_table', {
   id: int().primaryKey({ autoIncrement: true }),
-  name: text().notNull(),
-  age: int().notNull(),
-  email: text().notNull().unique(),
+  login: text().notNull().unique(),
 });
 
-export { usersTable };
+const dialogs = sqliteTable('dialogs_table', {
+  id: int().primaryKey({ autoIncrement: true }),
+  userId: int().notNull(),
+  lastResponseId: text(),
+});
+
+export { users, dialogs };

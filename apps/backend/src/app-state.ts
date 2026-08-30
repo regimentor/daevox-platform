@@ -7,6 +7,7 @@ export class AppState {
 
   #config = {
     DB_URL: process.env.DB_FILE_NAME ?? '',
+    JWT_SECRET: process.env.JWT_SECRET ?? '',
   };
 
   constructor() {

@@ -1,6 +1,5 @@
 import { HttpControllerBase } from '@daevox/framework';
 import { schema } from '@daevox/db';
-import { completionService } from '../services/completion.service.ts';
 import { AppState } from '../app-state.ts';
 
 export class HealthcheckController extends HttpControllerBase {
@@ -20,16 +19,12 @@ export class HealthcheckController extends HttpControllerBase {
   }
 
   async checkDb() {
-    const dbStatus = await this.#db.select().from(schema.usersTable);
+    const dbStatus = await this.#db.select().from(schema.users);
 
     return { status: 200, body: { status: 'ok', dbStatus } };
   }
 
   async check() {
-    const response = await completionService.complete('Привет как дела?');
-
-    console.log(response);
-
-    return { status: 200, body: { status: 'ok', response } };
+    return { status: 200, body: { status: 'ok' } };
   }
 }

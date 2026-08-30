@@ -12,7 +12,7 @@ if (!Number.isInteger(port) || port < 0 || port > 65_535) {
 
 const appState = new AppState();
 
-console.log(appState.getConfig());
+console.log('Config:', appState.getConfig());
 
 import { createApplication } from './application.ts';
 const application = createApplication();
