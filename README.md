@@ -9,9 +9,32 @@ Daevox Platform — платформа для agentic-задач. Целевые
 ## Workspaces
 
 - [`@daevox/web-client`](apps/web-client/) — frontend Daevox Platform.
-- `apps/backend` — планируемый backend; workspace ещё не настроен.
+- [`@daevox/backend`](apps/backend/) — HTTP backend Daevox Platform.
 - [`@daevox/framework`](lib/framework/README.md) — транспортный фреймворк Node.js 26 без
   runtime-зависимостей, разрабатываемый как основа backend.
+
+## Backend
+
+Backend запускается на порту `3000` по умолчанию. Порт можно переопределить переменной окружения
+`PORT`.
+
+```sh
+npm run dev --workspace @daevox/backend
+```
+
+Проверка состояния backend доступна через `GET /healthcheck` и возвращает:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+Проверки backend запускаются отдельно командой:
+
+```sh
+npm run verify --workspace @daevox/backend
+```
 
 ## Разработка
 
