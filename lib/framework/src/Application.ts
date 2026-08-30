@@ -50,6 +50,16 @@ export interface HttpRequestContext<Body = any, State extends object = Record<st
   route: HttpRouteContext;
 }
 
+/** Application-state instance lifecycle contract. / Контракт lifecycle экземпляра состояния приложения. @public */
+export interface AppStateInstance {
+  beforeAppStart?(): void | Promise<void>;
+  onAppStart?(): void | Promise<void>;
+  onAppClose?(): void | Promise<void>;
+}
+
+/** Application-state constructor. / Конструктор состояния приложения. @public */
+export type AppState = new () => object;
+
 /** Explicit HTTP-handler result. / Явный результат HTTP-обработчика. @public */
 export interface HttpResponse<Body = unknown> {
   status: number;
@@ -59,6 +69,7 @@ export interface HttpResponse<Body = unknown> {
 
 /** HTTP middleware around a resolved handler. / HTTP middleware вокруг обработчика. @public */
 export type HttpMiddleware = (
+  appState: AppStateInstance,
   context: HttpRequestContext,
   next: () => Promise<HttpResponse>,
 ) => HttpResponse | Promise<HttpResponse>;
@@ -84,7 +95,11 @@ export interface HttpOptions {
   bodyLimit?: number;
   shutdownTimeout?: number;
   middleware?: HttpMiddleware[];
-  onError?: (error: unknown, context?: HttpRequestContext) => unknown | Promise<unknown>;
+  onError?: (
+    appState: AppStateInstance,
+    error: unknown,
+    context?: HttpRequestContext,
+  ) => unknown | Promise<unknown>;
 }
 
 /** WebSocket connection context. / Контекст WebSocket-подключения. @public */
@@ -122,6 +137,7 @@ export interface WebSocketHandlerContext<
 
 /** WebSocket message middleware. / Middleware WebSocket-сообщения. @public */
 export type WebSocketMessageMiddleware = (
+  appState: AppStateInstance,
   context: WebSocketHandlerContext,
   next: () => Promise<unknown>,
 ) => unknown | Promise<unknown>;
@@ -132,9 +148,16 @@ export interface WebSocketOptions {
   maxPayload?: number;
   shutdownTimeout?: number;
   middleware?: WebSocketMessageMiddleware[];
-  onConnect?: (context: WebSocketLifecycleContext) => unknown | Promise<unknown>;
-  onDisconnect?: (context: WebSocketDisconnectContext) => unknown | Promise<unknown>;
+  onConnect?: (
+    appState: AppStateInstance,
+    context: WebSocketLifecycleContext,
+  ) => unknown | Promise<unknown>;
+  onDisconnect?: (
+    appState: AppStateInstance,
+    context: WebSocketDisconnectContext,
+  ) => unknown | Promise<unknown>;
   onError?: (
+    appState: AppStateInstance,
     error: unknown,
     context?: Partial<WebSocketHandlerContext>,
   ) => unknown | Promise<unknown>;
@@ -150,6 +173,7 @@ export interface EventOptions {
 
 /** Application configuration. / Конфигурация приложения. @public */
 export interface ApplicationOptions {
+  appState: AppState;
   jobs?: JobRunnerConfig;
   http?: HttpOptions;
   websocket?: WebSocketOptions;
@@ -752,7 +776,13 @@ export class Application {
    * @throws {InvalidEventOptionsError|InvalidHttpOptionsError|InvalidWebSocketOptionsError|InvalidJobOptionsError}
    * When a configuration section is invalid. / Если раздел конфигурации некорректен.
    */
-  constructor({ jobs, http, websocket, events }: ApplicationOptions = {}) {
+  #appState: AppStateInstance;
+
+  constructor({ appState, jobs, http, websocket, events }: ApplicationOptions) {
+    if (typeof appState !== 'function') {
+      throw new ApplicationStateError('Application options must contain an appState constructor');
+    }
+    this.#appState = new appState() as AppStateInstance;
     this.#jobRunner = new JobRunner(jobs);
     this.#httpOptions = normalizeHttpOptions(http);
     this.#webSocketOptions = normalizeWebSocketOptions(websocket);
@@ -848,56 +878,68 @@ export class Application {
   async listen({ port, host = '127.0.0.1' }: ListenOptions): Promise<AddressInfo> {
     if (this.#state !== 'new') throw new ApplicationStateError('Application cannot listen');
     this.#state = 'starting';
-    try {
-      this.#eventDispatcher.start({
-        jobRunner: this.#jobRunner,
-        websocket: this.#webSocketSender,
-      });
-    } catch (error) {
-      this.#state = 'failed';
-      throw error;
-    }
-    this.#listenPromise = new Promise<any>((resolve: any, reject: any) => {
-      const server = nodeHttp.createServer((request: any, response: any) => {
-        this.#handleHttpRequest(request, response).catch((error: any) => {
-          if (response.headersSent || response.destroyed) return;
-          if (request.aborted || error.code === 'ECONNRESET') {
-            response.destroy();
-            return;
-          }
-          if (
-            error instanceof InfrastructureHttpError ||
-            error instanceof InvalidHttpPathEncodingError
-          ) {
-            const status = error instanceof InvalidHttpPathEncodingError ? 400 : error.status;
-            const message =
-              error instanceof InvalidHttpPathEncodingError ? 'Bad Request' : error.message;
-            this.#writeJson(response, status, { error: message });
-            return;
-          }
-          this.#reportUnexpected(error, undefined);
-          this.#writeJson(response, 500, { error: 'Internal Server Error' });
+    this.#listenPromise = (async () => {
+      try {
+        await this.#appState.beforeAppStart?.();
+        this.#eventDispatcher.start({
+          jobRunner: this.#jobRunner,
+          websocket: this.#webSocketSender,
+        });
+      } catch (error) {
+        this.#state = 'failed';
+        throw error;
+      }
+      return await new Promise<any>((resolve: any, reject: any) => {
+        const server = nodeHttp.createServer((request: any, response: any) => {
+          this.#handleHttpRequest(request, response).catch((error: any) => {
+            if (response.headersSent || response.destroyed) return;
+            if (request.aborted || error.code === 'ECONNRESET') {
+              response.destroy();
+              return;
+            }
+            if (
+              error instanceof InfrastructureHttpError ||
+              error instanceof InvalidHttpPathEncodingError
+            ) {
+              const status = error instanceof InvalidHttpPathEncodingError ? 400 : error.status;
+              const message =
+                error instanceof InvalidHttpPathEncodingError ? 'Bad Request' : error.message;
+              this.#writeJson(response, status, { error: message });
+              return;
+            }
+            this.#reportUnexpected(error, undefined);
+            this.#writeJson(response, 500, { error: 'Internal Server Error' });
+          });
+        });
+        this.#httpServer = server;
+        this.#webSocketTransport = new WebSocketTransport({
+          appState: this.#appState,
+          controllers: this.#webSocketControllers,
+          events: this.#eventDispatcher.sender,
+          jobRunner: this.#jobRunner,
+          onError: this.#webSocketOptions.onError,
+          options: this.#webSocketOptions,
+          sessionStore: this.#webSocketSessions,
+        });
+        this.#webSocketTransport.attach(server);
+        server.once('error', (error: any) => {
+          this.#state = 'failed';
+          this.#httpServer = undefined;
+          this.#webSocketTransport = undefined;
+          reject(error);
+        });
+        server.listen({ port, host }, () => {
+          this.#state = 'running';
+          Promise.resolve(this.#appState.onAppStart?.()).then(
+            () => resolve(server.address()),
+            (error) => {
+              this.close().catch(() => {});
+              reject(error);
+            },
+          );
         });
       });
-      this.#httpServer = server;
-      this.#webSocketTransport = new WebSocketTransport({
-        controllers: this.#webSocketControllers,
-        events: this.#eventDispatcher.sender,
-        jobRunner: this.#jobRunner,
-        onError: this.#webSocketOptions.onError,
-        options: this.#webSocketOptions,
-        sessionStore: this.#webSocketSessions,
-      });
-      this.#webSocketTransport.attach(server);
-      server.once('error', (error: any) => {
-        this.#state = 'failed';
-        reject(error);
-      });
-      server.listen({ port, host }, () => {
-        this.#state = 'running';
-        resolve(server.address());
-      });
-    });
+    })();
     return this.#listenPromise as Promise<AddressInfo>;
   }
 
@@ -1004,7 +1046,8 @@ export class Application {
           });
           let result: any;
           try {
-            result = controller[match.route.handler](ctx);
+            const handler = controller[match.route.handler] as (...args: any[]) => unknown;
+            result = handler.call(controller, this.#appState, ctx);
           } catch (error) {
             result = Promise.reject(error);
           }
@@ -1021,7 +1064,7 @@ export class Application {
           return operation;
         },
       );
-      const result = await execute(ctx);
+      const result = await execute(this.#appState, ctx);
       this.#writeHttpResult(response, requestedMethod, result);
     } catch (error) {
       if (response.headersSent || response.destroyed) return;
@@ -1131,7 +1174,8 @@ export class Application {
   #reportUnexpected(error: any, ctx?: any) {
     if (!this.#httpOptions.onError) return;
     try {
-      Promise.resolve(this.#httpOptions.onError(error, ctx)).catch(console.error);
+      const onError = this.#httpOptions.onError;
+      Promise.resolve(onError(this.#appState, error, ctx)).catch(console.error);
     } catch (reportingError) {
       console.error(reportingError);
     }
@@ -1237,9 +1281,24 @@ export class Application {
           );
           await serverClosing;
         }
-        await this.#eventDispatcher.close();
-        await this.#jobRunner.close();
+        let firstError: unknown;
+        try {
+          await this.#eventDispatcher.close();
+        } catch (error) {
+          firstError = error;
+        }
+        try {
+          await this.#jobRunner.close();
+        } catch (error) {
+          firstError ??= error;
+        }
+        try {
+          await this.#appState.onAppClose?.();
+        } catch (error) {
+          firstError ??= error;
+        }
         this.#state = 'closed';
+        if (firstError) throw firstError;
       })();
     }
     return this.#closePromise;

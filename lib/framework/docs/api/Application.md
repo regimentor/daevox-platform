@@ -12,6 +12,16 @@ Public metadata of a matched HTTP route. / Метаданные найденно
 
 Normalized HTTP-handler input. / Нормализованный контекст HTTP-обработчика.
 
+## AppStateInstance
+
+Application-state instance lifecycle contract. / Контракт lifecycle экземпляра состояния приложения.
+
+## AppState
+
+Application-state constructor. / Конструктор состояния приложения.
+
+Type: function (): [object][1]
+
 ## HttpResponse
 
 Explicit HTTP-handler result. / Явный результат HTTP-обработчика.
@@ -20,7 +30,7 @@ Explicit HTTP-handler result. / Явный результат HTTP-обрабо�
 
 HTTP middleware around a resolved handler. / HTTP middleware вокруг обработчика.
 
-Type: function (context: [HttpRequestContext][1], next: function (): [Promise][2]<[HttpResponse][3]>): ([HttpResponse][3] | [Promise][2]<[HttpResponse][3]>)
+Type: function (appState: [AppStateInstance][2], context: [HttpRequestContext][3], next: function (): [Promise][4]<[HttpResponse][5]>): ([HttpResponse][5] | [Promise][4]<[HttpResponse][5]>)
 
 ## HttpRouteDeclaration
 
@@ -30,12 +40,12 @@ Declarative HTTP route. / Декларативный HTTP-маршрут.
 
 HTTP-controller class accepted for registration. / Класс HTTP-контроллера для регистрации.
 
-Type: {: HttpControllerBase, prefix: [string][4], routes: any, middleware: any?}
+Type: {: HttpControllerBase, prefix: [string][6], routes: any, middleware: any?}
 
 ### Properties
 
 - `` **any**&#x20;
-- `prefix` **[string][4]**&#x20;
+- `prefix` **[string][6]**&#x20;
 - `routes` **any**&#x20;
 - `middleware` **any?**&#x20;
 
@@ -61,7 +71,7 @@ WebSocket message-handler context. / Контекст обработчика Web
 
 WebSocket message middleware. / Middleware WebSocket-сообщения.
 
-Type: function (context: [WebSocketHandlerContext][5], next: function (): [Promise][2]\<any>): (any | [Promise][2]\<any>)
+Type: function (appState: [AppStateInstance][2], context: [WebSocketHandlerContext][7], next: function (): [Promise][4]\<any>): (any | [Promise][4]\<any>)
 
 ## WebSocketOptions
 
@@ -86,12 +96,13 @@ Composes HTTP, WebSocket, and background-job capabilities and owns their lifecyc
 
 ### Parameters
 
-- `options` **[ApplicationOptions][6]** Application configuration. / Конфигурация приложения. (optional, default `{}`)
+- `$0` **[ApplicationOptions][8]**&#x20;
 
-  - `options.jobs` &#x20;
-  - `options.http` &#x20;
-  - `options.websocket` &#x20;
-  - `options.events` &#x20;
+  - `$0.appState` &#x20;
+  - `$0.jobs` &#x20;
+  - `$0.http` &#x20;
+  - `$0.websocket` &#x20;
+  - `$0.events` &#x20;
 
 ### registerWebSocketController
 
@@ -100,8 +111,8 @@ Registers a named WebSocket-controller class before listening starts.
 
 #### Parameters
 
-- `WebSocketController` **WebSocketControllerClass** Direct subclass of [WebSocketControllerBase][7]. /
-  Прямой подкласс [WebSocketControllerBase][7].
+- `WebSocketController` **WebSocketControllerClass** Direct subclass of [WebSocketControllerBase][9]. /
+  Прямой подкласс [WebSocketControllerBase][9].
 
 Returns **this** This application. / Это приложение.
 
@@ -123,8 +134,8 @@ Registers all declared HTTP routes of an HTTP-controller class.
 
 #### Parameters
 
-- `HttpController` **[HttpControllerClass][8]** Direct subclass of [HttpControllerBase][9]. / Прямой
-  подкласс [HttpControllerBase][9].
+- `HttpController` **[HttpControllerClass][10]** Direct subclass of [HttpControllerBase][11]. / Прямой
+  подкласс [HttpControllerBase][11].
 
 Returns **this** This application. / Это приложение.
 
@@ -135,7 +146,7 @@ Starts the shared HTTP/WebSocket transport exactly once.
 
 #### Parameters
 
-- `options` **[ListenOptions][10]** Listen address. / Адрес прослушивания.
+- `options` **[ListenOptions][12]** Listen address. / Адрес прослушивания.
 
   - `options.port` &#x20;
   - `options.host` (optional, default `'127.0.0.1'`)
@@ -145,7 +156,7 @@ Starts the shared HTTP/WebSocket transport exactly once.
 - Throws **[ApplicationStateError](./errors.md#applicationstateerror)** When the application has already started or closed. / Если
   приложение уже запускалось или закрыто.
 
-Returns **[Promise][2]\<AddressInfo>** Bound address. / Фактический
+Returns **[Promise][4]\<AddressInfo>** Bound address. / Фактический
 адрес.
 
 ### close
@@ -157,16 +168,18 @@ Repeated calls return the same operation.
 
 Returns **any** Application shutdown. / Завершение приложения.
 
-[1]: #httprequestcontext
-[2]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise
-[3]: #httpresponse
-[4]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
-[5]: #websockethandlercontext
-[6]: #applicationoptions
-[7]: ./WebSocketControllerBase.md#websocketcontrollerbase
-[8]: #httpcontrollerclass
-[9]: ./HttpControllerBase.md#httpcontrollerbase
-[10]: #listenoptions
+[1]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object
+[2]: #appstateinstance
+[3]: #httprequestcontext
+[4]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise
+[5]: #httpresponse
+[6]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
+[7]: #websockethandlercontext
+[8]: #applicationoptions
+[9]: ./WebSocketControllerBase.md#websocketcontrollerbase
+[10]: #httpcontrollerclass
+[11]: ./HttpControllerBase.md#httpcontrollerbase
+[12]: #listenoptions
 
 ## TypeScript declarations / TypeScript-декларации
 
@@ -196,6 +209,22 @@ export interface HttpRequestContext<Body = any, State extends object = Record<st
 }
 ```
 
+### `AppStateInstance`
+
+```ts
+export interface AppStateInstance {
+  beforeAppStart?(): void | Promise<void>;
+  onAppStart?(): void | Promise<void>;
+  onAppClose?(): void | Promise<void>;
+}
+```
+
+### `AppState`
+
+```ts
+export type AppState = new () => object;
+```
+
 ### `HttpResponse`
 
 ```ts
@@ -210,6 +239,7 @@ export interface HttpResponse<Body = unknown> {
 
 ```ts
 export type HttpMiddleware = (
+  appState: AppStateInstance,
   context: HttpRequestContext,
   next: () => Promise<HttpResponse>,
 ) => HttpResponse | Promise<HttpResponse>;
@@ -244,7 +274,11 @@ export interface HttpOptions {
   bodyLimit?: number;
   shutdownTimeout?: number;
   middleware?: HttpMiddleware[];
-  onError?: (error: unknown, context?: HttpRequestContext) => unknown | Promise<unknown>;
+  onError?: (
+    appState: AppStateInstance,
+    error: unknown,
+    context?: HttpRequestContext,
+  ) => unknown | Promise<unknown>;
 }
 ```
 
@@ -294,6 +328,7 @@ export interface WebSocketHandlerContext<
 
 ```ts
 export type WebSocketMessageMiddleware = (
+  appState: AppStateInstance,
   context: WebSocketHandlerContext,
   next: () => Promise<unknown>,
 ) => unknown | Promise<unknown>;
@@ -307,9 +342,16 @@ export interface WebSocketOptions {
   maxPayload?: number;
   shutdownTimeout?: number;
   middleware?: WebSocketMessageMiddleware[];
-  onConnect?: (context: WebSocketLifecycleContext) => unknown | Promise<unknown>;
-  onDisconnect?: (context: WebSocketDisconnectContext) => unknown | Promise<unknown>;
+  onConnect?: (
+    appState: AppStateInstance,
+    context: WebSocketLifecycleContext,
+  ) => unknown | Promise<unknown>;
+  onDisconnect?: (
+    appState: AppStateInstance,
+    context: WebSocketDisconnectContext,
+  ) => unknown | Promise<unknown>;
   onError?: (
+    appState: AppStateInstance,
     error: unknown,
     context?: Partial<WebSocketHandlerContext>,
   ) => unknown | Promise<unknown>;
@@ -331,6 +373,7 @@ export interface EventOptions {
 
 ```ts
 export interface ApplicationOptions {
+  appState: AppState;
   jobs?: JobRunnerConfig;
   http?: HttpOptions;
   websocket?: WebSocketOptions;

@@ -1,7 +1,11 @@
 import { HttpError, type HttpRequestContext, type HttpResponse } from '@daevox/framework';
 import { verifyToken } from '../services/jwt.service.ts';
 
-export async function authMiddleware(ctx: HttpRequestContext, next: () => Promise<HttpResponse>) {
+export async function authMiddleware(
+  _appState: any,
+  ctx: HttpRequestContext,
+  next: () => Promise<HttpResponse>,
+) {
   const { headers } = ctx;
   const authHeader = headers.get('Authorization');
   if (!authHeader) {

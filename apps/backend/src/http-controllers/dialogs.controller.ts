@@ -29,7 +29,7 @@ export class DialogsController extends HttpControllerBase {
     this.#db = AppState.instance.getDb();
   }
 
-  async createDialog(ctx: HttpRequestContext) {
+  async createDialog(_appState: any, ctx: HttpRequestContext) {
     const { login } = ctx.state as { login: string };
     const [user] = await this.#db.select().from(schema.users).where(eq(schema.users.login, login));
     if (!user) {

@@ -1,3 +1,6 @@
+class TestAppState {
+  readonly marker = undefined;
+}
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import net from 'node:net';
@@ -147,7 +150,7 @@ test('неожиданная ошибка HTTP Upgrade возвращает 500 
   const transport = new WebSocketTransport({
     controllers: undefined,
     jobRunner: undefined,
-    onError(error: any, ctx: any) {
+    onError(_appState: any, error: any, ctx: any) {
       reported({ error, ctx });
     },
     options: { path: '/websocket' },
@@ -170,8 +173,9 @@ test('неожиданная ошибка HTTP Upgrade возвращает 500 
 test('daevox.v1 принимает handshake только на едином endpoint с subprotocol', async () => {
   const connections: any[] = [];
   const app = new Application({
+    appState: TestAppState,
     websocket: {
-      onConnect: (ctx: any) => {
+      onConnect: (_appState: any, ctx: any) => {
         connections.push(ctx);
       },
     },
@@ -212,9 +216,10 @@ test('onConnect может назначить clientId, который сохр�
     resolveDisconnected = resolve;
   });
   const app = new Application({
+    appState: TestAppState,
     websocket: {
       onConnect: () => 'stable-client',
-      onDisconnect: (ctx: any) => {
+      onDisconnect: (_appState: any, ctx: any) => {
         disconnectContext = ctx;
         resolveDisconnected();
       },
@@ -223,7 +228,7 @@ test('onConnect может назначить clientId, который сохр�
   class ContextController extends WebSocketControllerBase {
     static name = 'context';
     static events = [{ name: 'read', handler: 'read' }];
-    read(ctx: any) {
+    read(_appState: any, ctx: any) {
       messageContext = ctx;
       return { clientId: ctx.clientId };
     }
@@ -247,6 +252,7 @@ test('onConnect может назначить clientId, который сохр�
 
 test('HTTP-контроллер отправляет server push через this.websocket', async () => {
   const app = new Application({
+    appState: TestAppState,
     websocket: { onConnect: () => 'push-client' },
   });
   app.registerWebSocketController(notificationsController());
@@ -292,12 +298,12 @@ test('daevox.v1 маршрутизирует envelope и формирует ре
       super(options);
       instances.push(this);
     }
-    subscribe(ctx: any) {
+    subscribe(_appState: any, ctx: any) {
       contexts.push(ctx);
       return { subscribed: ctx.body.topic };
     }
   }
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   app.registerWebSocketController(NotificationsController);
   const address = await app.listen({ port: 0 });
   const socket = await opened(`ws://${address.address}:${address.port}/websocket`);
@@ -360,13 +366,16 @@ test('WebSocket middleware short-circuit не создаёт контролле�
       super(options);
       instances += 1;
     }
-    handle(ctx: any) {
+    handle(_appState: any, ctx: any) {
       return { event: ctx.event };
     }
   }
   const app = new Application({
+    appState: TestAppState,
     websocket: {
-      middleware: [(ctx: any, next: any) => (ctx.event === 'silent' ? undefined : next())],
+      middleware: [
+        (_appState: any, ctx: any, next: any) => (ctx.event === 'silent' ? undefined : next()),
+      ],
     },
   });
   app.registerWebSocketController(ShortCircuitController);
@@ -395,14 +404,15 @@ test('ошибки WebSocket middleware изолированы и сохраня
       { name: 'duplicate-next', handler: 'handle' },
       { name: 'healthy', handler: 'handle' },
     ];
-    handle(ctx: any) {
+    handle(_appState: any, ctx: any) {
       return { event: ctx.event };
     }
   }
   const app = new Application({
+    appState: TestAppState,
     websocket: {
       middleware: [
-        async (ctx: any, next: any) => {
+        async (_appState: any, ctx: any, next: any) => {
           if (ctx.event === 'expected') throw new WebSocketEventError('ACCESS_DENIED');
           if (ctx.event === 'unexpected') throw new Error('middleware secret');
           if (ctx.event === 'duplicate-next') {
@@ -412,7 +422,7 @@ test('ошибки WebSocket middleware изолированы и сохраня
           return next();
         },
       ],
-      onError(error: any, ctx: any) {
+      onError(_appState: any, error: any, ctx: any) {
         errors.push({ error, ctx });
       },
     },
@@ -461,14 +471,15 @@ test('WebSocket state изолирован между сессиями', async (
   class StateController extends WebSocketControllerBase {
     static name = 'session-state';
     static events = [{ name: 'increment', handler: 'increment' }];
-    increment(ctx: any) {
+    increment(_appState: any, ctx: any) {
       return { count: ctx.state.count };
     }
   }
   const app = new Application({
+    appState: TestAppState,
     websocket: {
       middleware: [
-        (ctx: any, next: any) => {
+        (_appState: any, ctx: any, next: any) => {
           ctx.state.count = (ctx.state.count ?? 0) + 1;
           return next();
         },
@@ -499,13 +510,13 @@ test('WebSocket state изолирован между сессиями', async (
 test('WebSocket middleware используют снимки и не выполняются до маршрутизации', async () => {
   let calls = 0;
   const applicationMiddleware = [
-    (_ctx: any, next: any) => {
+    (_appState: any, _ctx: any, next: any) => {
       calls += 1;
       return next();
     },
   ];
-  const controllerMiddleware = [(_ctx: any, next: any) => next()];
-  const eventMiddleware = [(_ctx: any, next: any) => next()];
+  const controllerMiddleware = [(_appState: any, _ctx: any, next: any) => next()];
+  const eventMiddleware = [(_appState: any, _ctx: any, next: any) => next()];
   class SnapshotMiddlewareController extends WebSocketControllerBase {
     static name = 'snapshot-middleware';
     static middleware = controllerMiddleware;
@@ -514,7 +525,10 @@ test('WebSocket middleware используют снимки и не выпол�
       return { ok: true };
     }
   }
-  const app = new Application({ websocket: { middleware: applicationMiddleware } });
+  const app = new Application({
+    appState: TestAppState,
+    websocket: { middleware: applicationMiddleware },
+  });
   app.registerWebSocketController(SnapshotMiddlewareController);
   applicationMiddleware.push(() => ({ changed: true }));
   controllerMiddleware.push(() => ({ changed: true }));
@@ -558,7 +572,7 @@ test('WebSocket middleware выполняются на трёх уровнях �
     disconnected = resolve;
   });
   const middleware = (name: any) =>
-    async function (this: any, ctx: any, next: any) {
+    async function (this: any, _appState: any, ctx: any, next: any) {
       assert.equal(this, undefined);
       messageContexts.push(ctx);
       calls.push(`${name}:before`);
@@ -578,7 +592,7 @@ test('WebSocket middleware выполняются на трёх уровнях �
         middleware: [middleware('event')],
       },
     ];
-    run(ctx: any) {
+    run(_appState: any, ctx: any) {
       messageContexts.push(ctx);
       calls.push('handler');
       return { state: ctx.state, controller: ctx.controller, event: ctx.event };
@@ -586,13 +600,14 @@ test('WebSocket middleware выполняются на трёх уровнях �
   }
 
   const app = new Application({
+    appState: TestAppState,
     websocket: {
       middleware: [middleware('application')],
-      onConnect(ctx: any) {
+      onConnect(_appState: any, ctx: any) {
         connectContext = ctx;
         ctx.state.connected = true;
       },
-      onDisconnect(ctx: any) {
+      onDisconnect(_appState: any, ctx: any) {
         disconnectContext = ctx;
         disconnected();
       },
@@ -654,7 +669,7 @@ test('маршрутизация использует копию метадан�
       return { snapshot: true };
     }
   }
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   app.registerWebSocketController(SnapshotController);
   SnapshotController.name = 'changed-controller';
   event.name = 'changed-event';
@@ -682,7 +697,8 @@ test('маршрутизация использует копию метадан�
 test('неизвестный WebSocket-контроллер возвращает UNKNOWN_CONTROLLER и сохраняет сессию', async () => {
   const errors: any[] = [];
   const app = new Application({
-    websocket: { onError: (error: any, ctx: any) => errors.push({ error, ctx }) },
+    appState: TestAppState,
+    websocket: { onError: (_appState: any, error: any, ctx: any) => errors.push({ error, ctx }) },
   });
   app.registerWebSocketController(notificationsController());
   const address = await app.listen({ port: 0 });
@@ -714,7 +730,8 @@ test('неизвестный WebSocket-контроллер возвращает
 test('неизвестное WebSocket-событие возвращает UNKNOWN_EVENT', async () => {
   const errors: any[] = [];
   const app = new Application({
-    websocket: { onError: (error: any, ctx: any) => errors.push({ error, ctx }) },
+    appState: TestAppState,
+    websocket: { onError: (_appState: any, error: any, ctx: any) => errors.push({ error, ctx }) },
   });
   app.registerWebSocketController(notificationsController());
   const address = await app.listen({ port: 0 });
@@ -739,7 +756,8 @@ test('неизвестное WebSocket-событие возвращает UNKNO
 test('адресуемый неверный envelope возвращает INVALID_MESSAGE и продолжает очередь', async () => {
   const errors: any[] = [];
   const app = new Application({
-    websocket: { onError: (error: any, ctx: any) => errors.push({ error, ctx }) },
+    appState: TestAppState,
+    websocket: { onError: (_appState: any, error: any, ctx: any) => errors.push({ error, ctx }) },
   });
   app.registerWebSocketController(notificationsController());
   const address = await app.listen({ port: 0 });
@@ -774,7 +792,8 @@ test('адресуемый неверный envelope возвращает INVALI
 test('неадресуемый JSON закрывает сессию кодом 1007, binary frame — кодом 1003', async () => {
   const errors: any[] = [];
   const app = new Application({
-    websocket: { onError: (error: any) => errors.push(error) },
+    appState: TestAppState,
+    websocket: { onError: (_appState: any, error: any) => errors.push(error) },
   });
   app.registerWebSocketController(notificationsController());
   const address = await app.listen({ port: 0 });
@@ -803,7 +822,7 @@ test('невалидный UTF-8 в text frame закрывает сессию �
       handled = true;
     }
   }
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   app.registerWebSocketController(Utf8Controller);
   const address = await app.listen({ port: 0 });
   const socket = await rawWebSocket(address);
@@ -823,7 +842,7 @@ test('невалидный UTF-8 в text frame закрывает сессию �
 });
 
 test('fragmented WebSocket-сообщение собирается из нескольких continuation frames', async () => {
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   app.registerWebSocketController(notificationsController());
   const address = await app.listen({ port: 0 });
   const socket = await rawWebSocket(address);
@@ -857,7 +876,7 @@ test('fragmented WebSocket-сообщение собирается из неск
 });
 
 test('WebSocket transport отвечает pong и отклоняет немаскированный client frame', async () => {
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   const address = await app.listen({ port: 0 });
 
   let socket = await rawWebSocket(address);
@@ -877,7 +896,7 @@ test('WebSocket transport отвечает pong и отклоняет немас
 });
 
 test('WebSocket transport отклоняет невозможную длину и слишком большой control frame', async () => {
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   const address = await app.listen({ port: 0 });
 
   let socket = await rawWebSocket(address);
@@ -901,7 +920,7 @@ test('WebSocket transport отклоняет невозможную длину �
 });
 
 test('WebSocket transport отклоняет некорректный URL и версию handshake', async () => {
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   const address = await app.listen({ port: 0 });
 
   let result = await rawRequest(
@@ -940,7 +959,8 @@ test('ошибка handler скрывается как HANDLER_ERROR, невер
     }
   }
   const app = new Application({
-    websocket: { onError: (error: any, ctx: any) => errors.push({ error, ctx }) },
+    appState: TestAppState,
+    websocket: { onError: (_appState: any, error: any, ctx: any) => errors.push({ error, ctx }) },
   });
   app.registerWebSocketController(ResultsController);
   const address = await app.listen({ port: 0 });
@@ -979,9 +999,10 @@ test('ошибка handler скрывается как HANDLER_ERROR, невер
 test('входящее сообщение больше maxPayload закрывает сессию кодом 1009 и сообщает ошибку', async () => {
   const errors: any[] = [];
   const app = new Application({
+    appState: TestAppState,
     websocket: {
       maxPayload: 50,
-      onError: (error: any, ctx: any) => errors.push({ error, ctx }),
+      onError: (_appState: any, error: any, ctx: any) => errors.push({ error, ctx }),
     },
   });
   app.registerWebSocketController(notificationsController());
@@ -1016,13 +1037,13 @@ test('сообщения одной сессии последовательны,
   class QueueController extends WebSocketControllerBase {
     static name = 'queue';
     static events = [{ name: 'run', handler: 'run' }];
-    async run(ctx: any) {
+    async run(_appState: any, ctx: any) {
       started.push(`${ctx.sessionId}:${ctx.body.value}`);
       if (ctx.body.value === 'first') await firstBlocked;
       return { value: ctx.body.value };
     }
   }
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   app.registerWebSocketController(QueueController);
   const address = await app.listen({ port: 0 });
   const url = `ws://${address.address}:${address.port}/websocket`;
@@ -1070,7 +1091,7 @@ test('undefined не создаёт ответ и не мешает следую
       return { replied: true };
     }
   }
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   app.registerWebSocketController(OptionalResponseController);
   const address = await app.listen({ port: 0 });
   const socket = await opened(`ws://${address.address}:${address.port}/websocket`);
@@ -1092,8 +1113,9 @@ test('onDisconnect вызывается один раз с отменённым 
     disconnected = resolve;
   });
   const app = new Application({
+    appState: TestAppState,
     websocket: {
-      onDisconnect(ctx: any) {
+      onDisconnect(_appState: any, ctx: any) {
         disconnects.push(ctx);
         disconnected();
       },
@@ -1121,6 +1143,7 @@ test('Application.close ожидает асинхронный onDisconnect пр�
     releaseDisconnect = resolve;
   });
   const app = new Application({
+    appState: TestAppState,
     websocket: { onDisconnect: () => disconnectPending },
   });
   app.registerWebSocketController(notificationsController());
@@ -1143,7 +1166,7 @@ test('Application.close ожидает асинхронный onDisconnect пр�
 });
 
 test('Application.close принудительно завершает WebSocket peer без ответного close', async () => {
-  const app = new Application({ websocket: { shutdownTimeout: 10 } });
+  const app = new Application({ appState: TestAppState, websocket: { shutdownTimeout: 10 } });
   const address = await app.listen({ port: 0 });
   const socket = net.connect({
     allowHalfOpen: true,
@@ -1191,7 +1214,7 @@ test('исходящий maxPayload возвращает INVALID_RESPONSE или
   }
   const input = JSON.stringify({ controller: 'c', event: 'e', body: {} });
 
-  let app = new Application({ websocket: { maxPayload: 80 } });
+  let app = new Application({ appState: TestAppState, websocket: { maxPayload: 80 } });
   app.registerWebSocketController(LargeController);
   let address = await app.listen({ port: 0 });
   let socket = await opened(`ws://${address.address}:${address.port}/websocket`);
@@ -1201,7 +1224,7 @@ test('исходящий maxPayload возвращает INVALID_RESPONSE или
   socket.close();
   await app.close();
 
-  app = new Application({ websocket: { maxPayload: 70 } });
+  app = new Application({ appState: TestAppState, websocket: { maxPayload: 70 } });
   app.registerWebSocketController(LargeController);
   address = await app.listen({ port: 0 });
   socket = await opened(`ws://${address.address}:${address.port}/websocket`);
@@ -1215,11 +1238,11 @@ test('daevox.v1 принимает и отправляет envelopes с 16- и 6
   class LargeFramesController extends WebSocketControllerBase {
     static name = 'frames';
     static events = [{ name: 'echo', handler: 'echo' }];
-    echo(ctx: any) {
+    echo(_appState: any, ctx: any) {
       return { value: ctx.body.value };
     }
   }
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   app.registerWebSocketController(LargeFramesController);
   const address = await app.listen({ port: 0 });
   const socket = await opened(`ws://${address.address}:${address.port}/websocket`);
@@ -1240,11 +1263,12 @@ test('ошибка onConnect отклоняет handshake с 500, ошибка o
   const disconnectError = new Error('disconnect failed');
   const errors: any[] = [];
   let app = new Application({
+    appState: TestAppState,
     websocket: {
-      onConnect() {
+      onConnect(_appState: any, _ctx: any) {
         throw connectError;
       },
-      onError: (error: any, ctx: any) => errors.push({ error, ctx }),
+      onError: (_appState: any, error: any, ctx: any) => errors.push({ error, ctx }),
     },
   });
   app.registerWebSocketController(notificationsController());
@@ -1263,11 +1287,12 @@ test('ошибка onConnect отклоняет handshake с 500, ошибка o
     errorReported = resolve;
   });
   app = new Application({
+    appState: TestAppState,
     websocket: {
-      onDisconnect() {
+      onDisconnect(_appState: any, _ctx: any) {
         throw disconnectError;
       },
-      onError(error: any, ctx: any) {
+      onError(_appState: any, error: any, ctx: any) {
         errors.push({ error, ctx });
         errorReported();
       },
@@ -1286,9 +1311,10 @@ test('ошибка onConnect отклоняет handshake с 500, ошибка o
 test('некорректный результат onConnect отклоняет handshake с 500 и передаётся в onError', async () => {
   const errors: any[] = [];
   const app = new Application({
+    appState: TestAppState,
     websocket: {
       onConnect: () => '',
-      onError: (error: any) => errors.push(error),
+      onError: (_appState: any, error: any) => errors.push(error),
     },
   });
   const address = await app.listen({ port: 0 });
@@ -1309,6 +1335,7 @@ test('HttpError из onConnect ожидаемо отклоняет WebSocket han
   const errors: any[] = [];
   let disconnects = 0;
   const app = new Application({
+    appState: TestAppState,
     websocket: {
       onConnect() {
         throw new HttpError(401, {
@@ -1319,7 +1346,7 @@ test('HttpError из onConnect ожидаемо отклоняет WebSocket han
       onDisconnect() {
         disconnects += 1;
       },
-      onError(error: any) {
+      onError(_appState: any, error: any) {
         errors.push(error);
       },
     },
@@ -1346,8 +1373,9 @@ test('HttpError из onConnect ожидаемо отклоняет WebSocket han
 
 test('HttpError из onConnect сохраняет строковое и бинарное тело handshake-ответа', async () => {
   const app = new Application({
+    appState: TestAppState,
     websocket: {
-      onConnect(ctx: any) {
+      onConnect(_appState: any, ctx: any) {
         const binary = ctx.query.has('binary');
         throw new HttpError(403, { body: binary ? new Uint8Array([0, 1, 2]) : 'Forbidden' });
       },
@@ -1392,6 +1420,7 @@ test('отклонённый Promise websocket.onError безопасно пер
     }
   }
   const app = new Application({
+    appState: TestAppState,
     websocket: { onError: () => Promise.reject(reportingError) },
   });
   app.registerWebSocketController(FailingController);
@@ -1413,6 +1442,7 @@ test('синхронная ошибка websocket.onError безопасно п�
   });
   const consoleError = t.mock.method(console, 'error', () => consoleCalled());
   const app = new Application({
+    appState: TestAppState,
     websocket: {
       onError() {
         throw reportingError;

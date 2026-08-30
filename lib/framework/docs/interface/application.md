@@ -25,7 +25,8 @@
 ```ts
 import { Application } from '@daevox/framework';
 
-const application = new Application();
+class AppState {}
+const application = new Application({ appState: AppState });
 const address = await application.listen({ host: '127.0.0.1', port: 0 });
 console.log(`listening on ${address.address}:${address.port}`);
 await application.close();
@@ -45,6 +46,10 @@ node example.ts
 - Бюджеты `http`, `websocket`, `events` и `jobs` независимы и складываются.
 - Transport object может завершиться раньше пользовательского handler; shutdown отслеживает именно
   settlement handler до соответствующего cutoff.
+- `ApplicationOptions.appState` обязателен и принимает класс без аргументов. `Application` создаёт
+  один экземпляр и передаёт его первым аргументом HTTP/WebSocket execution paths.
+- `beforeAppStart`, `onAppStart` и `onAppClose` ожидаются как sync, так и async hooks; ошибка
+  `onAppClose` сохраняет первую ошибку, но не прерывает дальнейшее закрытие.
 
 ## Авторитетные решения
 

@@ -1,3 +1,6 @@
+class TestAppState {
+  readonly marker = undefined;
+}
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -47,7 +50,7 @@ test('Application регистрирует корректный EventListener д
     created() {}
   }
 
-  const application = new Application();
+  const application = new Application({ appState: TestAppState });
   t.after(() => application.close());
 
   assert.equal(application.registerEventListener(AuditListener), application);
@@ -158,7 +161,7 @@ test('registerEventListener отклоняет классы вне строго�
   ];
 
   for (const candidate of invalid) {
-    const application = new Application();
+    const application = new Application({ appState: TestAppState });
     assert.throws(() => application.registerEventListener(candidate), InvalidEventListenerError);
     await application.close();
   }
@@ -184,7 +187,7 @@ test('registerEventListener атомарно отклоняет повтор к�
     ];
     created() {}
   }
-  const application = new Application();
+  const application = new Application({ appState: TestAppState });
   t.after(() => application.close());
 
   application.registerEventListener(First);
@@ -204,7 +207,7 @@ test('registerEventListener запрещён после начала listen', as
     static events = [{ name: 'event', data: Data, handler: 'event' }];
     event() {}
   }
-  const application = new Application();
+  const application = new Application({ appState: TestAppState });
   t.after(() => application.close());
   await application.listen({ port: 0 });
 
@@ -226,7 +229,10 @@ test('Application строго проверяет секцию events', () => {
   ];
 
   for (const events of invalidSections) {
-    assert.throws(() => new Application({ events } as any), InvalidEventOptionsError);
+    assert.throws(
+      () => new Application({ appState: TestAppState, events } as any),
+      InvalidEventOptionsError,
+    );
   }
 });
 
@@ -283,7 +289,7 @@ test('HTTP-контроллер fire-and-forget передаёт исходны�
     }
   }
 
-  const application = new Application();
+  const application = new Application({ appState: TestAppState });
   t.after(async () => {
     releaseHandler();
     await application.close();

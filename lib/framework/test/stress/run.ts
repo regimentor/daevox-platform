@@ -1,3 +1,6 @@
+class TestAppState {
+  readonly marker = undefined;
+}
 import { spawn } from 'node:child_process';
 
 // oxlint-disable typescript/no-extraneous-class -- DTO classes intentionally provide nominal identity.
@@ -288,7 +291,10 @@ async function createJobResource(config: any, poolSize: any, durationMode: any) 
       }
     }
   }
-  const application = new Application({ jobs: { poolSize, queueSize: config.queueSize } });
+  const application = new Application({
+    appState: TestAppState,
+    jobs: { poolSize, queueSize: config.queueSize },
+  });
   application.registerHttpController(StressHttpController);
   const address = await application.listen({ port: 0 });
   return {
@@ -305,7 +311,7 @@ async function queueScenario(config: any) {
   class QueueController extends HttpControllerBase {
     static prefix = '/stress';
     static routes = [{ method: 'POST', path: '/queue', handler: 'queue' }];
-    async queue(ctx: any) {
+    async queue(_appState: any, ctx: any) {
       submissions += 1;
       try {
         const result = await this.jobRunner.run(StressJob, {
@@ -321,7 +327,10 @@ async function queueScenario(config: any) {
       }
     }
   }
-  const application = new Application({ jobs: { poolSize: 1, queueSize: config.queueSize } });
+  const application = new Application({
+    appState: TestAppState,
+    jobs: { poolSize: 1, queueSize: config.queueSize },
+  });
   application.registerHttpController(QueueController);
   const address = await application.listen({ port: 0 });
   try {
@@ -406,7 +415,7 @@ async function applicationEventScenario(config: any) {
   class EventController extends HttpControllerBase {
     static prefix = '/stress/events';
     static routes = [{ method: 'POST', path: '/', handler: 'push' }];
-    push(ctx: any) {
+    push(_appState: any, ctx: any) {
       const listener = ctx.body.parallel ? 'stress-parallel' : 'stress-serial';
       try {
         this.events.push({ listener, event: 'work' }, new StressEvent(ctx.body.label));
@@ -420,7 +429,10 @@ async function applicationEventScenario(config: any) {
     }
   }
 
-  const application = new Application({ events: { queueSize: config.queueSize } });
+  const application = new Application({
+    appState: TestAppState,
+    events: { queueSize: config.queueSize },
+  });
   application.registerEventListener(SerialEventListener);
   application.registerEventListener(ParallelEventListener);
   application.registerHttpController(EventController);
@@ -543,7 +555,7 @@ async function applicationEventThroughput(config: any) {
   class ThroughputHttpController extends HttpControllerBase {
     static prefix = '/stress/event-throughput';
     static routes = [{ method: 'POST', path: '/', handler: 'push' }];
-    push(ctx: any) {
+    push(_appState: any, ctx: any) {
       const result = push(this.events, ctx.body);
       return { status: result.accepted ? 202 : 503, body: result };
     }
@@ -552,12 +564,13 @@ async function applicationEventThroughput(config: any) {
   class ThroughputWebSocketController extends WebSocketControllerBase {
     static name = 'event-throughput';
     static events = [{ name: 'push', handler: 'push' }];
-    push(ctx: any) {
+    push(_appState: any, ctx: any) {
       return push(this.events, ctx.body);
     }
   }
 
   const application = new Application({
+    appState: TestAppState,
     events: {
       onError: () => {
         observedErrors += 1;
@@ -734,7 +747,7 @@ async function applicationEventShutdownChaos(config: any) {
     class ChaosHttpController extends HttpControllerBase {
       static prefix = '/stress/event-chaos';
       static routes = [{ method: 'POST', path: '/', handler: 'push' }];
-      push(ctx: any) {
+      push(_appState: any, ctx: any) {
         return { status: 202, body: push(this.events, ctx.body.id) };
       }
     }
@@ -742,12 +755,13 @@ async function applicationEventShutdownChaos(config: any) {
     class ChaosWebSocketController extends WebSocketControllerBase {
       static name = 'event-chaos';
       static events = [{ name: 'push', handler: 'push' }];
-      push(ctx: any) {
+      push(_appState: any, ctx: any) {
         return push(this.events, ctx.body.id);
       }
     }
 
     const application = new Application({
+      appState: TestAppState,
       events: {
         onError(error: any) {
           if (error instanceof EventDroppedError) dropped += 1;
@@ -842,11 +856,14 @@ async function createWebSocketApplication() {
   class StressWebSocketController extends WebSocketControllerBase {
     static name = 'stress';
     static events = [{ name: 'echo', handler: 'echo' }];
-    async echo(ctx: any) {
+    async echo(_appState: any, ctx: any) {
       return ctx.body;
     }
   }
-  const application = new Application({ websocket: { maxPayload: 64 * 1024 } });
+  const application = new Application({
+    appState: TestAppState,
+    websocket: { maxPayload: 64 * 1024 },
+  });
   application.registerWebSocketController(StressWebSocketController);
   const address = await application.listen({ port: 0 });
   return {
@@ -1045,12 +1062,15 @@ async function mixedProfile(config: any) {
   class MixedWebSocketController extends WebSocketControllerBase {
     static name = 'mixed';
     static events = [{ name: 'echo', handler: 'echo' }];
-    async echo(ctx: any) {
+    async echo(_appState: any, ctx: any) {
       return ctx.body;
     }
   }
   const poolSize = config.poolSizes.at(-1);
-  const application = new Application({ jobs: { poolSize, queueSize: config.queueSize } });
+  const application = new Application({
+    appState: TestAppState,
+    jobs: { poolSize, queueSize: config.queueSize },
+  });
   application.registerHttpController(MixedHttpController);
   application.registerWebSocketController(MixedWebSocketController);
   const address = await application.listen({ port: 0 });

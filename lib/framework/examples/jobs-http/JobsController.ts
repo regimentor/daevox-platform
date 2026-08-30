@@ -1,7 +1,7 @@
 import { HttpControllerBase, HttpError } from '@daevox/framework';
 import SumJob from './SumJob.ts';
 
-function validateValues(ctx: any, next: any) {
+function validateValues(_appState: any, ctx: any, next: any) {
   const values = ctx.body?.values;
   if (!Array.isArray(values) || values.some((value: any) => !Number.isFinite(value))) {
     throw new HttpError(422, {
@@ -12,7 +12,7 @@ function validateValues(ctx: any, next: any) {
   return next();
 }
 
-function markSumOperation(ctx: any, next: any) {
+function markSumOperation(_appState: any, ctx: any, next: any) {
   ctx.state.operation = 'sum';
   return next();
 }
@@ -29,7 +29,7 @@ export class JobsController extends HttpControllerBase {
     },
   ];
 
-  async sum(ctx: any) {
+  async sum(_appState: any, ctx: any) {
     const result = await this.jobRunner.run(
       SumJob,
       { values: ctx.state.values },

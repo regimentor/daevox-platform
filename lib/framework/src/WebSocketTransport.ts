@@ -3,6 +3,7 @@ import http from 'node:http';
 import type { IncomingMessage, Server } from 'node:http';
 import type { Socket } from 'node:net';
 import type {
+  AppStateInstance,
   NormalizedWebSocketOptions,
   WebSocketHandlerContext,
   WebSocketLifecycleContext,
@@ -44,6 +45,7 @@ interface WebSocketConnectionOptions {
 
 /** Dependencies owned by the WebSocket transport. / Зависимости WebSocket-транспорта. @private */
 interface WebSocketTransportDependencies {
+  appState: AppStateInstance;
   controllers: WebSocketControllerRegistry;
   events: EventSender;
   jobRunner: JobRunner;
@@ -563,6 +565,8 @@ export class WebSocketTransport {
    * @private
    */
   #sessionStore: WebSocketSessionStore;
+  /** Shared application state. / Общее состояние приложения. @private */
+  #appState: AppStateInstance;
 
   /**
 
@@ -575,6 +579,7 @@ export class WebSocketTransport {
 
    */
   constructor({
+    appState,
     controllers,
     events,
     jobRunner,
@@ -588,6 +593,7 @@ export class WebSocketTransport {
     this.#onError = onError;
     this.#options = options;
     this.#sessionStore = sessionStore;
+    this.#appState = appState;
   }
 
   /**
@@ -671,7 +677,8 @@ export class WebSocketTransport {
     });
     this.#pendingUpgrades.set(abortController, socket);
     try {
-      const result = await this.#options.onConnect?.(connectContext);
+      const onConnect = this.#options.onConnect;
+      const result = await (onConnect ? onConnect(this.#appState, connectContext) : undefined);
       if (result !== undefined && (typeof result !== 'string' || result.length === 0)) {
         throw new TypeError('onConnect must return undefined or a non-empty string');
       }
@@ -800,12 +807,13 @@ export class WebSocketTransport {
                     jobRunner: this.#jobRunner,
                     events: this.#events,
                   });
-                  return (controller as unknown as Record<string, (context: unknown) => unknown>)[
-                    handler
-                  ](handlerContext);
+                  const method = (
+                    controller as unknown as Record<string, (...args: unknown[]) => unknown>
+                  )[handler];
+                  return method.call(controller, this.#appState, handlerContext);
                 },
               );
-              result = await execute(handlerContext);
+              result = await execute(this.#appState, handlerContext);
             } catch (error) {
               if (error instanceof WebSocketEventError) {
                 connection.send(
@@ -865,7 +873,12 @@ export class WebSocketTransport {
         this.#sessionStore.remove(sessionId);
         const disconnectPromise = Promise.resolve()
           .then(() =>
-            this.#options.onDisconnect?.(Object.freeze({ ...finalConnectContext, code, reason })),
+            this.#options.onDisconnect
+              ? this.#options.onDisconnect(
+                  this.#appState,
+                  Object.freeze({ ...finalConnectContext, code, reason }),
+                )
+              : undefined,
           )
           .catch((error: unknown) => this.#report(error, finalConnectContext))
           .finally(() => this.#disconnectPromises.delete(disconnectPromise));
@@ -955,7 +968,7 @@ export class WebSocketTransport {
   ): void {
     if (!this.#onError) return;
     try {
-      Promise.resolve(this.#onError(error, ctx)).catch(console.error);
+      Promise.resolve(this.#onError(this.#appState, error, ctx)).catch(console.error);
     } catch (reportingError) {
       console.error(reportingError);
     }

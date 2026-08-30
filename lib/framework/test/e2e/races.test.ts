@@ -1,3 +1,6 @@
+class TestAppState {
+  readonly marker = undefined;
+}
 import assert from 'node:assert/strict';
 import nodeHttp from 'node:http';
 import test from 'node:test';
@@ -272,7 +275,7 @@ async function cancelWhileReadingBody(iteration: any) {
       return { status: 200 };
     }
   }
-  const application = new Application();
+  const application = new Application({ appState: TestAppState });
   application.registerHttpController(BodyController);
   const address = await application.listen({ port: 0 });
   try {
@@ -310,7 +313,7 @@ async function cancelDuringHandler(iteration: any) {
   class HandlerController extends HttpControllerBase {
     static prefix = '/handler';
     static routes = [{ method: 'GET', path: '/', handler: 'run' }];
-    async run(ctx: any) {
+    async run(_appState: any, ctx: any) {
       started.resolve();
       ctx.signal.addEventListener('abort', aborted.resolve, { once: true });
       await releaseHandler.promise;
@@ -318,7 +321,10 @@ async function cancelDuringHandler(iteration: any) {
     }
   }
   const errors: any[] = [];
-  const application = new Application({ http: { onError: (error: any) => errors.push(error) } });
+  const application = new Application({
+    appState: TestAppState,
+    http: { onError: (_appState: any, error: any) => errors.push(error) },
+  });
   application.registerHttpController(HandlerController);
   const address = await application.listen({ port: 0 });
   try {
@@ -346,7 +352,7 @@ async function cancelWhileWaitingForJob(iteration: any) {
   class JobController extends HttpControllerBase {
     static prefix = '/job';
     static routes = [{ method: 'GET', path: '/', handler: 'run' }];
-    async run(ctx: any) {
+    async run(_appState: any, ctx: any) {
       try {
         await this.jobRunner.run(
           RaceJob,
@@ -361,7 +367,10 @@ async function cancelWhileWaitingForJob(iteration: any) {
       return { status: 200, body: { replacement } };
     }
   }
-  const application = new Application({ jobs: { poolSize: 1, terminationGracePeriod: 50 } });
+  const application = new Application({
+    appState: TestAppState,
+    jobs: { poolSize: 1, terminationGracePeriod: 50 },
+  });
   application.registerHttpController(JobController);
   const address = await application.listen({ port: 0 });
   try {
@@ -399,7 +408,10 @@ async function cancelWhileWritingResponse(iteration: any) {
     }
   }
   const errors: any[] = [];
-  const application = new Application({ http: { onError: (error: any) => errors.push(error) } });
+  const application = new Application({
+    appState: TestAppState,
+    http: { onError: (_appState: any, error: any) => errors.push(error) },
+  });
   application.registerHttpController(ResponseController);
   const address = await application.listen({ port: 0 });
   try {
@@ -454,7 +466,7 @@ test(
       class RaceWebSocketController extends WebSocketControllerBase {
         static name = 'race';
         static events = [{ name: 'run', handler: 'run' }];
-        async run(ctx: any) {
+        async run(_appState: any, ctx: any) {
           handlerStarted.resolve();
           ctx.signal.addEventListener('abort', handlerAborted.resolve, { once: true });
           await releaseHandler.promise;
@@ -463,9 +475,10 @@ test(
         }
       }
       const application = new Application({
+        appState: TestAppState,
         websocket: {
-          onDisconnect: (ctx: any) => disconnects.push(ctx),
-          onError: (error: any) => errors.push(error),
+          onDisconnect: (_appState: any, ctx: any) => disconnects.push(ctx),
+          onError: (_appState: any, error: any) => errors.push(error),
         },
       });
       application.registerWebSocketController(RaceWebSocketController);
@@ -498,7 +511,7 @@ test(
   { timeout: 10_000 },
   async () => {
     for (let iteration = 1; iteration <= ITERATIONS; iteration += 1) {
-      const application = new Application();
+      const application = new Application({ appState: TestAppState });
       const listening = application.listen({ port: 0 });
       const duplicateListen = application.listen({ port: 0 });
       const closing = application.close();
@@ -507,13 +520,13 @@ test(
       assert.equal(application.close(), closing, `starting/close iteration=${iteration}`);
       await closing;
 
-      const closedBeforeListen = new Application();
+      const closedBeforeListen = new Application({ appState: TestAppState });
       await closedBeforeListen.close();
       await assert.rejects(closedBeforeListen.listen({ port: 0 }), ApplicationStateError);
 
-      const occupied = new Application();
+      const occupied = new Application({ appState: TestAppState });
       const address = await occupied.listen({ port: 0 });
-      const failing = new Application();
+      const failing = new Application({ appState: TestAppState });
       const failedListen = failing.listen({ port: address.port });
       const failedClose = failing.close();
       await assert.rejects(failedListen, { code: 'EADDRINUSE' });

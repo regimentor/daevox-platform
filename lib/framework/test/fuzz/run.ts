@@ -1,3 +1,6 @@
+class TestAppState {
+  readonly marker = undefined;
+}
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import net from 'node:net';
@@ -38,7 +41,7 @@ class FuzzHttpController extends HttpControllerBase {
   health() {
     return { status: 200, body: { ok: true } };
   }
-  echo(ctx: any) {
+  echo(_appState: any, ctx: any) {
     return { status: 200, body: ctx.body };
   }
 }
@@ -46,7 +49,7 @@ class FuzzHttpController extends HttpControllerBase {
 class FuzzWebSocketController extends WebSocketControllerBase {
   static name = 'fuzz';
   static events = [{ name: 'echo', handler: 'echo' }];
-  echo(ctx: any) {
+  echo(_appState: any, ctx: any) {
     return { value: ctx.body.value };
   }
 }
@@ -462,6 +465,7 @@ export async function runFuzz(options: any = {}) {
   process.on('unhandledRejection', onUnhandledRejection);
   const effectiveBodyLimit = injection === 'http-body-limit' ? bodyLimit + 1 : bodyLimit;
   const app = new Application({
+    appState: TestAppState,
     http: { bodyLimit: effectiveBodyLimit, shutdownTimeout: limits.caseTimeout },
     websocket: {
       maxPayload: bodyLimit,

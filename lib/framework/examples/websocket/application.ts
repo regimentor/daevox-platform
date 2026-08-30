@@ -1,3 +1,6 @@
+class TestAppState {
+  readonly marker = undefined;
+}
 import { Application, HttpError } from '@daevox/framework';
 import { BroadcastController } from './BroadcastController.ts';
 import { BrowserController } from './BrowserController.ts';
@@ -12,6 +15,7 @@ import { EventsController } from './EventsController.ts';
  */
 export function createWebSocketApplication() {
   const application = new Application({
+    appState: TestAppState,
     websocket: {
       middleware: [
         (ctx: any, next: any) => {
@@ -19,14 +23,14 @@ export function createWebSocketApplication() {
           return next();
         },
       ],
-      onConnect(ctx: any) {
+      onConnect(_appState: any, ctx: any) {
         if (ctx.query.get('token') !== 'demo') {
           throw new HttpError(401, { body: { error: 'Unauthorized' } });
         }
         ctx.state.auth = { subjectId: 'example-user' };
         return 'example-client';
       },
-      onError(error: any) {
+      onError(_appState: any, error: any) {
         console.error(error);
       },
     },

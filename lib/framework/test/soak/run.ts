@@ -1,3 +1,6 @@
+class TestAppState {
+  readonly marker = undefined;
+}
 import { EventEmitter } from 'node:events';
 import { mkdir, writeFile } from 'node:fs/promises';
 import http from 'node:http';
@@ -441,16 +444,16 @@ async function main() {
       { method: 'POST', path: '/job/cancel', handler: 'jobCancel' },
       { method: 'POST', path: '/job/timeout', handler: 'jobTimeout' },
     ];
-    async echo(ctx: any) {
+    async echo(_appState: any, ctx: any) {
       applicationEvents.push(this.events, ctx.body.sequence, 'http');
       return { status: 200, body: ctx.body };
     }
-    async jobSuccess(ctx: any) {
+    async jobSuccess(_appState: any, ctx: any) {
       applicationEvents.push(this.events, ctx.body.sequence, 'jobSuccess');
       const result = await this.jobRunner.run(SoakJob, { delayMs: 2, sequence: ctx.body.sequence });
       return { status: 200, body: result };
     }
-    async jobCancel(ctx: any) {
+    async jobCancel(_appState: any, ctx: any) {
       applicationEvents.push(this.events, ctx.body.sequence, 'jobCancelled');
       try {
         await this.jobRunner.run(
@@ -463,7 +466,7 @@ async function main() {
         return { status: 200, body: { outcome: error.constructor.name } };
       }
     }
-    async jobTimeout(ctx: any) {
+    async jobTimeout(_appState: any, ctx: any) {
       applicationEvents.push(this.events, ctx.body.sequence, 'jobTimeout');
       try {
         await this.jobRunner.run(
@@ -481,7 +484,7 @@ async function main() {
   class SoakWebSocketController extends WebSocketControllerBase {
     static name = 'soak';
     static events = [{ name: 'echo', handler: 'echo' }];
-    async echo(ctx: any) {
+    async echo(_appState: any, ctx: any) {
       applicationEvents.push(this.events, ctx.body.sequence, 'websocket');
       return ctx.body;
     }
@@ -508,6 +511,7 @@ async function main() {
 
   try {
     application = new Application({
+      appState: TestAppState,
       events: {
         onError: applicationEvents.report,
         queueSize: config.operationConcurrency * 8,

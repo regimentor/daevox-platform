@@ -1,3 +1,6 @@
+class TestAppState {
+  readonly marker = undefined;
+}
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import test from 'node:test';
@@ -149,7 +152,7 @@ function createHarness(iteration: any) {
       return { status: 200, body: { iteration, quick: true } };
     }
 
-    async slow(ctx: any) {
+    async slow(_appState: any, ctx: any) {
       events.push('http-slow-started');
       slowHttpStarted.resolve();
       await new Promise<any>((resolve: any) =>
@@ -226,7 +229,7 @@ function createHarness(iteration: any) {
     static name = 'shutdown';
     static events = [{ name: 'wait', handler: 'wait' }];
 
-    async wait(ctx: any) {
+    async wait(_appState: any, ctx: any) {
       events.push('websocket-handler-started');
       webSocketHandlerStarted.resolve();
       await new Promise<any>((resolve: any) =>
@@ -238,6 +241,7 @@ function createHarness(iteration: any) {
   }
 
   const application = new Application({
+    appState: TestAppState,
     http: { shutdownTimeout: HTTP_SHUTDOWN_TIMEOUT },
     jobs: {
       poolSize: JOB_POOL_SIZE,
@@ -246,7 +250,7 @@ function createHarness(iteration: any) {
       terminationGracePeriod: TERMINATION_GRACE_PERIOD,
     },
     websocket: {
-      onDisconnect(ctx: any) {
+      onDisconnect(_appState: any, ctx: any) {
         events.push('websocket-disconnected');
         disconnects.push(ctx);
         disconnected.resolve();

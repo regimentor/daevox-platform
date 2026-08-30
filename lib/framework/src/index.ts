@@ -46,6 +46,8 @@ export {
 
 export type {
   ApplicationOptions,
+  AppState,
+  AppStateInstance,
   EventOptions,
   HttpControllerClass,
   HttpMiddleware,

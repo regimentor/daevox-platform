@@ -31,6 +31,8 @@ type stripping, без loader, transpilation или emit. TypeScript 7 нуже�
 ```ts
 import { Application, HttpControllerBase } from '@daevox/framework';
 
+class AppState {}
+
 class UsersController extends HttpControllerBase {
   static prefix = '/users';
 
@@ -49,6 +51,7 @@ class UsersController extends HttpControllerBase {
 }
 
 const application = new Application({
+  appState: AppState,
   http: {
     bodyLimit: 1024 * 1024,
     shutdownTimeout: 30_000,
@@ -94,6 +97,12 @@ TypeScript проверяет наличие и форму `prefix`, `routes` и
 HTTP-контроллеры можно регистрировать только до вызова `listen()`. Для каждого найденного
 HTTP-маршрута приложение создаёт новый экземпляр HTTP-контроллера, только если middleware-цепочка
 дошла до HTTP-обработчика.
+
+`Application` принимает обязательный класс `appState` и создаёт ровно один его экземпляр. Этот
+экземпляр передаётся первым аргументом HTTP- и WebSocket-middleware, обработчикам, lifecycle
+callbacks транспорта и `onError`. Обработчики получают `(appState, ctx)`, middleware —
+`(appState, ctx, next)`, а `ctx.state` остаётся локальным состоянием запроса или WebSocket-сессии.
+Методы `beforeAppStart`, `onAppStart` и `onAppClose` могут быть синхронными или асинхронными.
 
 Каждый HTTP-контроллер получает `this.websocket` — узкий application-wide sender для server push:
 

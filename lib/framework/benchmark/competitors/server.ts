@@ -1,3 +1,6 @@
+class TestAppState {
+  readonly marker = undefined;
+}
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import process from 'node:process';
@@ -39,7 +42,7 @@ async function createServer() {
         return { status: 200, body };
       }
     }
-    const application = new Application({ http: { bodyLimit: 1024 } });
+    const application = new Application({ appState: TestAppState, http: { bodyLimit: 1024 } });
     application.registerHttpController(BenchmarkController);
     const address = await application.listen({ port, host: '127.0.0.1' });
     return { port: address.port, close: () => application.close() };

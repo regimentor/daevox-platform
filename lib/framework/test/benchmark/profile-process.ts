@@ -1,3 +1,6 @@
+class TestAppState {
+  readonly marker = undefined;
+}
 import nodeHttp from 'node:http';
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks';
 
@@ -123,13 +126,14 @@ async function createHttpOperation(profile: any, config: any, injectedDelayMs: a
   class BenchmarkController extends HttpControllerBase {
     static prefix = '/benchmark';
     static routes = [{ method: 'POST', path: '/', handler: 'run' }];
-    async run(ctx: any) {
+    async run(_appState: any, ctx: any) {
       if (injectedDelayMs > 0) await delay(injectedDelayMs);
       return { status: 200, body: { size: ctx.body.value.length } };
     }
   }
   const body = JSON.stringify({ value });
   const application = new Application({
+    appState: TestAppState,
     http: { bodyLimit: profile === 'http-body-limit' ? 65_536 : 1024 },
   });
   application.registerHttpController(BenchmarkController);
@@ -144,12 +148,12 @@ async function createWebSocketOperation(config: any, injectedDelayMs: any) {
   class BenchmarkController extends WebSocketControllerBase {
     static name = 'benchmark';
     static events = [{ name: 'echo', handler: 'echo' }];
-    async echo(ctx: any) {
+    async echo(_appState: any, ctx: any) {
       if (injectedDelayMs > 0) await delay(injectedDelayMs);
       return { size: ctx.body.value.length };
     }
   }
-  const application = new Application();
+  const application = new Application({ appState: TestAppState });
   application.registerWebSocketController(BenchmarkController);
   const address = await application.listen({ port: 0 });
   const url = `ws://${address.address}:${address.port}/websocket`;
@@ -187,7 +191,10 @@ async function createJobOperation(config: any, injectedDelayMs: any) {
       };
     }
   }
-  const application = new Application({ jobs: { poolSize: config.poolSize } });
+  const application = new Application({
+    appState: TestAppState,
+    jobs: { poolSize: config.poolSize },
+  });
   application.registerHttpController(JobController);
   const address = await application.listen({ port: 0 });
   return {
