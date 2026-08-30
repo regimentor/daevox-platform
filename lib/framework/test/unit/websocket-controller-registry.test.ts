@@ -1,3 +1,6 @@
+class TestAppState {
+  readonly marker = undefined;
+}
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -29,7 +32,7 @@ test('Application регистрирует декларативный WebSocket-
     subscribe() {}
   }
 
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   assert.equal(app.registerWebSocketController(NotificationsController), app);
   await app.close();
 });
@@ -61,7 +64,8 @@ test('WebSocket-контроллер строго проверяет собст�
     class InheritedMetadata extends Parent {},
   ]) {
     assert.throws(
-      () => new Application().registerWebSocketController(Controller as any),
+      () =>
+        new Application({ appState: TestAppState }).registerWebSocketController(Controller as any),
       InvalidWebSocketControllerError,
     );
   }
@@ -81,7 +85,7 @@ test('WebSocket-событие имеет точную форму и собст�
     eventController({ name: 'valid', handler: 'missing' }, handle),
   ]) {
     assert.throws(
-      () => new Application().registerWebSocketController(Controller),
+      () => new Application({ appState: TestAppState }).registerWebSocketController(Controller),
       InvalidWebSocketControllerError,
     );
   }
@@ -94,7 +98,7 @@ test('WebSocket-контроллер и событие строго и атом�
     static events = [{ name: 'run', handler: 'run', middleware: [null] }];
     run() {}
   }
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
 
   assert.throws(
     () => app.registerWebSocketController(MiddlewareController as any),
@@ -119,7 +123,7 @@ test('WebSocket-контроллер и событие строго и атом�
     },
   ]) {
     assert.throws(
-      () => new Application().registerWebSocketController(Controller),
+      () => new Application({ appState: TestAppState }).registerWebSocketController(Controller),
       InvalidWebSocketControllerError,
     );
   }
@@ -146,7 +150,7 @@ test('регистрация отклоняет повторные классы,
     second() {}
   }
 
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   app.registerWebSocketController(FirstController);
   assert.throws(
     () => app.registerWebSocketController(FirstController),
@@ -167,6 +171,7 @@ test('регистрация отклоняет повторные классы,
 
 test('Application строго проверяет конфигурацию единого WebSocket endpoint', async () => {
   const app = new Application({
+    appState: TestAppState,
     websocket: {
       path: '/socket',
       maxPayload: 0,
@@ -206,6 +211,9 @@ test('Application строго проверяет конфигурацию ед�
     { connectionMiddleware: [] },
     { unknown: true },
   ]) {
-    assert.throws(() => new Application({ websocket } as any), InvalidWebSocketOptionsError);
+    assert.throws(
+      () => new Application({ appState: TestAppState, websocket } as any),
+      InvalidWebSocketOptionsError,
+    );
   }
 });

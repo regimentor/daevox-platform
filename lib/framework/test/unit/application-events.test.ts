@@ -1,3 +1,6 @@
+class TestAppState {
+  readonly marker = undefined;
+}
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -93,7 +96,7 @@ test('mailbox сохраняет FIFO одного listener и не блокир
     }
   }
 
-  const application = new Application();
+  const application = new Application({ appState: TestAppState });
   t.after(async () => {
     releaseFirst.resolve();
     await application.close();
@@ -144,7 +147,7 @@ test('mailbox запускает не более одного handler за од�
       return { status: 202 };
     }
   }
-  const application = new Application();
+  const application = new Application({ appState: TestAppState });
   t.after(() => application.close());
   application.registerEventListener(FairListener);
   application.registerHttpController(TriggerController);
@@ -204,7 +207,7 @@ test('push синхронно отклоняет неверный адрес, DT
       return { status: 200, body: { invalid, full } };
     }
   }
-  const application = new Application({ events: { queueSize: 1 } });
+  const application = new Application({ appState: TestAppState, events: { queueSize: 1 } });
   t.after(() => application.close());
   application.registerEventListener(Listener);
   application.registerHttpController(TriggerController);
@@ -244,7 +247,7 @@ test('queueSize считает ожидающие события, но не acti
       }
     }
   }
-  const application = new Application({ events: { queueSize: 1 } });
+  const application = new Application({ appState: TestAppState, events: { queueSize: 1 } });
   t.after(async () => {
     releaseActive.resolve();
     await application.close();
@@ -287,6 +290,7 @@ test('registry и push копируют адрес, но передают ту �
     }
   }
   const application = new Application({
+    appState: TestAppState,
     events: {
       onError(error: any, context: any) {
         observed.resolve({ error, context });
@@ -346,6 +350,7 @@ test('ошибки handler изолированы от HTTP и тот же liste
     }
   }
   const application = new Application({
+    appState: TestAppState,
     events: { onError: (error: any) => errors.push(error.message) },
   });
   t.after(() => application.close());
@@ -385,7 +390,7 @@ test('ошибка handler без events.onError передаётся в console
       return { status: 202 };
     }
   }
-  const application = new Application();
+  const application = new Application({ appState: TestAppState });
   t.after(() => application.close());
   application.registerEventListener(Listener);
   application.registerHttpController(Controller);
@@ -422,6 +427,7 @@ test('запланированный mailbox не запускает отбро�
     }
   }
   const application = new Application({
+    appState: TestAppState,
     events: {
       shutdownTimeout: 1,
       onError: (error: any) => dropped.resolve(error),
@@ -497,6 +503,7 @@ test('handler timeout отменяет signal, но FIFO ждёт поздний
     }
   }
   const application = new Application({
+    appState: TestAppState,
     events: {
       handlerTimeout: 10,
       onError(error: any) {
@@ -560,6 +567,7 @@ test('ошибка observer передаётся в console.error и не зад
     }
   }
   const application = new Application({
+    appState: TestAppState,
     events: {
       onError() {
         observations += 1;
@@ -594,7 +602,7 @@ test('ошибка конструктора listener делает запуск �
     }
     work() {}
   }
-  const application = new Application();
+  const application = new Application({ appState: TestAppState });
   t.after(() => application.close());
   application.registerEventListener(BrokenListener);
 
@@ -625,7 +633,7 @@ test('WebSocket-контроллер получает events, а listener error 
   class TriggerController extends WebSocketControllerBase {
     static name = 'trigger';
     static events = [{ name: 'run', handler: 'run' }];
-    run(ctx: any) {
+    run(_appState: any, ctx: any) {
       const result = this.events.push(
         { listener: 'websocket-listener', event: 'work' },
         new Work(ctx.body.value),
@@ -634,6 +642,7 @@ test('WebSocket-контроллер получает events, а listener error 
     }
   }
   const application = new Application({
+    appState: TestAppState,
     events: { onError: (error: any) => observed.resolve(error) },
   });
   let socket: any;

@@ -1,3 +1,6 @@
+class TestAppState {
+  readonly marker = undefined;
+}
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import http from 'node:http';
@@ -37,7 +40,7 @@ function request(address: any, options: any = {}) {
 }
 
 test('Application слушает ephemeral-порт и без HTTP-контроллеров отвечает 404', async () => {
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   const address = await app.listen({ port: 0 });
 
   try {
@@ -57,7 +60,7 @@ test('HTTP transport сопоставляет HTTP-маршрут и перед�
   class UsersController extends HttpControllerBase {
     static prefix = '/users';
     static routes = [{ method: 'POST', path: '/:id', handler: 'update' }];
-    update(ctx: any) {
+    update(_appState: any, ctx: any) {
       seenContext = ctx;
       return {
         status: 200,
@@ -66,7 +69,7 @@ test('HTTP transport сопоставляет HTTP-маршрут и перед�
       };
     }
   }
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   app.registerHttpController(UsersController);
   const address = await app.listen({ port: 0 });
 
@@ -102,7 +105,7 @@ test('HTTP middleware выполняются на трёх уровнях вок
   const calls: any[] = [];
   const contexts: any[] = [];
   const middleware = (name: any) =>
-    async function (this: any, ctx: any, next: any) {
+    async function (this: any, _appState: any, ctx: any, next: any) {
       assert.equal(this, undefined);
       contexts.push(ctx);
       calls.push(`${name}:before`);
@@ -123,14 +126,17 @@ test('HTTP middleware выполняются на трёх уровнях вок
         middleware: [middleware('route')],
       },
     ];
-    get(ctx: any) {
+    get(_appState: any, ctx: any) {
       contexts.push(ctx);
       calls.push('handler');
       return { status: 200, body: { state: ctx.state, route: ctx.route } };
     }
   }
 
-  const app = new Application({ http: { middleware: [middleware('application')] } });
+  const app = new Application({
+    appState: TestAppState,
+    http: { middleware: [middleware('application')] },
+  });
   app.registerHttpController(MiddlewareController);
   const address = await app.listen({ port: 0 });
 
@@ -180,6 +186,7 @@ test('HTTP middleware short-circuit не создаёт HTTP-контролле�
     }
   }
   const app = new Application({
+    appState: TestAppState,
     http: {
       middleware: [() => ({ status: 401, body: { error: 'Unauthorized' } })],
     },
@@ -208,10 +215,11 @@ test('HTTP middleware не выполняются для инфраструкт�
     }
   }
   const app = new Application({
+    appState: TestAppState,
     http: {
       bodyLimit: 4,
       middleware: [
-        (_ctx: any, next: any) => {
+        (_appState: any, _ctx: any, next: any) => {
           calls += 1;
           return next();
         },
@@ -250,13 +258,13 @@ test('HTTP middleware не выполняются для инфраструкт�
 
 test('HTTP middleware используют снимки массивов и изолируют state параллельных запросов', async () => {
   const applicationMiddleware = [
-    (ctx: any, next: any) => {
+    (_appState: any, ctx: any, next: any) => {
       ctx.state.requestId = ctx.headers.get('x-request-id');
       return next();
     },
   ];
-  const controllerMiddleware = [(_ctx: any, next: any) => next()];
-  const routeMiddleware = [(_ctx: any, next: any) => next()];
+  const controllerMiddleware = [(_appState: any, _ctx: any, next: any) => next()];
+  const routeMiddleware = [(_appState: any, _ctx: any, next: any) => next()];
   let release: any;
   const bothStarted = new Promise<any>((resolve: any) => {
     release = resolve;
@@ -267,7 +275,7 @@ test('HTTP middleware используют снимки массивов и из
     static prefix = '/state';
     static middleware = controllerMiddleware;
     static routes = [{ method: 'GET', path: '/', handler: 'get', middleware: routeMiddleware }];
-    async get(ctx: any) {
+    async get(_appState: any, ctx: any) {
       started += 1;
       if (started === 2) release();
       await bothStarted;
@@ -275,7 +283,10 @@ test('HTTP middleware используют снимки массивов и из
     }
   }
 
-  const app = new Application({ http: { middleware: applicationMiddleware } });
+  const app = new Application({
+    appState: TestAppState,
+    http: { middleware: applicationMiddleware },
+  });
   app.registerHttpController(StateController);
   applicationMiddleware.push(() => ({ status: 500 }));
   controllerMiddleware.push(() => ({ status: 500 }));
@@ -302,14 +313,15 @@ test('ошибки HTTP middleware изолированы и сохраняют 
   class HealthyController extends HttpControllerBase {
     static prefix = '/middleware-errors';
     static routes = [{ method: 'GET', path: '/:mode', handler: 'get' }];
-    get(ctx: any) {
+    get(_appState: any, ctx: any) {
       return { status: 200, body: { mode: ctx.params.mode } };
     }
   }
   const app = new Application({
+    appState: TestAppState,
     http: {
       middleware: [
-        async (ctx: any, next: any) => {
+        async (_appState: any, ctx: any, next: any) => {
           if (ctx.params.mode === 'expected') {
             throw new HttpError(403, { body: { error: 'Forbidden' } });
           }
@@ -321,7 +333,7 @@ test('ошибки HTTP middleware изолированы и сохраняют 
           return next();
         },
       ],
-      onError(error: any, ctx: any) {
+      onError(_appState: any, error: any, ctx: any) {
         observed.push({ error, path: ctx.path });
       },
     },
@@ -365,7 +377,7 @@ test('HTTP transport детерминированно обрабатывает H
       return { status: 204 };
     }
   }
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   app.registerHttpController(ResourceController);
   const address = await app.listen({ port: 0 });
 
@@ -393,11 +405,11 @@ test('HTTP transport ограничивает и разбирает только
   class BodyController extends HttpControllerBase {
     static prefix = '/body';
     static routes = [{ method: 'PUT', path: '/', handler: 'put' }];
-    put(ctx: any) {
+    put(_appState: any, ctx: any) {
       return { status: 200, body: ctx.body };
     }
   }
-  const app = new Application({ http: { bodyLimit: 8 } });
+  const app = new Application({ appState: TestAppState, http: { bodyLimit: 8 } });
   app.registerHttpController(BodyController);
   const address = await app.listen({ port: 0 });
 
@@ -461,7 +473,10 @@ test('HttpError формирует ожидаемый ответ, а неожи�
     }
   }
   const app = new Application({
-    http: { onError: (error: any, ctx: any) => observed.push({ error, ctx }) },
+    appState: TestAppState,
+    http: {
+      onError: (_appState: any, error: any, ctx: any) => observed.push({ error, ctx }),
+    },
   });
   app.registerHttpController(ErrorController);
   const address = await app.listen({ port: 0 });
@@ -495,7 +510,7 @@ test('Application.close по timeout отменяет оставшийся HTTP-
   class SlowController extends HttpControllerBase {
     static prefix = '/slow';
     static routes = [{ method: 'GET', path: '/', handler: 'get' }];
-    get(ctx: any) {
+    get(_appState: any, ctx: any) {
       started();
       return new Promise<any>((resolve: any) => {
         ctx.signal.addEventListener(
@@ -509,7 +524,7 @@ test('Application.close по timeout отменяет оставшийся HTTP-
       });
     }
   }
-  const app = new Application({ http: { shutdownTimeout: 0 } });
+  const app = new Application({ appState: TestAppState, http: { shutdownTimeout: 0 } });
   app.registerHttpController(SlowController);
   const address = await app.listen({ port: 0 });
   const pendingRequest = request(address, { path: '/slow' }).catch(() => undefined);
@@ -540,7 +555,10 @@ test('сброс соединения при чтении HTTP-запроса у
       return { status: 204 };
     }
   }
-  const app = new Application({ http: { onError: (error: any) => unexpectedErrors.push(error) } });
+  const app = new Application({
+    appState: TestAppState,
+    http: { onError: (_appState: any, error: any) => unexpectedErrors.push(error) },
+  });
   app.registerHttpController(BodyController);
   await app.listen({ port: 0 });
 
@@ -580,7 +598,7 @@ test('сброс соединения при чтении HTTP-запроса у
 });
 
 test('jobs-http HTTP-контроллер запускает SumJob в Worker', async () => {
-  const app = new Application({ jobs: { poolSize: 1 } });
+  const app = new Application({ appState: TestAppState, jobs: { poolSize: 1 } });
   app.registerHttpController(JobsController);
   const address = await app.listen({ port: 0 });
 
@@ -619,7 +637,7 @@ test('HTTP transport нормализует строковые и бинарны
       return { status: 200, body: new Uint8Array([0, 1, 2]) };
     }
   }
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   app.registerHttpController(BodiesController);
   const address = await app.listen({ port: 0 });
 
@@ -658,7 +676,10 @@ test('HTTP transport принимает только граничные стат
     }
   }
   const observed: any[] = [];
-  const app = new Application({ http: { onError: (error: any) => observed.push(error) } });
+  const app = new Application({
+    appState: TestAppState,
+    http: { onError: (_appState: any, error: any) => observed.push(error) },
+  });
   app.registerHttpController(StatusController);
   const address = await app.listen({ port: 0 });
 
@@ -677,7 +698,10 @@ test('HTTP transport принимает только граничные стат
 test('ошибка до создания HttpRequestContext получает безопасный 500', async () => {
   const observed: any[] = [];
   const app = new Application({
-    http: { onError: (error: any, ctx: any) => observed.push({ error, ctx }) },
+    appState: TestAppState,
+    http: {
+      onError: (_appState: any, error: any, ctx: any) => observed.push({ error, ctx }),
+    },
   });
   const address = await app.listen({ port: 0 });
 
@@ -703,6 +727,7 @@ test('синхронная ошибка onError попадает в console.erro
     }
   }
   const app = new Application({
+    appState: TestAppState,
     http: {
       onError: () => {
         throw reportingError;

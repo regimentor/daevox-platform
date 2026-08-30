@@ -1,3 +1,6 @@
+class TestAppState {
+  readonly marker = undefined;
+}
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -31,13 +34,13 @@ function controller({ prefix = '/users', routes }: any = {}) {
 }
 
 test('Application регистрирует HTTP-контроллер и возвращает себя', () => {
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
 
   assert.equal(app.registerHttpController(controller()), app);
 });
 
 test('Application запрещает регистрацию и повторный запуск после начала listen', async () => {
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   const listening = app.listen({ port: 0 });
 
   assert.throws(() => app.registerHttpController(controller()), ApplicationStateError);
@@ -52,7 +55,7 @@ test('Application запрещает регистрацию WebSocket-контр
     static events = [{ name: 'subscribe', handler: 'subscribe' }];
     subscribe() {}
   }
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   const listening = app.listen({ port: 0 });
 
   assert.throws(
@@ -64,7 +67,7 @@ test('Application запрещает регистрацию WebSocket-контр
 });
 
 test('Application.close до listen необратимо закрывает приложение', async () => {
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   await app.close();
 
   assert.throws(() => app.registerHttpController(controller()), ApplicationStateError);
@@ -72,9 +75,9 @@ test('Application.close до listen необратимо закрывает пр
 });
 
 test('Application.close освобождает ресурсы при ошибке запуска', async () => {
-  const occupied = new Application();
+  const occupied = new Application({ appState: TestAppState });
   const address = await occupied.listen({ port: 0 });
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   const listening = app.listen({ port: address.port });
   const closing = app.close();
 
@@ -85,7 +88,7 @@ test('Application.close освобождает ресурсы при ошибк�
 });
 
 test('Application отклоняет повторную регистрацию того же класса', () => {
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   const UsersController = controller();
   app.registerHttpController(UsersController);
 
@@ -102,7 +105,7 @@ test('HTTP-контроллер обязан напрямую наследова
 
   for (const value of [null, {}, () => {}, UnrelatedController, IndirectController]) {
     assert.throws(
-      () => new Application().registerHttpController(value as any),
+      () => new Application({ appState: TestAppState }).registerHttpController(value as any),
       InvalidHttpControllerError,
     );
   }
@@ -129,7 +132,8 @@ test('prefix и routes должны быть собственными непус
     class InheritedMetadata extends Parent {},
   ]) {
     assert.throws(
-      () => new Application().registerHttpController(HttpController as any),
+      () =>
+        new Application({ appState: TestAppState }).registerHttpController(HttpController as any),
       InvalidHttpControllerError,
     );
   }
@@ -151,7 +155,7 @@ test('HTTP-обработчик должен быть собственным м�
 
   for (const HttpController of [InheritedHandler, StaticHandler]) {
     assert.throws(
-      () => new Application().registerHttpController(HttpController),
+      () => new Application({ appState: TestAppState }).registerHttpController(HttpController),
       InvalidHttpControllerError,
     );
   }
@@ -166,7 +170,10 @@ test('декларация HTTP-маршрута содержит обязате
     { method: 'GET', path: '/', handler: '' },
   ]) {
     assert.throws(
-      () => new Application().registerHttpController(controller({ routes: [definition] })),
+      () =>
+        new Application({ appState: TestAppState }).registerHttpController(
+          controller({ routes: [definition] }),
+        ),
       InvalidHttpRouteError,
     );
   }
@@ -178,7 +185,10 @@ test('декларация HTTP-маршрута отклоняет неизве
   definition[Symbol('unknown')] = true;
 
   assert.throws(
-    () => new Application().registerHttpController(controller({ routes: [definition] })),
+    () =>
+      new Application({ appState: TestAppState }).registerHttpController(
+        controller({ routes: [definition] }),
+      ),
     InvalidHttpRouteError,
   );
 });
@@ -186,7 +196,7 @@ test('декларация HTTP-маршрута отклоняет неизве
 test('некорректное percent-кодирование пути отклоняется при регистрации', () => {
   assert.throws(
     () =>
-      new Application().registerHttpController(
+      new Application({ appState: TestAppState }).registerHttpController(
         controller({
           routes: [{ method: 'GET', path: '/%ZZ', handler: 'list' }],
         }),
@@ -197,13 +207,16 @@ test('некорректное percent-кодирование пути откл�
 
 test('некорректный prefix является ошибкой HTTP-контроллера', () => {
   assert.throws(
-    () => new Application().registerHttpController(controller({ prefix: '/..' })),
+    () =>
+      new Application({ appState: TestAppState }).registerHttpController(
+        controller({ prefix: '/..' }),
+      ),
     InvalidHttpControllerError,
   );
 });
 
 test('регистрация нормализует метод и композицию пути до проверки конфликтов', () => {
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   app.registerHttpController(
     controller({
       prefix: 'users//',
@@ -224,7 +237,7 @@ test('регистрация нормализует метод и компози
 });
 
 test('композиция корневых путей и encoded slash сохраняют границы сегментов', () => {
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   app.registerHttpController(
     controller({
       prefix: '/',
@@ -245,7 +258,7 @@ test('композиция корневых путей и encoded slash сохр
 });
 
 test('изменение метаданных после регистрации не изменяет каталог', () => {
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   const UsersController = controller();
   app.registerHttpController(UsersController);
   UsersController.prefix = '/changed';
@@ -255,7 +268,7 @@ test('изменение метаданных после регистрации 
 });
 
 test('неуспешная регистрация не изменяет состояние Application', () => {
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   const UsersController = controller({
     routes: [
       { method: 'GET', path: '/:id', handler: 'getById' },
@@ -271,7 +284,10 @@ test('неуспешная регистрация не изменяет сост
 
 test('Application проверяет вложенную конфигурацию jobs', () => {
   for (const jobs of [null, [], { poolSize: 0 }, { queueSize: -1 }, { unknown: true }]) {
-    assert.throws(() => new Application({ jobs } as any), InvalidJobOptionsError);
+    assert.throws(
+      () => new Application({ appState: TestAppState, jobs } as any),
+      InvalidJobOptionsError,
+    );
   }
 });
 
@@ -295,7 +311,10 @@ test('Application строго проверяет вложенную конфи�
     { middleware: symbolMiddleware },
     { unknown: true },
   ]) {
-    assert.throws(() => new Application({ http } as any), InvalidHttpOptionsError);
+    assert.throws(
+      () => new Application({ appState: TestAppState, http } as any),
+      InvalidHttpOptionsError,
+    );
   }
 });
 
@@ -317,7 +336,7 @@ test('HTTP-контроллер и HTTP-маршрут строго и атом�
     undefinedController,
     undefinedRoute,
   ]) {
-    const app = new Application();
+    const app = new Application({ appState: TestAppState });
     assert.throws(() => app.registerHttpController(HttpController), TypeError);
 
     (HttpController as any).middleware = [];
@@ -327,13 +346,16 @@ test('HTTP-контроллер и HTTP-маршрут строго и атом�
 });
 
 test('Application принимает HTTP middleware в конфигурации транспорта', async () => {
-  const app = new Application({ http: { middleware: [(() => {}) as any] } });
+  const app = new Application({
+    appState: TestAppState,
+    http: { middleware: [(() => {}) as any] },
+  });
 
   await app.close();
 });
 
 test('Application не раскрывает JobRunner или WorkerPool публичными свойствами', async () => {
-  const app = new Application({ jobs: { poolSize: 1, queueSize: 0 } });
+  const app = new Application({ appState: TestAppState, jobs: { poolSize: 1, queueSize: 0 } });
 
   assert.deepEqual(Object.keys(app), []);
   assert.equal('jobRunner' in app, false);
@@ -342,7 +364,7 @@ test('Application не раскрывает JobRunner или WorkerPool публ
 });
 
 test('Application.close идемпотентно закрывает принадлежащие ресурсы', async () => {
-  const app = new Application();
+  const app = new Application({ appState: TestAppState });
   const closing = app.close();
 
   assert.equal(app.close(), closing);

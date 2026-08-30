@@ -1,3 +1,6 @@
+class TestAppState {
+  readonly marker = undefined;
+}
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import test from 'node:test';
@@ -68,7 +71,11 @@ test('close ждёт settlement HTTP-handler после уничтожения r
   }
   const errors: any[] = [];
   const application = new Application({
-    http: { shutdownTimeout: 100, onError: (error: any) => errors.push(error) },
+    appState: TestAppState,
+    http: {
+      shutdownTimeout: 100,
+      onError: (_appState: any, error: any) => errors.push(error),
+    },
   });
   t.after(async () => {
     releaseHandler.resolve();
@@ -120,7 +127,7 @@ test('push из HTTP-handler после forced transport cutoff получает
       return { status: 200 };
     }
   }
-  const application = new Application({ http: { shutdownTimeout: 10 } });
+  const application = new Application({ appState: TestAppState, http: { shutdownTimeout: 10 } });
   t.after(async () => {
     releasePush.resolve();
     await application.close();
@@ -161,7 +168,7 @@ test('close опустошает event mailbox до закрытия JobRunner',
       return { status: 202 };
     }
   }
-  const application = new Application();
+  const application = new Application({ appState: TestAppState });
   t.after(async () => {
     releaseListener.resolve();
     await application.close();
@@ -228,6 +235,7 @@ test('forced event shutdown отменяет active, наблюдает pending 
     }
   }
   const application = new Application({
+    appState: TestAppState,
     events: {
       handlerTimeout: 30,
       shutdownTimeout: 10,
@@ -281,7 +289,10 @@ test('close ждёт WebSocket message-handler после закрытия се�
       this.events.push({ listener: 'after-session', event: 'work' }, new Work());
     }
   }
-  const application = new Application({ websocket: { shutdownTimeout: 100 } });
+  const application = new Application({
+    appState: TestAppState,
+    websocket: { shutdownTimeout: 100 },
+  });
   let socket: any;
   t.after(async () => {
     releaseHandler.resolve();
@@ -314,9 +325,10 @@ test('websocket.shutdownTimeout ограничивает зависший onDisc
   const disconnectStarted = deferred();
   let disconnectSignal: any;
   const application = new Application({
+    appState: TestAppState,
     websocket: {
       shutdownTimeout: 10,
-      async onDisconnect(ctx: any) {
+      async onDisconnect(_appState: any, ctx: any) {
         disconnectSignal = ctx.signal;
         disconnectStarted.resolve();
         await new Promise<any>(() => {});
@@ -342,9 +354,10 @@ test('websocket.shutdownTimeout отменяет pending onConnect и освоб
   const releaseConnect = deferred();
   let connectSignal: any;
   const application = new Application({
+    appState: TestAppState,
     websocket: {
       shutdownTimeout: 10,
-      async onConnect(ctx: any) {
+      async onConnect(_appState: any, ctx: any) {
         connectSignal = ctx.signal;
         connectStarted.resolve();
         await releaseConnect.promise;

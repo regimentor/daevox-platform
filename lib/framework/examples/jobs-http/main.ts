@@ -1,11 +1,15 @@
+class TestAppState {
+  readonly marker = undefined;
+}
 import { randomUUID } from 'node:crypto';
 import { Application } from '@daevox/framework';
 import { JobsController } from './JobsController.ts';
 
 const application = new Application({
+  appState: TestAppState,
   http: {
     middleware: [
-      async (ctx: any, next: any) => {
+      async (_appState: any, ctx: any, next: any) => {
         ctx.state.requestId = randomUUID();
         const response = await next();
         response.headers ??= new Headers();

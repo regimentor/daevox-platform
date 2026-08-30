@@ -15,7 +15,7 @@ function unauthenticated() {
   });
 }
 
-export function authenticateBearer(ctx: any, next: any) {
+export function authenticateBearer(_appState: any, ctx: any, next: any) {
   const authorization = ctx.headers.get('authorization');
   if (authorization === null) return next();
 
@@ -30,13 +30,13 @@ export function authenticateBearer(ctx: any, next: any) {
   return next();
 }
 
-export function requireAuthentication(ctx: any, next: any) {
+export function requireAuthentication(_appState: any, ctx: any, next: any) {
   if (!ctx.state.auth) throw unauthenticated();
   return next();
 }
 
 export function requireRole(role: any) {
-  return function authorizeRole(ctx: any, next: any) {
+  return function authorizeRole(_appState: any, ctx: any, next: any) {
     if (!ctx.state.auth.roles.includes(role)) {
       throw new HttpError(403, { body: { error: 'FORBIDDEN', requiredRole: role } });
     }

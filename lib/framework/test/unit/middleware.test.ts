@@ -70,13 +70,13 @@ test('объявленное middleware отклоняет дополнител�
 
 test('цепочка middleware выполняется в прямом порядке и разворачивается после next', async () => {
   const calls: any[] = [];
-  const first = async (_ctx: any, next: any) => {
+  const first = async (_appState: any, _ctx: any, next: any) => {
     calls.push('first:before');
     const result = await next();
     calls.push('first:after');
     return result;
   };
-  const second = async (_ctx: any, next: any) => {
+  const second = async (_appState: any, _ctx: any, next: any) => {
     calls.push('second:before');
     const result = await next();
     calls.push('second:after');
@@ -89,7 +89,7 @@ test('цепочка middleware выполняется в прямом поря�
 
   const execute = composeMiddleware([first, second], terminal);
 
-  assert.equal(await execute(Object.freeze({})), 'result');
+  assert.equal(await execute(Object.freeze({}), Object.freeze({})), 'result');
   assert.deepEqual(calls, [
     'first:before',
     'second:before',
@@ -102,7 +102,7 @@ test('цепочка middleware выполняется в прямом поря�
 test('повторный вызов одного next отклоняется публичным MiddlewareExecutionError', async () => {
   const execute = composeMiddleware(
     [
-      async (_ctx: any, next: any) => {
+      async (_appState: any, _ctx: any, next: any) => {
         await next();
         return next();
       },
@@ -110,7 +110,7 @@ test('повторный вызов одного next отклоняется п�
     () => 'result',
   );
 
-  await assert.rejects(execute(Object.freeze({})), MiddlewareExecutionError);
+  await assert.rejects(execute(Object.freeze({}), Object.freeze({})), MiddlewareExecutionError);
 });
 
 test('синхронное middleware завершает цепочку без terminal handler', async () => {
@@ -119,7 +119,7 @@ test('синхронное middleware завершает цепочку без t
     terminalCalled = true;
   });
 
-  assert.deepEqual(await execute(Object.freeze({})), { status: 401 });
+  assert.deepEqual(await execute(Object.freeze({}), Object.freeze({})), { status: 401 });
   assert.equal(terminalCalled, false);
 });
 
@@ -127,11 +127,11 @@ test('middleware изменяет или заменяет результат н�
   const terminalResult = { count: 1 };
   const execute = composeMiddleware(
     [
-      async (_ctx: any, next: any) => {
+      async (_appState: any, _ctx: any, next: any) => {
         const result = await next();
         return { original: result, replaced: true };
       },
-      async (_ctx: any, next: any) => {
+      async (_appState: any, _ctx: any, next: any) => {
         const result = await next();
         result.count += 1;
         return result;
@@ -140,7 +140,7 @@ test('middleware изменяет или заменяет результат н�
     () => terminalResult,
   );
 
-  assert.deepEqual(await execute(Object.freeze({})), {
+  assert.deepEqual(await execute(Object.freeze({}), Object.freeze({})), {
     original: terminalResult,
     replaced: true,
   });
@@ -161,7 +161,7 @@ test('цепочка без окончательного перехвата пе
     ],
     [() => Promise.reject(rejection), rejection],
     [
-      async (_ctx: any, next: any) => {
+      async (_appState: any, _ctx: any, next: any) => {
         await next();
         throw afterNext;
       },
@@ -169,6 +169,9 @@ test('цепочка без окончательного перехвата пе
     ],
   ]) {
     const execute = composeMiddleware([middleware as any], () => 'result');
-    await assert.rejects(execute(Object.freeze({})), (error: any) => error === expected);
+    await assert.rejects(
+      execute(Object.freeze({}), Object.freeze({})),
+      (error: any) => error === expected,
+    );
   }
 });

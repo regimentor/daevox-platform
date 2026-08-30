@@ -14,11 +14,11 @@ export class AuthController extends HttpControllerBase {
     },
   ];
 
-  profile(ctx: any) {
+  profile(_appState: any, ctx: any) {
     return { status: 200, body: { auth: ctx.state.auth } };
   }
 
-  admin(ctx: any) {
+  admin(_appState: any, ctx: any) {
     return {
       status: 200,
       body: { message: 'Administrative access granted', auth: ctx.state.auth },

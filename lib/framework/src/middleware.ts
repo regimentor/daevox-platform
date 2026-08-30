@@ -2,6 +2,7 @@ import { MiddlewareExecutionError } from './errors.ts';
 
 /** Generic middleware contract. / Обобщённый контракт middleware. @private */
 export type Middleware<Context = object, Result = unknown> = (
+  appState: object,
   context: Context,
   next: () => Promise<Result>,
 ) => Result | Promise<Result>;
@@ -90,7 +91,7 @@ export function snapshotDeclaredMiddleware<Context = object, Result = unknown>(
 export function composeMiddleware<Context, Result>(
   middleware: readonly Middleware<Context, Result>[],
   terminalHandler: (context: Context) => unknown,
-): (context: Context) => Promise<Result> {
+): (appState: object, context: Context) => Promise<Result> {
   /**
    * Executes the composed middleware chain for one transport context.
    * Выполняет скомпонованную цепочку middleware для одного транспортного контекста.
@@ -98,7 +99,7 @@ export function composeMiddleware<Context, Result>(
    * @returns Final chain result. / Итоговый результат цепочки.
    * @private
    */
-  return async function executeMiddlewareChain(ctx: Context): Promise<Result> {
+  return async function executeMiddlewareChain(appState: object, ctx: Context): Promise<Result> {
     /**
      * Dispatches one middleware or the terminal handler by chain index.
      * Вызывает одно middleware или terminal handler по индексу цепочки.
@@ -125,7 +126,7 @@ export function composeMiddleware<Context, Result>(
         called = true;
         return dispatch(index + 1);
       };
-      return current(ctx, next);
+      return current(appState, ctx, next);
     }
 
     return dispatch(0);

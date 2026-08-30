@@ -38,11 +38,11 @@ Errors by operation and observable effect: [error map](interface/errors.md). / �
 
 ### [Middleware](interface/middleware.md)
 
-[`MiddlewareExecutionError`](api/errors.md#middlewareexecutionerror)
+[`AppStateInstance`](api/Application.md#appstateinstance), [`AppState`](api/Application.md#appstate), [`MiddlewareExecutionError`](api/errors.md#middlewareexecutionerror)
 
 ## Source modules / Исходные модули
 
-- [Application](api/Application.md) — 16 public entities / публичных сущностей
+- [Application](api/Application.md) — 18 public entities / публичных сущностей
 - [capabilities](api/capabilities.md) — 3 public entities / публичных сущностей
 - [errors](api/errors.md) — 37 public entities / публичных сущностей
 - [EventListenerBase](api/EventListenerBase.md) — 4 public entities / публичных сущностей
