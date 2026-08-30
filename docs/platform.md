@@ -30,14 +30,14 @@ Daevox Platform — платформа для agentic-задач: пользов
 
 ### Backend
 
-Backend будет находиться в `apps/backend`. Этот workspace пока не настроен.
+Backend находится в [`apps/backend`](../apps/backend/).
 
-Backend будет реализован на [`@daevox/framework`](../lib/framework/README.md) — фреймворке,
-который разрабатывается в `lib/framework` специально как основа серверной части Daevox Platform.
+Backend реализуется на [`@daevox/framework`](../lib/framework/README.md) — фреймворке, который
+разрабатывается в `lib/framework` специально как основа серверной части Daevox Platform.
 
 ## Текущее состояние
 
 - frontend workspace существует;
-- backend workspace ещё не настроен;
+- backend workspace существует и предоставляет проверку состояния;
 - framework находится в разработке;
 - перечисленные возможности описывают целевой функционал платформы, а не статус их реализации.
