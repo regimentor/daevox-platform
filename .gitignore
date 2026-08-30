@@ -10,3 +10,6 @@ lib/framework/test/stress/results/
 lib/framework/test/soak/results/
 lib/framework/test/fuzz/failures/
 lib/framework/test/mutation/results/
+
+.env
+*.sqlite

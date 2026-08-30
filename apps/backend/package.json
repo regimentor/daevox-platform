@@ -11,7 +11,9 @@
     "verify": "npm run typecheck && npm test"
   },
   "dependencies": {
-    "@daevox/framework": "0.0.1"
+    "@daevox/framework": "0.0.1",
+    "dotenv": "^17.4.2",
+    "openai": "^7.8.0"
   },
   "engines": {
     "node": ">= 26",
