@@ -18,7 +18,7 @@ function noop() {}
 function eventController(event: any, prototype: any = {}) {
   class EventsController extends WebSocketControllerBase {
     static name = 'events';
-    static events = [event];
+    static events = [event] as const;
   }
   Object.defineProperties(EventsController.prototype, Object.getOwnPropertyDescriptors(prototype));
   return EventsController;
@@ -27,7 +27,7 @@ function eventController(event: any, prototype: any = {}) {
 test('Application регистрирует декларативный WebSocket-контроллер', async () => {
   class NotificationsController extends WebSocketControllerBase {
     static name = 'notifications';
-    static events = [{ name: 'subscribe', handler: 'subscribe' }];
+    static events = [{ name: 'subscribe', handler: 'subscribe' }] as const;
 
     subscribe() {}
   }
@@ -40,18 +40,18 @@ test('Application регистрирует декларативный WebSocket-
 test('WebSocket-контроллер строго проверяет собственные name и events', () => {
   class Parent extends WebSocketControllerBase {
     static name = 'parent';
-    static events = [{ name: 'event', handler: 'handle' }];
+    static events = [{ name: 'event', handler: 'handle' }] as const;
     handle() {}
   }
 
   for (const Controller of [
     class MissingName extends WebSocketControllerBase {
-      static events = [{ name: 'event', handler: 'handle' }];
+      static events = [{ name: 'event', handler: 'handle' }] as const;
       handle() {}
     },
     class InvalidName extends WebSocketControllerBase {
       static name = 'invalid.name';
-      static events = [{ name: 'event', handler: 'handle' }];
+      static events = [{ name: 'event', handler: 'handle' }] as const;
       handle() {}
     },
     class MissingEvents extends WebSocketControllerBase {
@@ -59,7 +59,7 @@ test('WebSocket-контроллер строго проверяет собст�
     },
     class EmptyEvents extends WebSocketControllerBase {
       static name = 'empty-events';
-      static events = [];
+      static events = [] as const;
     },
     class InheritedMetadata extends Parent {},
   ]) {
@@ -85,7 +85,8 @@ test('WebSocket-событие имеет точную форму и собст�
     eventController({ name: 'valid', handler: 'missing' }, handle),
   ]) {
     assert.throws(
-      () => new Application({ appState: TestAppState }).registerWebSocketController(Controller),
+      () =>
+        new Application({ appState: TestAppState }).registerWebSocketController(Controller as any),
       InvalidWebSocketControllerError,
     );
   }
@@ -95,7 +96,7 @@ test('WebSocket-контроллер и событие строго и атом�
   class MiddlewareController extends WebSocketControllerBase {
     static name = 'middleware';
     static middleware = [null];
-    static events = [{ name: 'run', handler: 'run', middleware: [null] }];
+    static events = [{ name: 'run', handler: 'run', middleware: [null] }] as const;
     run() {}
   }
   const app = new Application({ appState: TestAppState });
@@ -105,7 +106,7 @@ test('WebSocket-контроллер и событие строго и атом�
     InvalidWebSocketControllerError,
   );
   MiddlewareController.middleware = [];
-  MiddlewareController.events[0].middleware = [];
+  (MiddlewareController.events[0] as any).middleware = [];
   assert.equal(app.registerWebSocketController(MiddlewareController as any), app);
   await app.close();
 
@@ -113,12 +114,12 @@ test('WebSocket-контроллер и событие строго и атом�
     class UndefinedControllerMiddleware extends WebSocketControllerBase {
       static name = 'undefined-controller-middleware';
       static middleware = undefined;
-      static events = [{ name: 'run', handler: 'run' }];
+      static events = [{ name: 'run', handler: 'run' }] as const;
       run() {}
     },
     class UndefinedEventMiddleware extends WebSocketControllerBase {
       static name = 'undefined-event-middleware';
-      static events = [{ name: 'run', handler: 'run', middleware: undefined }];
+      static events = [{ name: 'run', handler: 'run', middleware: undefined }] as const;
       run() {}
     },
   ]) {
@@ -132,12 +133,12 @@ test('WebSocket-контроллер и событие строго и атом�
 test('регистрация отклоняет повторные классы, имена и события атомарно', () => {
   class FirstController extends WebSocketControllerBase {
     static name = 'shared';
-    static events = [{ name: 'first', handler: 'first' }];
+    static events = [{ name: 'first', handler: 'first' }] as const;
     first() {}
   }
   class ConflictingController extends WebSocketControllerBase {
     static name = 'shared';
-    static events = [{ name: 'second', handler: 'second' }];
+    static events = [{ name: 'second', handler: 'second' }] as const;
     second() {}
   }
   class DuplicateEventController extends WebSocketControllerBase {
@@ -145,7 +146,7 @@ test('регистрация отклоняет повторные классы,
     static events = [
       { name: 'same', handler: 'first' },
       { name: 'same', handler: 'second' },
-    ];
+    ] as const;
     first() {}
     second() {}
   }
@@ -165,7 +166,7 @@ test('регистрация отклоняет повторные классы,
     InvalidWebSocketControllerError,
   );
 
-  DuplicateEventController.events = [{ name: 'same', handler: 'first' }];
+  (DuplicateEventController as any).events = [{ name: 'same', handler: 'first' }];
   assert.equal(app.registerWebSocketController(DuplicateEventController), app);
 });
 

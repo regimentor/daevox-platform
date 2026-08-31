@@ -1,4 +1,5 @@
-import { HttpControllerBase } from '@daevox/framework';
+import { HttpControllerBase, type HttpRequestContext } from '@daevox/framework';
+import type { ExampleAppState } from '../ExampleAppState.ts';
 
 /**
  * Publishes a notification to the example WebSocket client.
@@ -8,7 +9,7 @@ import { HttpControllerBase } from '@daevox/framework';
  */
 export class BroadcastController extends HttpControllerBase {
   static prefix = '/broadcast';
-  static routes = [{ method: 'GET', path: '/', handler: 'publish' }];
+  static routes = [{ method: 'GET', path: '/', handler: 'publish' }] as const;
 
   /**
    * Sends a notification through the application-wide WebSocket sender.
@@ -17,7 +18,7 @@ export class BroadcastController extends HttpControllerBase {
    * @returns HTTP result. / HTTP-результат.
    * @public
    */
-  publish() {
+  publish(_appState: ExampleAppState, _ctx: HttpRequestContext<unknown>) {
     return {
       status: 200,
       body: this.websocket.send(

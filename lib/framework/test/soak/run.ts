@@ -443,7 +443,7 @@ async function main() {
       { method: 'POST', path: '/job/success', handler: 'jobSuccess' },
       { method: 'POST', path: '/job/cancel', handler: 'jobCancel' },
       { method: 'POST', path: '/job/timeout', handler: 'jobTimeout' },
-    ];
+    ] as const;
     async echo(_appState: any, ctx: any) {
       applicationEvents.push(this.events, ctx.body.sequence, 'http');
       return { status: 200, body: ctx.body };
@@ -483,7 +483,7 @@ async function main() {
 
   class SoakWebSocketController extends WebSocketControllerBase {
     static name = 'soak';
-    static events = [{ name: 'echo', handler: 'echo' }];
+    static events = [{ name: 'echo', handler: 'echo' }] as const;
     async echo(_appState: any, ctx: any) {
       applicationEvents.push(this.events, ctx.body.sequence, 'websocket');
       return ctx.body;
@@ -492,7 +492,7 @@ async function main() {
 
   class FastSoakEventListener extends EventListenerBase {
     static name = 'soak-fast';
-    static events = [{ name: 'work', data: SoakApplicationEvent, handler: 'work' }];
+    static events = [{ name: 'work', data: SoakApplicationEvent, handler: 'work' }] as const;
     work(data: any) {
       applicationEvents.recordHandled(data);
       if (data.poison) throw new Error(`soak event poison:${data.sequence}`);
@@ -501,7 +501,7 @@ async function main() {
 
   class SlowSoakEventListener extends EventListenerBase {
     static name = 'soak-slow';
-    static events = [{ name: 'work', data: SoakApplicationEvent, handler: 'work' }];
+    static events = [{ name: 'work', data: SoakApplicationEvent, handler: 'work' }] as const;
     async work(data: any) {
       applicationEvents.recordHandled(data);
       await new Promise<any>((resolve: any) => setTimeout(resolve, 2));

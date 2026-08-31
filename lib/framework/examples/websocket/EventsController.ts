@@ -1,23 +1,44 @@
-import { WebSocketControllerBase, WebSocketEventError } from '@daevox/framework';
+import {
+  WebSocketControllerBase,
+  WebSocketEventError,
+  type WebSocketHandlerContext,
+  type WebSocketMessageMiddleware,
+} from '@daevox/framework';
+import type { ExampleAppState } from '../ExampleAppState.ts';
 
-function requireAuthentication(_appState: any, ctx: any, next: any) {
+const requireAuthentication: WebSocketMessageMiddleware<ExampleAppState> = (
+  _appState,
+  ctx,
+  next,
+) => {
   if (!ctx.state.auth) throw new WebSocketEventError('UNAUTHORIZED');
   return next();
-}
+};
 
-function requireMessage(_appState: any, ctx: any, next: any) {
-  if (typeof ctx.body.message !== 'string' || ctx.body.message.trim() === '') {
+function messageFrom(body: unknown): string {
+  if (
+    body === null ||
+    typeof body !== 'object' ||
+    !('message' in body) ||
+    typeof body.message !== 'string' ||
+    body.message.trim() === ''
+  ) {
     throw new WebSocketEventError('INVALID_INPUT');
   }
-  return next();
+  return body.message;
 }
+
+const requireMessage: WebSocketMessageMiddleware<ExampleAppState> = (_appState, ctx, next) => {
+  messageFrom(ctx.body);
+  return next();
+};
 
 export class EventsController extends WebSocketControllerBase {
   static name = 'events';
   static middleware = [requireAuthentication];
-  static events = [{ name: 'echo', handler: 'echo', middleware: [requireMessage] }];
+  static events = [{ name: 'echo', handler: 'echo', middleware: [requireMessage] }] as const;
 
-  echo(_appState: any, ctx: any) {
-    return { message: ctx.body.message, messageCount: ctx.state.messageCount };
+  echo(_appState: ExampleAppState, ctx: WebSocketHandlerContext<unknown>) {
+    return { message: messageFrom(ctx.body), messageCount: ctx.state.messageCount };
   }
 }

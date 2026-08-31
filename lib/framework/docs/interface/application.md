@@ -48,6 +48,9 @@ node example.ts
   settlement handler до соответствующего cutoff.
 - `ApplicationOptions.appState` обязателен и принимает класс без аргументов. `Application` создаёт
   один экземпляр и передаёт его первым аргументом HTTP/WebSocket execution paths.
+- `Application<TAppState>` выводит `TAppState` только из конструктора `appState` и сохраняет его в
+  transport options, middleware, callbacks и контроллерах; класс без hooks и наследования допустим.
+- Публичные generic-типы без явного аргумента сохраняют default `AppStateInstance`.
 - `beforeAppStart`, `onAppStart` и `onAppClose` ожидаются как sync, так и async hooks; ошибка
   `onAppClose` сохраняет первую ошибку, но не прерывает дальнейшее закрытие.
 

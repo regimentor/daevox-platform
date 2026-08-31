@@ -272,7 +272,7 @@ async function createJobResource(config: any, poolSize: any, durationMode: any) 
   let mixedIndex = 0;
   class StressHttpController extends HttpControllerBase {
     static prefix = '/stress';
-    static routes = [{ method: 'POST', path: '/job', handler: 'job' }];
+    static routes = [{ method: 'POST', path: '/job', handler: 'job' }] as const;
     async job() {
       const durationMs =
         durationMode === 'mixed'
@@ -310,7 +310,7 @@ async function queueScenario(config: any) {
   let submissions = 0;
   class QueueController extends HttpControllerBase {
     static prefix = '/stress';
-    static routes = [{ method: 'POST', path: '/queue', handler: 'queue' }];
+    static routes = [{ method: 'POST', path: '/queue', handler: 'queue' }] as const;
     async queue(_appState: any, ctx: any) {
       submissions += 1;
       try {
@@ -395,7 +395,7 @@ async function applicationEventScenario(config: any) {
   }
   class SerialEventListener extends EventListenerBase {
     static name = 'stress-serial';
-    static events = [{ name: 'work', data: StressEvent, handler: 'work' }];
+    static events = [{ name: 'work', data: StressEvent, handler: 'work' }] as const;
     async work(data: any) {
       handled.push(data.label);
       if (data.label === 'active') {
@@ -406,7 +406,7 @@ async function applicationEventScenario(config: any) {
   }
   class ParallelEventListener extends EventListenerBase {
     static name = 'stress-parallel';
-    static events = [{ name: 'work', data: StressEvent, handler: 'work' }];
+    static events = [{ name: 'work', data: StressEvent, handler: 'work' }] as const;
     work(data: any) {
       handled.push(data.label);
       resolveParallelHandled();
@@ -414,7 +414,7 @@ async function applicationEventScenario(config: any) {
   }
   class EventController extends HttpControllerBase {
     static prefix = '/stress/events';
-    static routes = [{ method: 'POST', path: '/', handler: 'push' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'push' }] as const;
     push(_appState: any, ctx: any) {
       const listener = ctx.body.parallel ? 'stress-parallel' : 'stress-serial';
       try {
@@ -511,7 +511,7 @@ async function applicationEventThroughput(config: any) {
 
   class FastThroughputListener extends EventListenerBase {
     static name = 'throughput-fast';
-    static events = [{ name: 'work', data: ThroughputEvent, handler: 'work' }];
+    static events = [{ name: 'work', data: ThroughputEvent, handler: 'work' }] as const;
     work(data: any) {
       record(data);
       if (data.poison) throw new Error(`event poison:${data.id}`);
@@ -520,7 +520,7 @@ async function applicationEventThroughput(config: any) {
 
   class SlowThroughputListener extends EventListenerBase {
     static name = 'throughput-slow';
-    static events = [{ name: 'work', data: ThroughputEvent, handler: 'work' }];
+    static events = [{ name: 'work', data: ThroughputEvent, handler: 'work' }] as const;
     async work(data: any) {
       record(data);
       await new Promise<any>((resolve: any) => setTimeout(resolve, 2));
@@ -554,7 +554,7 @@ async function applicationEventThroughput(config: any) {
 
   class ThroughputHttpController extends HttpControllerBase {
     static prefix = '/stress/event-throughput';
-    static routes = [{ method: 'POST', path: '/', handler: 'push' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'push' }] as const;
     push(_appState: any, ctx: any) {
       const result = push(this.events, ctx.body);
       return { status: result.accepted ? 202 : 503, body: result };
@@ -563,7 +563,7 @@ async function applicationEventThroughput(config: any) {
 
   class ThroughputWebSocketController extends WebSocketControllerBase {
     static name = 'event-throughput';
-    static events = [{ name: 'push', handler: 'push' }];
+    static events = [{ name: 'push', handler: 'push' }] as const;
     push(_appState: any, ctx: any) {
       return push(this.events, ctx.body);
     }
@@ -719,7 +719,7 @@ async function applicationEventShutdownChaos(config: any) {
 
     class ChaosListener extends EventListenerBase {
       static name = 'chaos';
-      static events = [{ name: 'work', data: ChaosEvent, handler: 'work' }];
+      static events = [{ name: 'work', data: ChaosEvent, handler: 'work' }] as const;
       async work(data: any, { signal }: any) {
         if (seen.has(data.id)) duplicates += 1;
         seen.add(data.id);
@@ -746,7 +746,7 @@ async function applicationEventShutdownChaos(config: any) {
 
     class ChaosHttpController extends HttpControllerBase {
       static prefix = '/stress/event-chaos';
-      static routes = [{ method: 'POST', path: '/', handler: 'push' }];
+      static routes = [{ method: 'POST', path: '/', handler: 'push' }] as const;
       push(_appState: any, ctx: any) {
         return { status: 202, body: push(this.events, ctx.body.id) };
       }
@@ -754,7 +754,7 @@ async function applicationEventShutdownChaos(config: any) {
 
     class ChaosWebSocketController extends WebSocketControllerBase {
       static name = 'event-chaos';
-      static events = [{ name: 'push', handler: 'push' }];
+      static events = [{ name: 'push', handler: 'push' }] as const;
       push(_appState: any, ctx: any) {
         return push(this.events, ctx.body.id);
       }
@@ -855,7 +855,7 @@ async function applicationEventShutdownChaos(config: any) {
 async function createWebSocketApplication() {
   class StressWebSocketController extends WebSocketControllerBase {
     static name = 'stress';
-    static events = [{ name: 'echo', handler: 'echo' }];
+    static events = [{ name: 'echo', handler: 'echo' }] as const;
     async echo(_appState: any, ctx: any) {
       return ctx.body;
     }
@@ -1042,7 +1042,7 @@ async function mixedProfile(config: any) {
     static routes = [
       { method: 'GET', path: '/fast', handler: 'fast' },
       { method: 'POST', path: '/job', handler: 'job' },
-    ];
+    ] as const;
     async fast() {
       return { status: 200, body: { ok: true } };
     }
@@ -1061,7 +1061,7 @@ async function mixedProfile(config: any) {
   }
   class MixedWebSocketController extends WebSocketControllerBase {
     static name = 'mixed';
-    static events = [{ name: 'echo', handler: 'echo' }];
+    static events = [{ name: 'echo', handler: 'echo' }] as const;
     async echo(_appState: any, ctx: any) {
       return ctx.body;
     }

@@ -1,8 +1,8 @@
 import { MiddlewareExecutionError } from './errors.ts';
 
 /** Generic middleware contract. / Обобщённый контракт middleware. @private */
-export type Middleware<Context = object, Result = unknown> = (
-  appState: object,
+export type Middleware<TAppState extends object = object, Context = object, Result = unknown> = (
+  appState: TAppState,
   context: Context,
   next: () => Promise<Result>,
 ) => Result | Promise<Result>;
@@ -14,7 +14,7 @@ type MiddlewareErrorFactory = (message: string) => Error;
  * Shared immutable empty middleware list. / Общий неизменяемый пустой список middleware.
  * @private
  */
-const EMPTY_MIDDLEWARE: readonly Middleware<any, any>[] = Object.freeze([]);
+const EMPTY_MIDDLEWARE: readonly Middleware<any, any, any>[] = Object.freeze([]);
 
 /**
  * Validates and snapshots a dense middleware array.
@@ -26,10 +26,14 @@ const EMPTY_MIDDLEWARE: readonly Middleware<any, any>[] = Object.freeze([]);
  * @returns Frozen middleware snapshot. / Замороженный снимок middleware.
  * @private
  */
-export function snapshotMiddleware<Context = object, Result = unknown>(
+export function snapshotMiddleware<
+  TAppState extends object = object,
+  Context = object,
+  Result = unknown,
+>(
   value: unknown,
   createError: MiddlewareErrorFactory,
-): readonly Middleware<Context, Result>[] {
+): readonly Middleware<TAppState, Context, Result>[] {
   if (value === undefined) return EMPTY_MIDDLEWARE;
   if (!Array.isArray(value)) throw createError('middleware must be an array');
 
@@ -44,13 +48,13 @@ export function snapshotMiddleware<Context = object, Result = unknown>(
       throw createError('middleware must be a dense array without additional fields');
     }
 
-    const snapshot: Middleware<Context, Result>[] = [];
+    const snapshot: Middleware<TAppState, Context, Result>[] = [];
     for (let index = 0; index < value.length; index += 1) {
       const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
       if (!descriptor || !('value' in descriptor) || typeof descriptor.value !== 'function') {
         throw createError('middleware entries must be functions');
       }
-      snapshot.push(descriptor.value as Middleware<Context, Result>);
+      snapshot.push(descriptor.value as Middleware<TAppState, Context, Result>);
     }
     return Object.freeze(snapshot);
   } catch (error) {
@@ -68,10 +72,14 @@ export function snapshotMiddleware<Context = object, Result = unknown>(
  * @returns Frozen middleware snapshot. / Замороженный снимок middleware.
  * @private
  */
-export function snapshotDeclaredMiddleware<Context = object, Result = unknown>(
+export function snapshotDeclaredMiddleware<
+  TAppState extends object = object,
+  Context = object,
+  Result = unknown,
+>(
   owner: object,
   createError: MiddlewareErrorFactory,
-): readonly Middleware<Context, Result>[] {
+): readonly Middleware<TAppState, Context, Result>[] {
   const descriptor = Object.getOwnPropertyDescriptor(owner, 'middleware');
   if (!descriptor) return EMPTY_MIDDLEWARE;
   if (!('value' in descriptor) || descriptor.value === undefined) {
@@ -88,10 +96,10 @@ export function snapshotDeclaredMiddleware<Context = object, Result = unknown>(
  * @returns Executable chain. / Исполняемая цепочка.
  * @private
  */
-export function composeMiddleware<Context, Result>(
-  middleware: readonly Middleware<Context, Result>[],
+export function composeMiddleware<TAppState extends object, Context, Result>(
+  middleware: readonly Middleware<TAppState, Context, Result>[],
   terminalHandler: (context: Context) => unknown,
-): (appState: object, context: Context) => Promise<Result> {
+): (appState: TAppState, context: Context) => Promise<Result> {
   /**
    * Executes the composed middleware chain for one transport context.
    * Выполняет скомпонованную цепочку middleware для одного транспортного контекста.
@@ -99,7 +107,7 @@ export function composeMiddleware<Context, Result>(
    * @returns Final chain result. / Итоговый результат цепочки.
    * @private
    */
-  return async function executeMiddlewareChain(appState: object, ctx: Context): Promise<Result> {
+  return async function executeMiddlewareChain(appState: TAppState, ctx: Context): Promise<Result> {
     /**
      * Dispatches one middleware or the terminal handler by chain index.
      * Вызывает одно middleware или terminal handler по индексу цепочки.

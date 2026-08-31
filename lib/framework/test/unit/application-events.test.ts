@@ -66,7 +66,7 @@ test('mailbox сохраняет FIFO одного listener и не блокир
   }
   class SerialListener extends EventListenerBase {
     static name = 'serial';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     async work(data: any) {
       order.push(`start:${data.id}`);
       if (data.id === 1) {
@@ -79,7 +79,7 @@ test('mailbox сохраняет FIFO одного listener и не блокир
   }
   class ParallelListener extends EventListenerBase {
     static name = 'parallel';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     work(data: any) {
       order.push(`parallel:${data.id}`);
       parallelFinished.resolve();
@@ -87,7 +87,7 @@ test('mailbox сохраняет FIFO одного listener и не блокир
   }
   class TriggerController extends HttpControllerBase {
     static prefix = '/trigger';
-    static routes = [{ method: 'POST', path: '/', handler: 'trigger' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'trigger' }] as const;
     trigger() {
       this.events.push({ listener: 'serial', event: 'work' }, new Work(1));
       this.events.push({ listener: 'serial', event: 'work' }, new Work(2));
@@ -131,7 +131,7 @@ test('mailbox запускает не более одного handler за од�
   }
   class FairListener extends EventListenerBase {
     static name = 'fair';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     work(data: any) {
       order.push(data.id);
       if (data.id === 2) finished.resolve();
@@ -139,7 +139,7 @@ test('mailbox запускает не более одного handler за од�
   }
   class TriggerController extends HttpControllerBase {
     static prefix = '/fair';
-    static routes = [{ method: 'POST', path: '/', handler: 'trigger' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'trigger' }] as const;
     trigger() {
       this.events.push({ listener: 'fair', event: 'work' }, new Work(1));
       this.events.push({ listener: 'fair', event: 'work' }, new Work(2));
@@ -163,12 +163,12 @@ test('push синхронно отклоняет неверный адрес, DT
   class Other {}
   class Listener extends EventListenerBase {
     static name = 'strict';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     work() {}
   }
   class TriggerController extends HttpControllerBase {
     static prefix = '/strict';
-    static routes = [{ method: 'POST', path: '/', handler: 'trigger' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'trigger' }] as const;
     trigger() {
       const invalidCalls = [
         () => this.events.push(undefined as any, new Work()),
@@ -228,7 +228,7 @@ test('queueSize считает ожидающие события, но не acti
   class Work {}
   class Listener extends EventListenerBase {
     static name = 'capacity';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     async work() {
       activeStarted.resolve();
       await releaseActive.promise;
@@ -236,7 +236,7 @@ test('queueSize считает ожидающие события, но не acti
   }
   class Controller extends HttpControllerBase {
     static prefix = '/capacity';
-    static routes = [{ method: 'POST', path: '/', handler: 'push' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'push' }] as const;
     push() {
       try {
         this.events.push({ listener: 'capacity', event: 'work' }, new Work());
@@ -279,7 +279,7 @@ test('registry и push копируют адрес, но передают ту �
   }
   class TriggerController extends HttpControllerBase {
     static prefix = '/snapshot';
-    static routes = [{ method: 'POST', path: '/', handler: 'trigger' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'trigger' }] as const;
     trigger() {
       sent = new Work();
       const address = { listener: 'snapshot', event: 'work' };
@@ -329,7 +329,7 @@ test('ошибки handler изолированы от HTTP и тот же liste
   }
   class Listener extends EventListenerBase {
     static name = 'resilient';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     count = 0;
     work(data: any) {
       this.count += 1;
@@ -341,7 +341,7 @@ test('ошибки handler изолированы от HTTP и тот же liste
   }
   class TriggerController extends HttpControllerBase {
     static prefix = '/errors';
-    static routes = [{ method: 'POST', path: '/', handler: 'trigger' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'trigger' }] as const;
     trigger() {
       for (const kind of ['sync', 'async', 'success']) {
         this.events.push({ listener: 'resilient', event: 'work' }, new Work(kind));
@@ -377,14 +377,14 @@ test('ошибка handler без events.onError передаётся в console
   class Work {}
   class Listener extends EventListenerBase {
     static name = 'default-observer';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     work() {
       throw handlerError;
     }
   }
   class Controller extends HttpControllerBase {
     static prefix = '/default-observer';
-    static routes = [{ method: 'POST', path: '/', handler: 'push' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'push' }] as const;
     push() {
       this.events.push({ listener: 'default-observer', event: 'work' }, new Work());
       return { status: 202 };
@@ -413,14 +413,14 @@ test('запланированный mailbox не запускает отбро�
   class Work {}
   class Listener extends EventListenerBase {
     static name = 'scheduled-cutoff';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     work() {
       handlerCalled = true;
     }
   }
   class Controller extends HttpControllerBase {
     static prefix = '/scheduled-cutoff';
-    static routes = [{ method: 'POST', path: '/', handler: 'push' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'push' }] as const;
     push() {
       this.events.push({ listener: 'scheduled-cutoff', event: 'work' }, new Work());
       return { status: 202 };
@@ -473,7 +473,7 @@ test('handler timeout отменяет signal, но FIFO ждёт поздний
   }
   class Listener extends EventListenerBase {
     static name = 'timeout';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     async work(data: any, { signal }: any) {
       if (data.id === 1) {
         await new Promise<any>((resolve: any) => {
@@ -495,7 +495,7 @@ test('handler timeout отменяет signal, но FIFO ждёт поздний
   }
   class TriggerController extends HttpControllerBase {
     static prefix = '/timeout';
-    static routes = [{ method: 'POST', path: '/', handler: 'trigger' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'trigger' }] as const;
     trigger() {
       this.events.push({ listener: 'timeout', event: 'work' }, new Work(1));
       this.events.push({ listener: 'timeout', event: 'work' }, new Work(2));
@@ -550,7 +550,7 @@ test('ошибка observer передаётся в console.error и не зад
   }
   class Listener extends EventListenerBase {
     static name = 'observer';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     work(data: any) {
       if (data.id < 3) throw new Error(`handler:${data.id}`);
       finished.resolve();
@@ -558,7 +558,7 @@ test('ошибка observer передаётся в console.error и не зад
   }
   class TriggerController extends HttpControllerBase {
     static prefix = '/observer';
-    static routes = [{ method: 'POST', path: '/', handler: 'trigger' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'trigger' }] as const;
     trigger() {
       for (const id of [1, 2, 3]) {
         this.events.push({ listener: 'observer', event: 'work' }, new Work(id));
@@ -595,7 +595,7 @@ test('ошибка конструктора listener делает запуск �
   class Work {}
   class BrokenListener extends EventListenerBase {
     static name = 'broken';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     constructor(options: any) {
       super(options);
       throw constructionError;
@@ -624,7 +624,7 @@ test('WebSocket-контроллер получает events, а listener error 
   }
   class Listener extends EventListenerBase {
     static name = 'websocket-listener';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     work(data: any) {
       assert.equal(data.value, 'payload');
       throw new Error('listener failed later');
@@ -632,7 +632,7 @@ test('WebSocket-контроллер получает events, а listener error 
   }
   class TriggerController extends WebSocketControllerBase {
     static name = 'trigger';
-    static events = [{ name: 'run', handler: 'run' }];
+    static events = [{ name: 'run', handler: 'run' }] as const;
     run(_appState: any, ctx: any) {
       const result = this.events.push(
         { listener: 'websocket-listener', event: 'work' },

@@ -125,7 +125,7 @@ async function createHttpOperation(profile: any, config: any, injectedDelayMs: a
   const value = 'x'.repeat(config.messageBytes);
   class BenchmarkController extends HttpControllerBase {
     static prefix = '/benchmark';
-    static routes = [{ method: 'POST', path: '/', handler: 'run' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'run' }] as const;
     async run(_appState: any, ctx: any) {
       if (injectedDelayMs > 0) await delay(injectedDelayMs);
       return { status: 200, body: { size: ctx.body.value.length } };
@@ -147,7 +147,7 @@ async function createHttpOperation(profile: any, config: any, injectedDelayMs: a
 async function createWebSocketOperation(config: any, injectedDelayMs: any) {
   class BenchmarkController extends WebSocketControllerBase {
     static name = 'benchmark';
-    static events = [{ name: 'echo', handler: 'echo' }];
+    static events = [{ name: 'echo', handler: 'echo' }] as const;
     async echo(_appState: any, ctx: any) {
       if (injectedDelayMs > 0) await delay(injectedDelayMs);
       return { size: ctx.body.value.length };
@@ -173,7 +173,7 @@ async function createWebSocketOperation(config: any, injectedDelayMs: any) {
 async function createJobOperation(config: any, injectedDelayMs: any) {
   class JobController extends HttpControllerBase {
     static prefix = '/benchmark-job';
-    static routes = [{ method: 'POST', path: '/', handler: 'run' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'run' }] as const;
     async run() {
       const submittedAtNs = process.hrtime.bigint();
       const result = await this.jobRunner.run(CpuBenchmarkJob, {

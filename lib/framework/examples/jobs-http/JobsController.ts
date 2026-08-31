@@ -1,9 +1,29 @@
-import { HttpControllerBase, HttpError } from '@daevox/framework';
-import SumJob from './SumJob.ts';
+import {
+  HttpControllerBase,
+  HttpError,
+  type HttpRequestContext,
+  type HttpResponse,
+} from '@daevox/framework';
+import type { ExampleAppState } from '../ExampleAppState.ts';
+import SumJob, { type SumJobPayload } from './SumJob.ts';
 
-function validateValues(_appState: any, ctx: any, next: any) {
-  const values = ctx.body?.values;
-  if (!Array.isArray(values) || values.some((value: any) => !Number.isFinite(value))) {
+type HttpNext = () => Promise<HttpResponse>;
+
+function finiteValues(value: unknown): value is number[] {
+  return Array.isArray(value) && value.every((entry: unknown) => Number.isFinite(entry));
+}
+
+function valuesFromBody(body: unknown): unknown {
+  return body !== null && typeof body === 'object' && 'values' in body ? body.values : undefined;
+}
+
+function validateValues(
+  _appState: ExampleAppState,
+  ctx: HttpRequestContext<unknown>,
+  next: HttpNext,
+): HttpResponse | Promise<HttpResponse> {
+  const values = valuesFromBody(ctx.body);
+  if (!finiteValues(values)) {
     throw new HttpError(422, {
       body: { error: 'values must be finite numbers' },
     });
@@ -12,7 +32,11 @@ function validateValues(_appState: any, ctx: any, next: any) {
   return next();
 }
 
-function markSumOperation(_appState: any, ctx: any, next: any) {
+function markSumOperation(
+  _appState: ExampleAppState,
+  ctx: HttpRequestContext<unknown>,
+  next: HttpNext,
+): Promise<HttpResponse> {
   ctx.state.operation = 'sum';
   return next();
 }
@@ -27,17 +51,17 @@ export class JobsController extends HttpControllerBase {
       handler: 'sum',
       middleware: [markSumOperation],
     },
-  ];
+  ] as const;
 
-  async sum(_appState: any, ctx: any) {
-    const result = await this.jobRunner.run(
-      SumJob,
-      { values: ctx.state.values },
-      {
-        signal: ctx.signal,
-        timeout: 5_000,
-      },
-    );
+  async sum(_appState: ExampleAppState, ctx: HttpRequestContext<unknown>) {
+    if (!finiteValues(ctx.state.values)) {
+      throw new HttpError(500, { body: { error: 'Validated values are unavailable' } });
+    }
+    const payload: SumJobPayload = { values: ctx.state.values };
+    const result = await this.jobRunner.run(SumJob, payload, {
+      signal: ctx.signal,
+      timeout: 5_000,
+    });
     return { status: 200, body: result };
   }
 }

@@ -51,14 +51,14 @@ export interface HttpRequestContext<Body = any, State extends object = Record<st
 }
 
 /** Application-state instance lifecycle contract. / Контракт lifecycle экземпляра состояния приложения. @public */
-export interface AppStateInstance {
+export type AppStateInstance = object & {
   beforeAppStart?(): void | Promise<void>;
   onAppStart?(): void | Promise<void>;
   onAppClose?(): void | Promise<void>;
-}
+};
 
 /** Application-state constructor. / Конструктор состояния приложения. @public */
-export type AppState = new () => object;
+export type AppState<TAppState extends object = AppStateInstance> = new () => TAppState;
 
 /** Explicit HTTP-handler result. / Явный результат HTTP-обработчика. @public */
 export interface HttpResponse<Body = unknown> {
@@ -68,35 +68,65 @@ export interface HttpResponse<Body = unknown> {
 }
 
 /** HTTP middleware around a resolved handler. / HTTP middleware вокруг обработчика. @public */
-export type HttpMiddleware = (
-  appState: AppStateInstance,
+export type HttpMiddleware<TAppState extends object = AppStateInstance> = (
+  appState: TAppState,
   context: HttpRequestContext,
   next: () => Promise<HttpResponse>,
 ) => HttpResponse | Promise<HttpResponse>;
 
+/** HTTP-handler method. / Метод HTTP-обработчика. @public */
+export type HttpHandler<TAppState extends object = AppStateInstance> = (
+  appState: TAppState,
+  context: HttpRequestContext,
+) => HttpResponse | Promise<HttpResponse>;
+
 /** Declarative HTTP route. / Декларативный HTTP-маршрут. @public */
-export interface HttpRouteDeclaration {
+export interface HttpRouteDeclaration<TAppState extends object = AppStateInstance> {
   method: string;
   path: string;
   handler: string;
-  middleware?: HttpMiddleware[];
+  middleware?: readonly HttpMiddleware<TAppState>[];
 }
 
 /** HTTP-controller class accepted for registration. / Класс HTTP-контроллера для регистрации. @public */
-export type HttpControllerClass = {
+export type HttpControllerClass<TAppState extends object = AppStateInstance> = {
   new (options: HttpControllerOptions): HttpControllerBase;
   readonly prefix: string;
-  readonly routes: readonly HttpRouteDeclaration[];
-  readonly middleware?: readonly HttpMiddleware[];
+  readonly routes: readonly HttpRouteDeclaration<TAppState>[];
+  readonly middleware?: readonly HttpMiddleware<TAppState>[];
 };
 
+/** Invalid HTTP declarations selected from one controller. / Некорректные HTTP-декларации одного контроллера. @private */
+type InvalidHttpHandlerDeclaration<
+  TAppState extends object,
+  TController extends HttpControllerClass<TAppState>,
+> = TController['routes'][number] extends infer TRoute
+  ? TRoute extends { readonly handler: infer THandler extends string }
+    ? string extends THandler
+      ? TRoute
+      : THandler extends keyof InstanceType<TController>
+        ? InstanceType<TController>[THandler] extends HttpHandler<TAppState>
+          ? never
+          : TRoute
+        : TRoute
+    : TRoute
+  : never;
+
+/** Registration-time HTTP handler proof. / Проверка HTTP-обработчиков при регистрации. @private */
+type CheckedHttpController<
+  TAppState extends object,
+  TController extends HttpControllerClass<TAppState>,
+> = [InvalidHttpHandlerDeclaration<TAppState, TController>] extends [never]
+  ? unknown
+  : { readonly __invalidHttpHandlerDeclaration: never };
+
 /** HTTP transport configuration. / Конфигурация HTTP-транспорта. @public */
-export interface HttpOptions {
+export interface HttpOptions<TAppState extends object = AppStateInstance> {
   bodyLimit?: number;
   shutdownTimeout?: number;
-  middleware?: HttpMiddleware[];
+  middleware?: HttpMiddleware<TAppState>[];
   onError?: (
-    appState: AppStateInstance,
+    appState: TAppState,
     error: unknown,
     context?: HttpRequestContext,
   ) => unknown | Promise<unknown>;
@@ -136,28 +166,58 @@ export interface WebSocketHandlerContext<
 }
 
 /** WebSocket message middleware. / Middleware WebSocket-сообщения. @public */
-export type WebSocketMessageMiddleware = (
-  appState: AppStateInstance,
+export type WebSocketMessageMiddleware<TAppState extends object = AppStateInstance> = (
+  appState: TAppState,
   context: WebSocketHandlerContext,
   next: () => Promise<unknown>,
 ) => unknown | Promise<unknown>;
 
+/** WebSocket event-handler method. / Метод обработчика WebSocket-события. @public */
+export type WebSocketHandler<TAppState extends object = AppStateInstance> = (
+  appState: TAppState,
+  context: WebSocketHandlerContext,
+) => object | void | Promise<object | void>;
+
+/** Invalid WebSocket declarations selected from one controller. / Некорректные WebSocket-декларации одного контроллера. @private */
+type InvalidWebSocketHandlerDeclaration<
+  TAppState extends object,
+  TController extends WebSocketControllerClass<TAppState>,
+> = TController['events'][number] extends infer TEvent
+  ? TEvent extends { readonly handler: infer THandler extends string }
+    ? string extends THandler
+      ? TEvent
+      : THandler extends keyof InstanceType<TController>
+        ? InstanceType<TController>[THandler] extends WebSocketHandler<TAppState>
+          ? never
+          : TEvent
+        : TEvent
+    : TEvent
+  : never;
+
+/** Registration-time WebSocket handler proof. / Проверка WebSocket-обработчиков при регистрации. @private */
+type CheckedWebSocketController<
+  TAppState extends object,
+  TController extends WebSocketControllerClass<TAppState>,
+> = [InvalidWebSocketHandlerDeclaration<TAppState, TController>] extends [never]
+  ? unknown
+  : { readonly __invalidWebSocketHandlerDeclaration: never };
+
 /** WebSocket transport and lifecycle configuration. / Конфигурация WebSocket. @public */
-export interface WebSocketOptions {
+export interface WebSocketOptions<TAppState extends object = AppStateInstance> {
   path?: string;
   maxPayload?: number;
   shutdownTimeout?: number;
-  middleware?: WebSocketMessageMiddleware[];
+  middleware?: readonly WebSocketMessageMiddleware<TAppState>[];
   onConnect?: (
-    appState: AppStateInstance,
+    appState: TAppState,
     context: WebSocketLifecycleContext,
   ) => unknown | Promise<unknown>;
   onDisconnect?: (
-    appState: AppStateInstance,
+    appState: TAppState,
     context: WebSocketDisconnectContext,
   ) => unknown | Promise<unknown>;
   onError?: (
-    appState: AppStateInstance,
+    appState: TAppState,
     error: unknown,
     context?: Partial<WebSocketHandlerContext>,
   ) => unknown | Promise<unknown>;
@@ -172,11 +232,11 @@ export interface EventOptions {
 }
 
 /** Application configuration. / Конфигурация приложения. @public */
-export interface ApplicationOptions {
-  appState: AppState;
+export interface ApplicationOptions<TAppState extends object = AppStateInstance> {
+  appState: AppState<TAppState>;
   jobs?: JobRunnerConfig;
-  http?: HttpOptions;
-  websocket?: WebSocketOptions;
+  http?: HttpOptions<TAppState>;
+  websocket?: WebSocketOptions<TAppState>;
   events?: EventOptions;
 }
 
@@ -195,22 +255,22 @@ interface NormalizedEventOptions {
 }
 
 /** Normalized HTTP options. / Нормализованные параметры HTTP. @private */
-interface NormalizedHttpOptions {
+interface NormalizedHttpOptions<TAppState extends object = AppStateInstance> {
   bodyLimit: number;
-  middleware: readonly HttpMiddleware[];
+  middleware: readonly HttpMiddleware<TAppState>[];
   shutdownTimeout: number;
-  onError?: HttpOptions['onError'];
+  onError?: HttpOptions<TAppState>['onError'];
 }
 
 /** Normalized WebSocket options. / Нормализованные параметры WebSocket. @private */
-export interface NormalizedWebSocketOptions {
+export interface NormalizedWebSocketOptions<TAppState extends object = AppStateInstance> {
   maxPayload: number;
-  middleware: readonly WebSocketMessageMiddleware[];
+  middleware: readonly WebSocketMessageMiddleware<TAppState>[];
   path: string;
   shutdownTimeout: number;
-  onConnect?: WebSocketOptions['onConnect'];
-  onDisconnect?: WebSocketOptions['onDisconnect'];
-  onError?: WebSocketOptions['onError'];
+  onConnect?: WebSocketOptions<TAppState>['onConnect'];
+  onDisconnect?: WebSocketOptions<TAppState>['onDisconnect'];
+  onError?: WebSocketOptions<TAppState>['onError'];
 }
 
 /** Active HTTP request tracked during shutdown. / Активный HTTP-запрос, отслеживаемый при shutdown. @private */
@@ -341,22 +401,25 @@ function invalidHttpOptions(message: any) {
  * @returns Normalized configuration. / Нормализованная конфигурация.
  * @private
  */
-function normalizeHttpOptions(options: any = {}): NormalizedHttpOptions {
-  if (options === null || typeof options !== 'object' || Array.isArray(options)) {
+function normalizeHttpOptions<TAppState extends object>(
+  options: HttpOptions<TAppState> | undefined = undefined,
+): NormalizedHttpOptions<TAppState> {
+  const candidate: any = options === undefined ? {} : options;
+  if (candidate === null || typeof candidate !== 'object' || Array.isArray(candidate)) {
     invalidHttpOptions('http configuration must be an object');
   }
   if (
-    Reflect.ownKeys(options).some(
+    Reflect.ownKeys(candidate).some(
       (key: any) => typeof key !== 'string' || !HTTP_OPTION_KEYS.has(key),
     )
   ) {
     invalidHttpOptions('http configuration contains an unknown field');
   }
-  const bodyLimit = options.bodyLimit ?? 1024 * 1024;
-  const shutdownTimeout = options.shutdownTimeout ?? 30_000;
-  const onError = options.onError;
-  const middleware = snapshotMiddleware<HttpRequestContext, HttpResponse>(
-    options.middleware,
+  const bodyLimit = candidate.bodyLimit ?? 1024 * 1024;
+  const shutdownTimeout = candidate.shutdownTimeout ?? 30_000;
+  const onError = candidate.onError;
+  const middleware = snapshotMiddleware<TAppState, HttpRequestContext, HttpResponse>(
+    candidate.middleware,
     (message: any) => new InvalidHttpOptionsError(message),
   );
   if (!Number.isInteger(bodyLimit) || bodyLimit < 0) invalidHttpOptions('bodyLimit is invalid');
@@ -379,21 +442,24 @@ function normalizeHttpOptions(options: any = {}): NormalizedHttpOptions {
  * @returns Normalized configuration. / Нормализованная конфигурация.
  * @private
  */
-function normalizeWebSocketOptions(options: any = {}): NormalizedWebSocketOptions {
-  if (options === null || typeof options !== 'object' || Array.isArray(options)) {
+function normalizeWebSocketOptions<TAppState extends object>(
+  options: WebSocketOptions<TAppState> | undefined = undefined,
+): NormalizedWebSocketOptions<TAppState> {
+  const candidate: any = options === undefined ? {} : options;
+  if (candidate === null || typeof candidate !== 'object' || Array.isArray(candidate)) {
     throw new InvalidWebSocketOptionsError('websocket configuration must be an object');
   }
   if (
-    Reflect.ownKeys(options).some(
+    Reflect.ownKeys(candidate).some(
       (key: any) => typeof key !== 'string' || !WEBSOCKET_OPTION_KEYS.has(key),
     )
   ) {
     throw new InvalidWebSocketOptionsError('websocket configuration contains an unknown field');
   }
-  const maxPayload = options.maxPayload ?? 1024 * 1024;
-  const shutdownTimeout = options.shutdownTimeout ?? 30_000;
-  const middleware = snapshotMiddleware<WebSocketHandlerContext, unknown>(
-    options.middleware,
+  const maxPayload = candidate.maxPayload ?? 1024 * 1024;
+  const shutdownTimeout = candidate.shutdownTimeout ?? 30_000;
+  const middleware = snapshotMiddleware<TAppState, WebSocketHandlerContext, unknown>(
+    candidate.middleware,
     (message: any) => new InvalidWebSocketOptionsError(message),
   );
   if (!Number.isInteger(maxPayload) || maxPayload < 0) {
@@ -405,17 +471,17 @@ function normalizeWebSocketOptions(options: any = {}): NormalizedWebSocketOption
   let path: any;
   try {
     if (
-      options.path !== undefined &&
-      (typeof options.path !== 'string' || !options.path.startsWith('/'))
+      candidate.path !== undefined &&
+      (typeof candidate.path !== 'string' || !candidate.path.startsWith('/'))
     ) {
       throw new TypeError();
     }
-    path = composePath([], options.path ?? '/websocket');
+    path = composePath([], candidate.path ?? '/websocket');
   } catch {
     throw new InvalidWebSocketOptionsError('path is invalid');
   }
   for (const hook of ['onConnect', 'onDisconnect', 'onError']) {
-    if (options[hook] !== undefined && typeof options[hook] !== 'function') {
+    if (candidate[hook] !== undefined && typeof candidate[hook] !== 'function') {
       throw new InvalidWebSocketOptionsError(`${hook} is invalid`);
     }
   }
@@ -424,9 +490,9 @@ function normalizeWebSocketOptions(options: any = {}): NormalizedWebSocketOption
     middleware,
     path,
     shutdownTimeout,
-    onConnect: options.onConnect,
-    onDisconnect: options.onDisconnect,
-    onError: options.onError,
+    onConnect: candidate.onConnect,
+    onDisconnect: candidate.onDisconnect,
+    onError: candidate.onError,
   };
 }
 
@@ -556,7 +622,9 @@ function ownDataValue(object: any, property: any) {
  * @private
 
  */
-function validateControllerClass(HttpController: any) {
+function validateControllerClass<TAppState extends object>(
+  HttpController: HttpControllerClass<TAppState>,
+) {
   if (
     typeof HttpController !== 'function' ||
     !HttpController.prototype ||
@@ -567,7 +635,7 @@ function validateControllerClass(HttpController: any) {
 
   const prefix = ownDataValue(HttpController, 'prefix');
   const routes = ownDataValue(HttpController, 'routes');
-  const middleware = snapshotDeclaredMiddleware<HttpRequestContext, HttpResponse>(
+  const middleware = snapshotDeclaredMiddleware<TAppState, HttpRequestContext, HttpResponse>(
     HttpController,
     (message) => controllerError(message),
   );
@@ -597,7 +665,11 @@ function validateControllerClass(HttpController: any) {
  * @private
 
  */
-function normalizeRoute(HttpController: any, prefixSegments: any, declaration: any) {
+function normalizeRoute<TAppState extends object>(
+  HttpController: HttpControllerClass<TAppState>,
+  prefixSegments: any,
+  declaration: any,
+) {
   if (
     declaration === null ||
     typeof declaration !== 'object' ||
@@ -628,7 +700,7 @@ function normalizeRoute(HttpController: any, prefixSegments: any, declaration: a
     throw controllerError('HTTP handler must be an own instance method');
   }
 
-  const middleware = snapshotDeclaredMiddleware<HttpRequestContext, HttpResponse>(
+  const middleware = snapshotDeclaredMiddleware<TAppState, HttpRequestContext, HttpResponse>(
     declaration,
     (message) => routeError(message),
   );
@@ -648,7 +720,7 @@ function normalizeRoute(HttpController: any, prefixSegments: any, declaration: a
  * Компонует HTTP-, WebSocket-возможности и фоновые задачи и владеет их жизненным циклом.
  * @public
  */
-export class Application {
+export class Application<TAppState extends object = AppStateInstance> {
   /**
    * HTTP-route catalog. / Каталог HTTP-маршрутов.
    * @private
@@ -666,14 +738,14 @@ export class Application {
    */
   #httpControllerMiddleware = new Map<
     NormalizedHttpRoute['controller'],
-    readonly HttpMiddleware[]
+    readonly HttpMiddleware<TAppState>[]
   >();
   /**
    * HTTP-route middleware snapshots. / Снимки
    * middleware HTTP-маршрутов.
    * @private
    */
-  #httpRouteMiddleware = new WeakMap<NormalizedHttpRoute, readonly HttpMiddleware[]>();
+  #httpRouteMiddleware = new WeakMap<NormalizedHttpRoute, readonly HttpMiddleware<TAppState>[]>();
   /**
    * Application-owned job runner. / Принадлежащий приложению исполнитель задач.
    * @private
@@ -683,7 +755,7 @@ export class Application {
    * HTTP transport options. / Параметры HTTP-транспорта.
    * @private
    */
-  #httpOptions: NormalizedHttpOptions;
+  #httpOptions: NormalizedHttpOptions<TAppState>;
   /**
    * Shared HTTP server. / Общий HTTP-сервер.
    * @private
@@ -729,17 +801,17 @@ export class Application {
    * WebSocket-controller catalog. / Каталог WebSocket-контроллеров.
    * @private
    */
-  #webSocketControllers = new WebSocketControllerRegistry();
+  #webSocketControllers = new WebSocketControllerRegistry<TAppState>();
   /**
    * Registered WebSocket-controller classes. / Классы зарегистрированных WebSocket-контроллеров.
    * @private
    */
-  #webSocketControllerClasses = new Set<WebSocketControllerClass>();
+  #webSocketControllerClasses = new Set<WebSocketControllerClass<TAppState>>();
   /**
    * WebSocket transport options. / Параметры WebSocket-транспорта.
    * @private
    */
-  #webSocketOptions: NormalizedWebSocketOptions;
+  #webSocketOptions: NormalizedWebSocketOptions<TAppState>;
   /**
    * Active WebSocket sessions. / Активные WebSocket-сессии.
    * @private
@@ -749,7 +821,7 @@ export class Application {
    * WebSocket transport. / WebSocket-транспорт.
    * @private
    */
-  #webSocketTransport: WebSocketTransport | undefined;
+  #webSocketTransport: WebSocketTransport<TAppState> | undefined;
   /** HTTP-controller server-push facade. / Фасад server push HTTP-контроллеров. */
   #webSocketSender: WebSocketSender;
   /**
@@ -776,13 +848,19 @@ export class Application {
    * @throws {InvalidEventOptionsError|InvalidHttpOptionsError|InvalidWebSocketOptionsError|InvalidJobOptionsError}
    * When a configuration section is invalid. / Если раздел конфигурации некорректен.
    */
-  #appState: AppStateInstance;
+  #appState: TAppState;
 
-  constructor({ appState, jobs, http, websocket, events }: ApplicationOptions) {
+  constructor({
+    appState,
+    jobs,
+    http,
+    websocket,
+    events,
+  }: ApplicationOptions<NoInfer<TAppState>> & { appState: AppState<TAppState> }) {
     if (typeof appState !== 'function') {
       throw new ApplicationStateError('Application options must contain an appState constructor');
     }
-    this.#appState = new appState() as AppStateInstance;
+    this.#appState = new appState();
     this.#jobRunner = new JobRunner(jobs);
     this.#httpOptions = normalizeHttpOptions(http);
     this.#webSocketOptions = normalizeWebSocketOptions(websocket);
@@ -801,7 +879,9 @@ export class Application {
    * Прямой подкласс {@link WebSocketControllerBase}.
    * @returns This application. / Это приложение.
    */
-  registerWebSocketController(WebSocketController: WebSocketControllerClass): this {
+  registerWebSocketController<const TController extends WebSocketControllerClass<TAppState>>(
+    WebSocketController: TController & CheckedWebSocketController<TAppState, TController>,
+  ): this {
     if (this.#state !== 'new') {
       throw new ApplicationStateError('Application no longer accepts WebSocket controllers');
     }
@@ -837,7 +917,9 @@ export class Application {
    * подкласс {@link HttpControllerBase}.
    * @returns This application. / Это приложение.
    */
-  registerHttpController(HttpController: HttpControllerClass): this {
+  registerHttpController<const TController extends HttpControllerClass<TAppState>>(
+    HttpController: TController & CheckedHttpController<TAppState, TController>,
+  ): this {
     if (this.#state !== 'new') {
       throw new ApplicationStateError('Application no longer accepts HTTP controllers');
     }
@@ -880,7 +962,7 @@ export class Application {
     this.#state = 'starting';
     this.#listenPromise = (async () => {
       try {
-        await this.#appState.beforeAppStart?.();
+        await (this.#appState as AppStateInstance).beforeAppStart?.();
         this.#eventDispatcher.start({
           jobRunner: this.#jobRunner,
           websocket: this.#webSocketSender,
@@ -930,7 +1012,7 @@ export class Application {
         });
         server.listen({ port, host }, () => {
           this.#state = 'running';
-          Promise.resolve(this.#appState.onAppStart?.()).then(
+          Promise.resolve((this.#appState as AppStateInstance).onAppStart?.()).then(
             () => resolve(server.address()),
             (error) => {
               this.close().catch(() => {});
@@ -1293,7 +1375,7 @@ export class Application {
           firstError ??= error;
         }
         try {
-          await this.#appState.onAppClose?.();
+          await (this.#appState as AppStateInstance).onAppClose?.();
         } catch (error) {
           firstError ??= error;
         }

@@ -16,11 +16,13 @@ Normalized HTTP-handler input. / Нормализованный контекст
 
 Application-state instance lifecycle contract. / Контракт lifecycle экземпляра состояния приложения.
 
+Type: any
+
 ## AppState
 
 Application-state constructor. / Конструктор состояния приложения.
 
-Type: function (): [object][1]
+Type: function (): TAppState
 
 ## HttpResponse
 
@@ -30,7 +32,13 @@ Explicit HTTP-handler result. / Явный результат HTTP-обрабо�
 
 HTTP middleware around a resolved handler. / HTTP middleware вокруг обработчика.
 
-Type: function (appState: [AppStateInstance][2], context: [HttpRequestContext][3], next: function (): [Promise][4]<[HttpResponse][5]>): ([HttpResponse][5] | [Promise][4]<[HttpResponse][5]>)
+Type: function (appState: TAppState, context: [HttpRequestContext][1], next: function (): [Promise][2]<[HttpResponse][3]>): ([HttpResponse][3] | [Promise][2]<[HttpResponse][3]>)
+
+## HttpHandler
+
+HTTP-handler method. / Метод HTTP-обработчика.
+
+Type: function (appState: TAppState, context: [HttpRequestContext][1]): ([HttpResponse][3] | [Promise][2]<[HttpResponse][3]>)
 
 ## HttpRouteDeclaration
 
@@ -40,12 +48,12 @@ Declarative HTTP route. / Декларативный HTTP-маршрут.
 
 HTTP-controller class accepted for registration. / Класс HTTP-контроллера для регистрации.
 
-Type: {: HttpControllerBase, prefix: [string][6], routes: any, middleware: any?}
+Type: {: HttpControllerBase, prefix: [string][4], routes: any, middleware: any?}
 
 ### Properties
 
 - `` **any**&#x20;
-- `prefix` **[string][6]**&#x20;
+- `prefix` **[string][4]**&#x20;
 - `routes` **any**&#x20;
 - `middleware` **any?**&#x20;
 
@@ -71,7 +79,13 @@ WebSocket message-handler context. / Контекст обработчика Web
 
 WebSocket message middleware. / Middleware WebSocket-сообщения.
 
-Type: function (appState: [AppStateInstance][2], context: [WebSocketHandlerContext][7], next: function (): [Promise][4]\<any>): (any | [Promise][4]\<any>)
+Type: function (appState: TAppState, context: [WebSocketHandlerContext][5], next: function (): [Promise][2]\<any>): (any | [Promise][2]\<any>)
+
+## WebSocketHandler
+
+WebSocket event-handler method. / Метод обработчика WebSocket-события.
+
+Type: function (appState: TAppState, context: [WebSocketHandlerContext][5]): ([object][6] | void | [Promise][2]<([object][6] | void)>)
 
 ## WebSocketOptions
 
@@ -96,7 +110,7 @@ Composes HTTP, WebSocket, and background-job capabilities and owns their lifecyc
 
 ### Parameters
 
-- `$0` **[ApplicationOptions][8]**&#x20;
+- `$0` **any**&#x20;
 
   - `$0.appState` &#x20;
   - `$0.jobs` &#x20;
@@ -111,8 +125,8 @@ Registers a named WebSocket-controller class before listening starts.
 
 #### Parameters
 
-- `WebSocketController` **WebSocketControllerClass** Direct subclass of [WebSocketControllerBase][9]. /
-  Прямой подкласс [WebSocketControllerBase][9].
+- `WebSocketController` **any** Direct subclass of [WebSocketControllerBase][7]. /
+  Прямой подкласс [WebSocketControllerBase][7].
 
 Returns **this** This application. / Это приложение.
 
@@ -134,8 +148,8 @@ Registers all declared HTTP routes of an HTTP-controller class.
 
 #### Parameters
 
-- `HttpController` **[HttpControllerClass][10]** Direct subclass of [HttpControllerBase][11]. / Прямой
-  подкласс [HttpControllerBase][11].
+- `HttpController` **any** Direct subclass of [HttpControllerBase][8]. / Прямой
+  подкласс [HttpControllerBase][8].
 
 Returns **this** This application. / Это приложение.
 
@@ -146,7 +160,7 @@ Starts the shared HTTP/WebSocket transport exactly once.
 
 #### Parameters
 
-- `options` **[ListenOptions][12]** Listen address. / Адрес прослушивания.
+- `options` **[ListenOptions][9]** Listen address. / Адрес прослушивания.
 
   - `options.port` &#x20;
   - `options.host` (optional, default `'127.0.0.1'`)
@@ -156,7 +170,7 @@ Starts the shared HTTP/WebSocket transport exactly once.
 - Throws **[ApplicationStateError](./errors.md#applicationstateerror)** When the application has already started or closed. / Если
   приложение уже запускалось или закрыто.
 
-Returns **[Promise][4]\<AddressInfo>** Bound address. / Фактический
+Returns **[Promise][2]\<AddressInfo>** Bound address. / Фактический
 адрес.
 
 ### close
@@ -168,18 +182,15 @@ Repeated calls return the same operation.
 
 Returns **any** Application shutdown. / Завершение приложения.
 
-[1]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object
-[2]: #appstateinstance
-[3]: #httprequestcontext
-[4]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise
-[5]: #httpresponse
-[6]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
-[7]: #websockethandlercontext
-[8]: #applicationoptions
-[9]: ./WebSocketControllerBase.md#websocketcontrollerbase
-[10]: #httpcontrollerclass
-[11]: ./HttpControllerBase.md#httpcontrollerbase
-[12]: #listenoptions
+[1]: #httprequestcontext
+[2]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise
+[3]: #httpresponse
+[4]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
+[5]: #websockethandlercontext
+[6]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object
+[7]: ./WebSocketControllerBase.md#websocketcontrollerbase
+[8]: ./HttpControllerBase.md#httpcontrollerbase
+[9]: #listenoptions
 
 ## TypeScript declarations / TypeScript-декларации
 
@@ -212,17 +223,17 @@ export interface HttpRequestContext<Body = any, State extends object = Record<st
 ### `AppStateInstance`
 
 ```ts
-export interface AppStateInstance {
+export type AppStateInstance = object & {
   beforeAppStart?(): void | Promise<void>;
   onAppStart?(): void | Promise<void>;
   onAppClose?(): void | Promise<void>;
-}
+};
 ```
 
 ### `AppState`
 
 ```ts
-export type AppState = new () => object;
+export type AppState<TAppState extends object = AppStateInstance> = new () => TAppState;
 ```
 
 ### `HttpResponse`
@@ -238,44 +249,53 @@ export interface HttpResponse<Body = unknown> {
 ### `HttpMiddleware`
 
 ```ts
-export type HttpMiddleware = (
-  appState: AppStateInstance,
+export type HttpMiddleware<TAppState extends object = AppStateInstance> = (
+  appState: TAppState,
   context: HttpRequestContext,
   next: () => Promise<HttpResponse>,
+) => HttpResponse | Promise<HttpResponse>;
+```
+
+### `HttpHandler`
+
+```ts
+export type HttpHandler<TAppState extends object = AppStateInstance> = (
+  appState: TAppState,
+  context: HttpRequestContext,
 ) => HttpResponse | Promise<HttpResponse>;
 ```
 
 ### `HttpRouteDeclaration`
 
 ```ts
-export interface HttpRouteDeclaration {
+export interface HttpRouteDeclaration<TAppState extends object = AppStateInstance> {
   method: string;
   path: string;
   handler: string;
-  middleware?: HttpMiddleware[];
+  middleware?: readonly HttpMiddleware<TAppState>[];
 }
 ```
 
 ### `HttpControllerClass`
 
 ```ts
-export type HttpControllerClass = {
+export type HttpControllerClass<TAppState extends object = AppStateInstance> = {
   new (options: HttpControllerOptions): HttpControllerBase;
   readonly prefix: string;
-  readonly routes: readonly HttpRouteDeclaration[];
-  readonly middleware?: readonly HttpMiddleware[];
+  readonly routes: readonly HttpRouteDeclaration<TAppState>[];
+  readonly middleware?: readonly HttpMiddleware<TAppState>[];
 };
 ```
 
 ### `HttpOptions`
 
 ```ts
-export interface HttpOptions {
+export interface HttpOptions<TAppState extends object = AppStateInstance> {
   bodyLimit?: number;
   shutdownTimeout?: number;
-  middleware?: HttpMiddleware[];
+  middleware?: HttpMiddleware<TAppState>[];
   onError?: (
-    appState: AppStateInstance,
+    appState: TAppState,
     error: unknown,
     context?: HttpRequestContext,
   ) => unknown | Promise<unknown>;
@@ -327,31 +347,40 @@ export interface WebSocketHandlerContext<
 ### `WebSocketMessageMiddleware`
 
 ```ts
-export type WebSocketMessageMiddleware = (
-  appState: AppStateInstance,
+export type WebSocketMessageMiddleware<TAppState extends object = AppStateInstance> = (
+  appState: TAppState,
   context: WebSocketHandlerContext,
   next: () => Promise<unknown>,
 ) => unknown | Promise<unknown>;
 ```
 
+### `WebSocketHandler`
+
+```ts
+export type WebSocketHandler<TAppState extends object = AppStateInstance> = (
+  appState: TAppState,
+  context: WebSocketHandlerContext,
+) => object | void | Promise<object | void>;
+```
+
 ### `WebSocketOptions`
 
 ```ts
-export interface WebSocketOptions {
+export interface WebSocketOptions<TAppState extends object = AppStateInstance> {
   path?: string;
   maxPayload?: number;
   shutdownTimeout?: number;
-  middleware?: WebSocketMessageMiddleware[];
+  middleware?: readonly WebSocketMessageMiddleware<TAppState>[];
   onConnect?: (
-    appState: AppStateInstance,
+    appState: TAppState,
     context: WebSocketLifecycleContext,
   ) => unknown | Promise<unknown>;
   onDisconnect?: (
-    appState: AppStateInstance,
+    appState: TAppState,
     context: WebSocketDisconnectContext,
   ) => unknown | Promise<unknown>;
   onError?: (
-    appState: AppStateInstance,
+    appState: TAppState,
     error: unknown,
     context?: Partial<WebSocketHandlerContext>,
   ) => unknown | Promise<unknown>;
@@ -372,11 +401,11 @@ export interface EventOptions {
 ### `ApplicationOptions`
 
 ```ts
-export interface ApplicationOptions {
-  appState: AppState;
+export interface ApplicationOptions<TAppState extends object = AppStateInstance> {
+  appState: AppState<TAppState>;
   jobs?: JobRunnerConfig;
-  http?: HttpOptions;
-  websocket?: WebSocketOptions;
+  http?: HttpOptions<TAppState>;
+  websocket?: WebSocketOptions<TAppState>;
   events?: EventOptions;
 }
 ```

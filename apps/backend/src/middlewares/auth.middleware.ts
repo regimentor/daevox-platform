@@ -1,11 +1,8 @@
-import { HttpError, type HttpRequestContext, type HttpResponse } from '@daevox/framework';
+import { HttpError, type HttpMiddleware } from '@daevox/framework';
 import { verifyToken } from '../services/jwt.service.ts';
+import type { AppState } from '../app-state.ts';
 
-export async function authMiddleware(
-  _appState: any,
-  ctx: HttpRequestContext,
-  next: () => Promise<HttpResponse>,
-) {
+export const authMiddleware: HttpMiddleware<AppState> = async (_appState, ctx, next) => {
   const { headers } = ctx;
   const authHeader = headers.get('Authorization');
   if (!authHeader) {
@@ -17,9 +14,9 @@ export async function authMiddleware(
     throw new HttpError(400, { body: 'No token' });
   }
 
-  const decoded = await verifyToken(token);
+  const decoded = await verifyToken(token, _appState.getConfig().JWT_SECRET);
 
   ctx.state.login = decoded.login;
 
   return next();
-}
+};

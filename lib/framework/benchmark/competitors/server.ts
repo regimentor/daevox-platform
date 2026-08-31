@@ -37,7 +37,7 @@ async function createServer() {
     const { HttpControllerBase } = await import('../../src/HttpControllerBase.ts');
     class BenchmarkController extends HttpControllerBase {
       static prefix = '/benchmark';
-      static routes = [{ method: 'POST', path: '/', handler: 'run' }];
+      static routes = [{ method: 'POST', path: '/', handler: 'run' }] as const;
       run() {
         return { status: 200, body };
       }

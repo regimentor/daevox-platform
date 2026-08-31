@@ -269,7 +269,7 @@ async function cancelWhileReadingBody(iteration: any) {
   let handlerCalls = 0;
   class BodyController extends HttpControllerBase {
     static prefix = '/body';
-    static routes = [{ method: 'POST', path: '/', handler: 'read' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'read' }] as const;
     read() {
       handlerCalls += 1;
       return { status: 200 };
@@ -312,7 +312,7 @@ async function cancelDuringHandler(iteration: any) {
   const releaseHandler = deferred();
   class HandlerController extends HttpControllerBase {
     static prefix = '/handler';
-    static routes = [{ method: 'GET', path: '/', handler: 'run' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'run' }] as const;
     async run(_appState: any, ctx: any) {
       started.resolve();
       ctx.signal.addEventListener('abort', aborted.resolve, { once: true });
@@ -351,7 +351,7 @@ async function cancelWhileWaitingForJob(iteration: any) {
   const replacementCompleted = deferred();
   class JobController extends HttpControllerBase {
     static prefix = '/job';
-    static routes = [{ method: 'GET', path: '/', handler: 'run' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'run' }] as const;
     async run(_appState: any, ctx: any) {
       try {
         await this.jobRunner.run(
@@ -400,7 +400,7 @@ async function cancelWhileWritingResponse(iteration: any) {
   const releaseHandler = deferred();
   class ResponseController extends HttpControllerBase {
     static prefix = '/response';
-    static routes = [{ method: 'GET', path: '/', handler: 'run' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'run' }] as const;
     async run() {
       handlerStarted.resolve();
       await releaseHandler.promise;
@@ -465,7 +465,7 @@ test(
       const errors: any[] = [];
       class RaceWebSocketController extends WebSocketControllerBase {
         static name = 'race';
-        static events = [{ name: 'run', handler: 'run' }];
+        static events = [{ name: 'run', handler: 'run' }] as const;
         async run(_appState: any, ctx: any) {
           handlerStarted.resolve();
           ctx.signal.addEventListener('abort', handlerAborted.resolve, { once: true });

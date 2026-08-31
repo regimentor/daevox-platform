@@ -1,10 +1,19 @@
-class TestAppState {
-  readonly marker = undefined;
-}
-import { Application, HttpError } from '@daevox/framework';
+import {
+  Application,
+  HttpError,
+  type WebSocketLifecycleContext,
+  type WebSocketMessageMiddleware,
+} from '@daevox/framework';
+import { ExampleAppState } from '../ExampleAppState.ts';
 import { BroadcastController } from './BroadcastController.ts';
 import { BrowserController } from './BrowserController.ts';
 import { EventsController } from './EventsController.ts';
+
+const countMessages: WebSocketMessageMiddleware<ExampleAppState> = (_appState, ctx, next) => {
+  const count = ctx.state.messageCount;
+  ctx.state.messageCount = typeof count === 'number' ? count + 1 : 1;
+  return next();
+};
 
 /**
  * Creates the WebSocket server-push example application.
@@ -15,22 +24,17 @@ import { EventsController } from './EventsController.ts';
  */
 export function createWebSocketApplication() {
   const application = new Application({
-    appState: TestAppState,
+    appState: ExampleAppState,
     websocket: {
-      middleware: [
-        (ctx: any, next: any) => {
-          ctx.state.messageCount = (ctx.state.messageCount ?? 0) + 1;
-          return next();
-        },
-      ],
-      onConnect(_appState: any, ctx: any) {
+      middleware: [countMessages],
+      onConnect(_appState: ExampleAppState, ctx: WebSocketLifecycleContext) {
         if (ctx.query.get('token') !== 'demo') {
           throw new HttpError(401, { body: { error: 'Unauthorized' } });
         }
         ctx.state.auth = { subjectId: 'example-user' };
         return 'example-client';
       },
-      onError(_appState: any, error: any) {
+      onError(_appState: ExampleAppState, error: unknown) {
         console.error(error);
       },
     },

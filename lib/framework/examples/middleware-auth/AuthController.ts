@@ -1,5 +1,6 @@
-import { HttpControllerBase } from '@daevox/framework';
-import { requireAuthentication, requireRole } from './authMiddleware.ts';
+import { HttpControllerBase, type HttpRequestContext } from '@daevox/framework';
+import type { ExampleAppState } from '../ExampleAppState.ts';
+import { getAuthentication, requireAuthentication, requireRole } from './authMiddleware.ts';
 
 export class AuthController extends HttpControllerBase {
   static prefix = '/auth';
@@ -12,16 +13,16 @@ export class AuthController extends HttpControllerBase {
       handler: 'admin',
       middleware: [requireRole('admin')],
     },
-  ];
+  ] as const;
 
-  profile(_appState: any, ctx: any) {
-    return { status: 200, body: { auth: ctx.state.auth } };
+  profile(_appState: ExampleAppState, ctx: HttpRequestContext<unknown>) {
+    return { status: 200, body: { auth: getAuthentication(ctx) } };
   }
 
-  admin(_appState: any, ctx: any) {
+  admin(_appState: ExampleAppState, ctx: HttpRequestContext<unknown>) {
     return {
       status: 200,
-      body: { message: 'Administrative access granted', auth: ctx.state.auth },
+      body: { message: 'Administrative access granted', auth: getAuthentication(ctx) },
     };
   }
 }

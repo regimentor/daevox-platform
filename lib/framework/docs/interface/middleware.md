@@ -28,14 +28,19 @@ HTTP-обработчиков и обработчиков WebSocket-событи
 ```ts
 import { Application, type HttpMiddleware } from '@daevox/framework';
 
-const requireToken: HttpMiddleware = (ctx, next) => {
+class AppState {}
+
+const requireToken: HttpMiddleware<AppState> = (_appState, ctx, next) => {
   if (ctx.headers.get('authorization') !== 'Bearer demo') {
     return { status: 401, body: { error: 'Unauthorized' } };
   }
   return next();
 };
 
-const application = new Application({ http: { middleware: [requireToken] } });
+const application = new Application({
+  appState: AppState,
+  http: { middleware: [requireToken] },
+});
 ```
 
 Полный black-box пример:
@@ -52,6 +57,8 @@ npm run example:middleware-auth:test
 - Порядок уровней: application transport → controller → handler declaration → handler; после
   `next()` цепочка разворачивается обратно.
 - HTTP- и WebSocket-массивы независимы, проверяются и копируются при конфигурации или регистрации.
+- Generic middleware получает конкретный AppState, выведенный `Application`; middleware с default
+  `AppStateInstance` остаётся применимо к конкретному прикладному состоянию.
 - Middleware запускается только после успешной transport-маршрутизации; инфраструктурные ошибки до
   seam через него не проходят.
 - HTTP `ctx.state` живёт один запрос; WebSocket `ctx.state` — одну сессию от `onConnect` до

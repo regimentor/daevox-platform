@@ -37,7 +37,7 @@ test('Application передаёт один AppState первым аргумен
 
   class Controller extends HttpControllerBase {
     static prefix = '/';
-    static routes = [{ method: 'GET', path: '/', handler: 'get' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'get' }] as const;
 
     get(state: object, _context: object) {
       seen.push(state);

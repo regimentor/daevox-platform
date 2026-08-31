@@ -1,4 +1,5 @@
-import { HttpControllerBase } from '@daevox/framework';
+import { HttpControllerBase, type HttpRequestContext } from '@daevox/framework';
+import type { ExampleAppState } from '../ExampleAppState.ts';
 
 const page = `<!doctype html>
 <html lang="ru">
@@ -65,9 +66,9 @@ const page = `<!doctype html>
 
 export class BrowserController extends HttpControllerBase {
   static prefix = '/';
-  static routes = [{ method: 'GET', path: '/', handler: 'index' }];
+  static routes = [{ method: 'GET', path: '/', handler: 'index' }] as const;
 
-  index() {
+  index(_appState: ExampleAppState, _ctx: HttpRequestContext<unknown>) {
     return {
       status: 200,
       headers: new Headers({ 'content-type': 'text/html; charset=utf-8' }),

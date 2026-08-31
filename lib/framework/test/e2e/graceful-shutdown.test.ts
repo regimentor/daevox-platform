@@ -142,7 +142,7 @@ function createHarness(iteration: any) {
       { method: 'GET', path: '/job-running', handler: 'running' },
       { method: 'GET', path: '/job-queued', handler: 'queued' },
       { method: 'GET', path: '/job-warm', handler: 'warm' },
-    ];
+    ] as const;
 
     async quick() {
       events.push('http-quick-started');
@@ -227,7 +227,7 @@ function createHarness(iteration: any) {
 
   class ShutdownWebSocketController extends WebSocketControllerBase {
     static name = 'shutdown';
-    static events = [{ name: 'wait', handler: 'wait' }];
+    static events = [{ name: 'wait', handler: 'wait' }] as const;
 
     async wait(_appState: any, ctx: any) {
       events.push('websocket-handler-started');

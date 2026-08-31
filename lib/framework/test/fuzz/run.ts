@@ -37,7 +37,7 @@ class FuzzHttpController extends HttpControllerBase {
   static routes = [
     { method: 'GET', path: '/health', handler: 'health' },
     { method: 'POST', path: '/echo', handler: 'echo' },
-  ];
+  ] as const;
   health() {
     return { status: 200, body: { ok: true } };
   }
@@ -48,7 +48,7 @@ class FuzzHttpController extends HttpControllerBase {
 
 class FuzzWebSocketController extends WebSocketControllerBase {
   static name = 'fuzz';
-  static events = [{ name: 'echo', handler: 'echo' }];
+  static events = [{ name: 'echo', handler: 'echo' }] as const;
   echo(_appState: any, ctx: any) {
     return { value: ctx.body.value };
   }

@@ -3,12 +3,12 @@ import test from 'node:test';
 
 import { createWebSocketApplication } from './application.ts';
 
-function nextMessage(socket: any) {
-  return new Promise<any>((resolve: any, reject: any) => {
+function nextMessage(socket: WebSocket): Promise<unknown> {
+  return new Promise<unknown>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('WebSocket message timeout')), 1_000);
     socket.addEventListener(
       'message',
-      (event: any) => {
+      (event: MessageEvent<string>) => {
         clearTimeout(timer);
         resolve(JSON.parse(event.data));
       },
@@ -25,9 +25,11 @@ test('WebSocket example отправляет server push из HTTP-контро�
     `ws://${address.address}:${address.port}/websocket?token=demo`,
     'daevox.v1',
   );
-  await new Promise<any>((resolve: any, reject: any) => {
-    socket.addEventListener('open', resolve, { once: true });
-    socket.addEventListener('error', reject, { once: true });
+  await new Promise<void>((resolve, reject) => {
+    socket.addEventListener('open', () => resolve(), { once: true });
+    socket.addEventListener('error', () => reject(new Error('WebSocket connection failed')), {
+      once: true,
+    });
   });
 
   try {

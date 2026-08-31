@@ -59,7 +59,7 @@ test('HTTP transport сопоставляет HTTP-маршрут и перед�
   let seenContext: any;
   class UsersController extends HttpControllerBase {
     static prefix = '/users';
-    static routes = [{ method: 'POST', path: '/:id', handler: 'update' }];
+    static routes = [{ method: 'POST', path: '/:id', handler: 'update' }] as const;
     update(_appState: any, ctx: any) {
       seenContext = ctx;
       return {
@@ -125,7 +125,7 @@ test('HTTP middleware выполняются на трёх уровнях вок
         handler: 'get',
         middleware: [middleware('route')],
       },
-    ];
+    ] as const;
     get(_appState: any, ctx: any) {
       contexts.push(ctx);
       calls.push('handler');
@@ -176,7 +176,7 @@ test('HTTP middleware short-circuit не создаёт HTTP-контролле�
   let laterCalled = false;
   class ProtectedController extends HttpControllerBase {
     static prefix = '/protected';
-    static routes = [{ method: 'GET', path: '/', handler: 'get' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'get' }] as const;
     constructor(options: any) {
       super(options);
       instances += 1;
@@ -191,7 +191,7 @@ test('HTTP middleware short-circuit не создаёт HTTP-контролле�
       middleware: [() => ({ status: 401, body: { error: 'Unauthorized' } })],
     },
   });
-  app.registerHttpController(ProtectedController);
+  app.registerHttpController(ProtectedController as any);
   const address = await app.listen({ port: 0 });
 
   try {
@@ -209,7 +209,7 @@ test('HTTP middleware не выполняются для инфраструкт�
   let calls = 0;
   class InputController extends HttpControllerBase {
     static prefix = '/input';
-    static routes = [{ method: 'POST', path: '/', handler: 'post' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'post' }] as const;
     post() {
       return { status: 204 };
     }
@@ -274,7 +274,9 @@ test('HTTP middleware используют снимки массивов и из
   class StateController extends HttpControllerBase {
     static prefix = '/state';
     static middleware = controllerMiddleware;
-    static routes = [{ method: 'GET', path: '/', handler: 'get', middleware: routeMiddleware }];
+    static routes = [
+      { method: 'GET', path: '/', handler: 'get', middleware: routeMiddleware },
+    ] as const;
     async get(_appState: any, ctx: any) {
       started += 1;
       if (started === 2) release();
@@ -291,7 +293,7 @@ test('HTTP middleware используют снимки массивов и из
   applicationMiddleware.push(() => ({ status: 500 }));
   controllerMiddleware.push(() => ({ status: 500 }));
   routeMiddleware.push(() => ({ status: 500 }));
-  StateController.routes[0].middleware = [() => ({ status: 500 })];
+  (StateController.routes[0] as any).middleware = [() => ({ status: 500 })];
   const address = await app.listen({ port: 0 });
 
   try {
@@ -312,7 +314,7 @@ test('ошибки HTTP middleware изолированы и сохраняют 
   const observed: any[] = [];
   class HealthyController extends HttpControllerBase {
     static prefix = '/middleware-errors';
-    static routes = [{ method: 'GET', path: '/:mode', handler: 'get' }];
+    static routes = [{ method: 'GET', path: '/:mode', handler: 'get' }] as const;
     get(_appState: any, ctx: any) {
       return { status: 200, body: { mode: ctx.params.mode } };
     }
@@ -369,7 +371,7 @@ test('HTTP transport детерминированно обрабатывает H
     static routes = [
       { method: 'GET', path: '/', handler: 'get' },
       { method: 'POST', path: '/', handler: 'post' },
-    ];
+    ] as const;
     get() {
       return { status: 200, body: { ok: true } };
     }
@@ -404,7 +406,7 @@ test('HTTP transport детерминированно обрабатывает H
 test('HTTP transport ограничивает и разбирает только UTF-8 JSON-тело', async () => {
   class BodyController extends HttpControllerBase {
     static prefix = '/body';
-    static routes = [{ method: 'PUT', path: '/', handler: 'put' }];
+    static routes = [{ method: 'PUT', path: '/', handler: 'put' }] as const;
     put(_appState: any, ctx: any) {
       return { status: 200, body: ctx.body };
     }
@@ -458,14 +460,14 @@ test('HttpError формирует ожидаемый ответ, а неожи�
       { method: 'GET', path: '/expected', handler: 'expected' },
       { method: 'GET', path: '/unexpected', handler: 'unexpected' },
       { method: 'GET', path: '/invalid-response', handler: 'invalidResponse' },
-    ];
-    expected() {
+    ] as const;
+    expected(): never {
       throw new HttpError(422, {
         headers: new Headers({ 'x-error-code': 'INVALID' }),
         body: { error: 'Invalid values' },
       });
     }
-    unexpected() {
+    unexpected(): never {
       throw new Error('secret details');
     }
     invalidResponse() {
@@ -509,7 +511,7 @@ test('Application.close по timeout отменяет оставшийся HTTP-
   let wasAborted = false;
   class SlowController extends HttpControllerBase {
     static prefix = '/slow';
-    static routes = [{ method: 'GET', path: '/', handler: 'get' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'get' }] as const;
     get(_appState: any, ctx: any) {
       started();
       return new Promise<any>((resolve: any) => {
@@ -550,7 +552,7 @@ test('сброс соединения при чтении HTTP-запроса у
   const unexpectedErrors: any[] = [];
   class BodyController extends HttpControllerBase {
     static prefix = '/body';
-    static routes = [{ method: 'POST', path: '/', handler: 'accept' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'accept' }] as const;
     accept() {
       return { status: 204 };
     }
@@ -629,7 +631,7 @@ test('HTTP transport нормализует строковые и бинарны
     static routes = [
       { method: 'GET', path: '/text', handler: 'text' },
       { method: 'GET', path: '/bytes', handler: 'bytes' },
-    ];
+    ] as const;
     text() {
       return { status: 200, body: 'hello' };
     }
@@ -661,7 +663,7 @@ test('HTTP transport принимает только граничные стат
       { method: 'GET', path: '/maximum', handler: 'maximum' },
       { method: 'GET', path: '/below', handler: 'below' },
       { method: 'GET', path: '/above', handler: 'above' },
-    ];
+    ] as const;
     minimum() {
       return { status: 200 };
     }
@@ -721,8 +723,8 @@ test('синхронная ошибка onError попадает в console.erro
   const consoleError = t.mock.method(console, 'error', () => {});
   class FailingController extends HttpControllerBase {
     static prefix = '/failure';
-    static routes = [{ method: 'GET', path: '/', handler: 'get' }];
-    get() {
+    static routes = [{ method: 'GET', path: '/', handler: 'get' }] as const;
+    get(): never {
       throw new Error('handler failed');
     }
   }

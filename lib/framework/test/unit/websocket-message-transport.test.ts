@@ -128,7 +128,7 @@ function nextData(socket: any) {
 function notificationsController() {
   return class NotificationsController extends WebSocketControllerBase {
     static name = 'notifications';
-    static events = [{ name: 'subscribe', handler: 'subscribe' }];
+    static events = [{ name: 'subscribe', handler: 'subscribe' }] as const;
     subscribe() {
       return { subscribed: true };
     }
@@ -227,7 +227,7 @@ test('onConnect может назначить clientId, который сохр�
   });
   class ContextController extends WebSocketControllerBase {
     static name = 'context';
-    static events = [{ name: 'read', handler: 'read' }];
+    static events = [{ name: 'read', handler: 'read' }] as const;
     read(_appState: any, ctx: any) {
       messageContext = ctx;
       return { clientId: ctx.clientId };
@@ -258,7 +258,7 @@ test('HTTP-контроллер отправляет server push через this
   app.registerWebSocketController(notificationsController());
   class PushController extends HttpControllerBase {
     static prefix = '/push';
-    static routes = [{ method: 'GET', path: '/', handler: 'send' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'send' }] as const;
     send() {
       return {
         status: 200,
@@ -293,7 +293,7 @@ test('daevox.v1 маршрутизирует envelope и формирует ре
   const contexts: any[] = [];
   class NotificationsController extends WebSocketControllerBase {
     static name = 'notifications';
-    static events = [{ name: 'subscribe', handler: 'subscribe' }];
+    static events = [{ name: 'subscribe', handler: 'subscribe' }] as const;
     constructor(options: any) {
       super(options);
       instances.push(this);
@@ -361,7 +361,7 @@ test('WebSocket middleware short-circuit не создаёт контролле�
     static events = [
       { name: 'silent', handler: 'handle' },
       { name: 'reply', handler: 'handle' },
-    ];
+    ] as const;
     constructor(options: any) {
       super(options);
       instances += 1;
@@ -403,7 +403,7 @@ test('ошибки WebSocket middleware изолированы и сохраня
       { name: 'unexpected', handler: 'handle' },
       { name: 'duplicate-next', handler: 'handle' },
       { name: 'healthy', handler: 'handle' },
-    ];
+    ] as const;
     handle(_appState: any, ctx: any) {
       return { event: ctx.event };
     }
@@ -470,7 +470,7 @@ test('ошибки WebSocket middleware изолированы и сохраня
 test('WebSocket state изолирован между сессиями', async () => {
   class StateController extends WebSocketControllerBase {
     static name = 'session-state';
-    static events = [{ name: 'increment', handler: 'increment' }];
+    static events = [{ name: 'increment', handler: 'increment' }] as const;
     increment(_appState: any, ctx: any) {
       return { count: ctx.state.count };
     }
@@ -520,7 +520,7 @@ test('WebSocket middleware используют снимки и не выпол�
   class SnapshotMiddlewareController extends WebSocketControllerBase {
     static name = 'snapshot-middleware';
     static middleware = controllerMiddleware;
-    static events = [{ name: 'run', handler: 'run', middleware: eventMiddleware }];
+    static events = [{ name: 'run', handler: 'run', middleware: eventMiddleware }] as const;
     run() {
       return { ok: true };
     }
@@ -533,7 +533,7 @@ test('WebSocket middleware используют снимки и не выпол�
   applicationMiddleware.push(() => ({ changed: true }));
   controllerMiddleware.push(() => ({ changed: true }));
   eventMiddleware.push(() => ({ changed: true }));
-  SnapshotMiddlewareController.events[0].middleware = [() => ({ changed: true })];
+  (SnapshotMiddlewareController.events[0] as any).middleware = [() => ({ changed: true })];
   const address = await app.listen({ port: 0 });
   const socket = await opened(`ws://${address.address}:${address.port}/websocket`);
 
@@ -591,7 +591,7 @@ test('WebSocket middleware выполняются на трёх уровнях �
         handler: 'run',
         middleware: [middleware('event')],
       },
-    ];
+    ] as const;
     run(_appState: any, ctx: any) {
       messageContexts.push(ctx);
       calls.push('handler');
@@ -664,17 +664,17 @@ test('маршрутизация использует копию метадан�
   const event = { name: 'original-event', handler: 'handle' };
   class SnapshotController extends WebSocketControllerBase {
     static name = 'original-controller';
-    static events = [event];
+    static events = [event] as const;
     handle() {
       return { snapshot: true };
     }
   }
   const app = new Application({ appState: TestAppState });
-  app.registerWebSocketController(SnapshotController);
+  app.registerWebSocketController(SnapshotController as any);
   SnapshotController.name = 'changed-controller';
   event.name = 'changed-event';
   event.handler = 'changedHandler';
-  SnapshotController.events.length = 0;
+  (SnapshotController.events as any).length = 0;
 
   const address = await app.listen({ port: 0 });
   const socket = await opened(`ws://${address.address}:${address.port}/websocket`);
@@ -817,7 +817,7 @@ test('невалидный UTF-8 в text frame закрывает сессию �
   let handled = false;
   class Utf8Controller extends WebSocketControllerBase {
     static name = 'c';
-    static events = [{ name: 'e', handler: 'handle' }];
+    static events = [{ name: 'e', handler: 'handle' }] as const;
     handle() {
       handled = true;
     }
@@ -947,7 +947,7 @@ test('ошибка handler скрывается как HANDLER_ERROR, невер
       { name: 'fail', handler: 'fail' },
       { name: 'invalid', handler: 'invalid' },
       { name: 'valid', handler: 'valid' },
-    ];
+    ] as const;
     fail() {
       throw new Error('secret details');
     }
@@ -1036,7 +1036,7 @@ test('сообщения одной сессии последовательны,
   });
   class QueueController extends WebSocketControllerBase {
     static name = 'queue';
-    static events = [{ name: 'run', handler: 'run' }];
+    static events = [{ name: 'run', handler: 'run' }] as const;
     async run(_appState: any, ctx: any) {
       started.push(`${ctx.sessionId}:${ctx.body.value}`);
       if (ctx.body.value === 'first') await firstBlocked;
@@ -1085,7 +1085,7 @@ test('undefined не создаёт ответ и не мешает следую
     static events = [
       { name: 'silent', handler: 'silent' },
       { name: 'reply', handler: 'reply' },
-    ];
+    ] as const;
     silent() {}
     reply() {
       return { replied: true };
@@ -1207,7 +1207,7 @@ test('Application.close принудительно завершает WebSocket 
 test('исходящий maxPayload возвращает INVALID_RESPONSE или закрывает сессию кодом 1011', async () => {
   class LargeController extends WebSocketControllerBase {
     static name = 'c';
-    static events = [{ name: 'e', handler: 'large' }];
+    static events = [{ name: 'e', handler: 'large' }] as const;
     large() {
       return { value: 'x'.repeat(100) };
     }
@@ -1237,7 +1237,7 @@ test('исходящий maxPayload возвращает INVALID_RESPONSE или
 test('daevox.v1 принимает и отправляет envelopes с 16- и 64-битной длиной frame', async () => {
   class LargeFramesController extends WebSocketControllerBase {
     static name = 'frames';
-    static events = [{ name: 'echo', handler: 'echo' }];
+    static events = [{ name: 'echo', handler: 'echo' }] as const;
     echo(_appState: any, ctx: any) {
       return { value: ctx.body.value };
     }
@@ -1414,7 +1414,7 @@ test('отклонённый Promise websocket.onError безопасно пер
   const consoleError = t.mock.method(console, 'error', () => consoleCalled());
   class FailingController extends WebSocketControllerBase {
     static name = 'failure';
-    static events = [{ name: 'fail', handler: 'fail' }];
+    static events = [{ name: 'fail', handler: 'fail' }] as const;
     fail() {
       throw new Error('handler failed');
     }

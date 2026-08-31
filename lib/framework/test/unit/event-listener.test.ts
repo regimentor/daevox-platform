@@ -46,7 +46,7 @@ test('Application регистрирует корректный EventListener д
   class Created {}
   class AuditListener extends EventListenerBase {
     static name = 'audit';
-    static events = [{ name: 'Created', data: Created, handler: 'created' }];
+    static events = [{ name: 'Created', data: Created, handler: 'created' }] as const;
     created() {}
   }
 
@@ -61,7 +61,7 @@ test('registerEventListener отклоняет классы вне строго�
   class IndirectBase extends EventListenerBase {}
   class Valid extends EventListenerBase {
     static name = 'valid';
-    static events = [{ name: 'created', data: Data, handler: 'created' }];
+    static events = [{ name: 'created', data: Data, handler: 'created' }] as const;
     created() {}
   }
   const invalid = [
@@ -69,7 +69,7 @@ test('registerEventListener отклоняет классы вне строго�
     EventListenerBase,
     class Indirect extends IndirectBase {
       static name = 'indirect';
-      static events = [{ name: 'created', data: Data, handler: 'created' }];
+      static events = [{ name: 'created', data: Data, handler: 'created' }] as const;
       created() {}
     },
     class MissingName extends EventListenerBase {
@@ -78,7 +78,7 @@ test('registerEventListener отклоняет классы вне строго�
     },
     class EmptyEvents extends EventListenerBase {
       static name = 'empty';
-      static events = [];
+      static events = [] as const;
     },
     class BadName extends EventListenerBase {
       static name = 'bad name';
@@ -87,34 +87,34 @@ test('registerEventListener отклоняет классы вне строго�
     },
     class ExtraField extends EventListenerBase {
       static name = 'extra';
-      static events = [{ name: 'created', data: Data, handler: 'created', extra: true }];
+      static events = [{ name: 'created', data: Data, handler: 'created', extra: true }] as const;
       created() {}
     },
     class InvalidEventName extends EventListenerBase {
       static name = 'invalid-event-name';
-      static events = [{ name: 'bad name', data: Data, handler: 'created' }];
+      static events = [{ name: 'bad name', data: Data, handler: 'created' }] as const;
       created() {}
     },
     class NonStringEventName extends EventListenerBase {
       static name = 'non-string-event-name';
-      static events = [{ name: 42, data: Data, handler: 'created' }];
+      static events = [{ name: 42, data: Data, handler: 'created' }] as const;
       created() {}
     },
     class EmptyHandlerName extends EventListenerBase {
       static name = 'empty-handler-name';
-      static events = [{ name: 'created', data: Data, handler: '' }];
+      static events = [{ name: 'created', data: Data, handler: '' }] as const;
     },
     class ConstructorHandlerName extends EventListenerBase {
       static name = 'constructor-handler-name';
-      static events = [{ name: 'created', data: Data, handler: 'constructor' }];
+      static events = [{ name: 'created', data: Data, handler: 'constructor' }] as const;
     },
     class NonStringHandlerName extends EventListenerBase {
       static name = 'non-string-handler-name';
-      static events = [{ name: 'created', data: Data, handler: 42 }];
+      static events = [{ name: 'created', data: Data, handler: 42 }] as const;
     },
     class MissingHandler extends EventListenerBase {
       static name = 'missing-handler';
-      static events = [{ name: 'created', data: Data, handler: 'created' }];
+      static events = [{ name: 'created', data: Data, handler: 'created' }] as const;
     },
     class SparseEvents extends EventListenerBase {
       static name = 'sparse';
@@ -132,14 +132,14 @@ test('registerEventListener отклоняет классы вне строго�
             handler: { value: 'created', enumerable: true },
           },
         ),
-      ];
+      ] as const;
       created() {}
     },
     class SymbolDeclaration extends EventListenerBase {
       static name = 'symbol';
       static events = [
         { name: 'created', data: Data, handler: 'created', [Symbol('extra')]: true },
-      ];
+      ] as const;
       created() {}
     },
     class InheritedDeclaration extends EventListenerBase {
@@ -150,12 +150,12 @@ test('registerEventListener отклоняет классы вне строго�
           data: Data,
           handler: 'created',
         }),
-      ];
+      ] as const;
       created() {}
     },
     class NonConstructableData extends EventListenerBase {
       static name = 'non-constructable';
-      static events = [{ name: 'created', data: () => {}, handler: 'created' }];
+      static events = [{ name: 'created', data: () => {}, handler: 'created' }] as const;
       created() {}
     },
   ];
@@ -171,12 +171,12 @@ test('registerEventListener атомарно отклоняет повтор к�
   class Data {}
   class First extends EventListenerBase {
     static name = 'shared';
-    static events = [{ name: 'created', data: Data, handler: 'created' }];
+    static events = [{ name: 'created', data: Data, handler: 'created' }] as const;
     created() {}
   }
   class SameName extends EventListenerBase {
     static name = 'shared';
-    static events = [{ name: 'other', data: Data, handler: 'other' }];
+    static events = [{ name: 'other', data: Data, handler: 'other' }] as const;
     other() {}
   }
   class DuplicateAddress extends EventListenerBase {
@@ -184,14 +184,14 @@ test('registerEventListener атомарно отклоняет повтор к�
     static events = [
       { name: 'created', data: Data, handler: 'created' },
       { name: 'created', data: Data, handler: 'created' },
-    ];
+    ] as const;
     created() {}
   }
   const application = new Application({ appState: TestAppState });
   t.after(() => application.close());
 
   application.registerEventListener(First);
-  First.events = [];
+  (First as any).events = [];
   assert.throws(() => application.registerEventListener(First), EventListenerConflictError);
   assert.throws(() => application.registerEventListener(SameName), EventListenerConflictError);
   assert.throws(
@@ -204,7 +204,7 @@ test('registerEventListener запрещён после начала listen', as
   class Data {}
   class Late extends EventListenerBase {
     static name = 'late';
-    static events = [{ name: 'event', data: Data, handler: 'event' }];
+    static events = [{ name: 'event', data: Data, handler: 'event' }] as const;
     event() {}
   }
   const application = new Application({ appState: TestAppState });
@@ -272,7 +272,7 @@ test('HTTP-контроллер fire-and-forget передаёт исходны�
   }
   class AuditListener extends EventListenerBase {
     static name = 'audit';
-    static events = [{ name: 'created', data: Created, handler: 'created' }];
+    static events = [{ name: 'created', data: Created, handler: 'created' }] as const;
     async created(data: any) {
       received = data;
       handlerStarted();
@@ -281,7 +281,7 @@ test('HTTP-контроллер fire-and-forget передаёт исходны�
   }
   class OrdersController extends HttpControllerBase {
     static prefix = '/orders';
-    static routes = [{ method: 'POST', path: '/', handler: 'create' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'create' }] as const;
     create() {
       const event = new Created('order-1');
       const pushResult = this.events.push({ listener: 'audit', event: 'created' }, event);

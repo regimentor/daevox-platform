@@ -2,41 +2,42 @@ import { InvalidWebSocketControllerError, WebSocketControllerConflictError } fro
 import { WebSocketControllerBase } from './WebSocketControllerBase.ts';
 import { snapshotDeclaredMiddleware } from './middleware.ts';
 import type { WebSocketMessageMiddleware } from './Application.ts';
+import type { AppStateInstance } from './Application.ts';
 import type { WebSocketControllerOptions } from './WebSocketControllerBase.ts';
 
 /** Declarative WebSocket event metadata. / Метаданные WebSocket-события. @public */
-export interface WebSocketEventDeclaration {
+export interface WebSocketEventDeclaration<TAppState extends object = AppStateInstance> {
   name: string;
   handler: string;
-  middleware?: WebSocketMessageMiddleware[];
+  middleware?: readonly WebSocketMessageMiddleware<TAppState>[];
 }
 
-/** Constructable WebSocket controller. / Создаваемый WebSocket-контроллер. @private */
-export type WebSocketControllerClass = {
+/** Constructable WebSocket controller. / Создаваемый WebSocket-контроллер. @public */
+export type WebSocketControllerClass<TAppState extends object = AppStateInstance> = {
   new (options: WebSocketControllerOptions): WebSocketControllerBase;
   readonly name: string;
-  readonly events: readonly WebSocketEventDeclaration[];
-  readonly middleware?: readonly WebSocketMessageMiddleware[];
+  readonly events: readonly WebSocketEventDeclaration<TAppState>[];
+  readonly middleware?: readonly WebSocketMessageMiddleware<TAppState>[];
 };
 
 /** Validated WebSocket-event entry. / Проверенная запись WebSocket-события. @private */
-interface WebSocketEventEntry {
+interface WebSocketEventEntry<TAppState extends object> {
   handler: string;
-  middleware: readonly WebSocketMessageMiddleware[];
+  middleware: readonly WebSocketMessageMiddleware<TAppState>[];
 }
 
 /** Validated WebSocket-controller entry. / Проверенная запись WebSocket-контроллера. @private */
-interface WebSocketControllerEntry {
-  controller: WebSocketControllerClass;
-  middleware: readonly WebSocketMessageMiddleware[];
-  events: Map<string, WebSocketEventEntry>;
+interface WebSocketControllerEntry<TAppState extends object> {
+  controller: WebSocketControllerClass<TAppState>;
+  middleware: readonly WebSocketMessageMiddleware<TAppState>[];
+  events: Map<string, WebSocketEventEntry<TAppState>>;
 }
 
 /** Result of controller-event resolution. / Результат поиска контроллера и события. @private */
-export interface WebSocketControllerResolution {
-  controller: WebSocketControllerClass;
-  controllerMiddleware?: readonly WebSocketMessageMiddleware[];
-  eventMiddleware?: readonly WebSocketMessageMiddleware[];
+export interface WebSocketControllerResolution<TAppState extends object = AppStateInstance> {
+  controller: WebSocketControllerClass<TAppState>;
+  controllerMiddleware?: readonly WebSocketMessageMiddleware<TAppState>[];
+  eventMiddleware?: readonly WebSocketMessageMiddleware<TAppState>[];
   handler?: string;
 }
 
@@ -74,12 +75,12 @@ function invalid(message: string): never {
  * @private
 
  */
-export class WebSocketControllerRegistry {
+export class WebSocketControllerRegistry<TAppState extends object = AppStateInstance> {
   /**
    * Controllers by wire name. / Контроллеры по сетевому имени.
    * @private
    */
-  #controllers = new Map<string, WebSocketControllerEntry>();
+  #controllers = new Map<string, WebSocketControllerEntry<TAppState>>();
 
   /**
 
@@ -91,7 +92,7 @@ export class WebSocketControllerRegistry {
    * @private
 
    */
-  register(WebSocketController: WebSocketControllerClass): void {
+  register(WebSocketController: WebSocketControllerClass<TAppState>): void {
     if (
       typeof WebSocketController !== 'function' ||
       !WebSocketController.prototype ||
@@ -120,7 +121,7 @@ export class WebSocketControllerRegistry {
     if (!Array.isArray(events) || events.length === 0) {
       invalid('WebSocket controller must have its own non-empty events array');
     }
-    const normalizedEvents = new Map<string, WebSocketEventEntry>();
+    const normalizedEvents = new Map<string, WebSocketEventEntry<TAppState>>();
     for (const event of events) {
       const keys =
         event !== null && typeof event === 'object' && !Array.isArray(event)
@@ -184,7 +185,10 @@ export class WebSocketControllerRegistry {
    * @private
 
    */
-  resolve(controllerName: string, eventName: string): WebSocketControllerResolution | null {
+  resolve(
+    controllerName: string,
+    eventName: string,
+  ): WebSocketControllerResolution<TAppState> | null {
     const entry = this.#controllers.get(controllerName);
     if (!entry) return null;
     const event = entry.events.get(eventName);

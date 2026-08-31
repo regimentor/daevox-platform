@@ -44,13 +44,13 @@ interface WebSocketConnectionOptions {
 }
 
 /** Dependencies owned by the WebSocket transport. / Зависимости WebSocket-транспорта. @private */
-interface WebSocketTransportDependencies {
-  appState: AppStateInstance;
-  controllers: WebSocketControllerRegistry;
+interface WebSocketTransportDependencies<TAppState extends object = AppStateInstance> {
+  appState: TAppState;
+  controllers: WebSocketControllerRegistry<TAppState>;
   events: EventSender;
   jobRunner: JobRunner;
-  onError?: NormalizedWebSocketOptions['onError'];
-  options: NormalizedWebSocketOptions;
+  onError?: NormalizedWebSocketOptions<TAppState>['onError'];
+  options: NormalizedWebSocketOptions<TAppState>;
   sessionStore: WebSocketSessionStore;
 }
 
@@ -509,7 +509,7 @@ class WebSocketConnection {
  * @private
 
  */
-export class WebSocketTransport {
+export class WebSocketTransport<TAppState extends object = AppStateInstance> {
   /**
    * Physical transport connections. / Физические транспортные соединения.
    * @private
@@ -519,7 +519,7 @@ export class WebSocketTransport {
    * Controller catalog. / Каталог контроллеров.
    * @private
    */
-  #controllers: WebSocketControllerRegistry;
+  #controllers: WebSocketControllerRegistry<TAppState>;
   /**
    * Pending disconnect hooks. / Незавершённые hooks отключения.
    * @private
@@ -554,19 +554,19 @@ export class WebSocketTransport {
    * Error observer. / Наблюдатель ошибок.
    * @private
    */
-  #onError: NormalizedWebSocketOptions['onError'];
+  #onError: NormalizedWebSocketOptions<TAppState>['onError'];
   /**
    * Transport options. / Параметры транспорта.
    * @private
    */
-  #options: NormalizedWebSocketOptions;
+  #options: NormalizedWebSocketOptions<TAppState>;
   /**
    * Active sessions. / Активные сессии.
    * @private
    */
   #sessionStore: WebSocketSessionStore;
   /** Shared application state. / Общее состояние приложения. @private */
-  #appState: AppStateInstance;
+  #appState: TAppState;
 
   /**
 
@@ -586,7 +586,7 @@ export class WebSocketTransport {
     onError,
     options,
     sessionStore,
-  }: WebSocketTransportDependencies) {
+  }: WebSocketTransportDependencies<TAppState>) {
     this.#controllers = controllers;
     this.#events = events;
     this.#jobRunner = jobRunner;

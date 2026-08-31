@@ -1,14 +1,12 @@
-class TestAppState {
-  readonly marker = undefined;
-}
-import { Application } from '@daevox/framework';
+import { Application, type ApplicationEventAddress } from '@daevox/framework';
+import { ExampleAppState } from '../ExampleAppState.ts';
 import { AuditEventListener } from './AuditEventListener.ts';
 import { OrdersController } from './OrdersController.ts';
 
 const application = new Application({
-  appState: TestAppState,
+  appState: ExampleAppState,
   events: {
-    onError(_appState: any, error: any, context: any) {
+    onError(error: unknown, context: ApplicationEventAddress) {
       console.error(`Event ${context.listener}/${context.event} failed`, error);
     },
   },

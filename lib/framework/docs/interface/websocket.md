@@ -23,16 +23,22 @@ ADR 0007 заменяется встроенным версионированн�
 ```ts
 import { Application, WebSocketControllerBase } from '@daevox/framework';
 
+class AppState {
+  readonly prefix = 'echo';
+}
+
 class EchoController extends WebSocketControllerBase {
   static name = 'echo';
-  static events = [{ name: 'message', handler: 'message' }];
+  static events = [{ name: 'message', handler: 'message' }] as const;
 
-  message(ctx: { body: object }) {
-    return ctx.body;
+  message(appState: AppState, ctx: { body: object }) {
+    return { source: appState.prefix, ...ctx.body };
   }
 }
 
-const application = new Application().registerWebSocketController(EchoController);
+const application = new Application({ appState: AppState }).registerWebSocketController(
+  EchoController,
+);
 const address = await application.listen({ host: '127.0.0.1', port: 3000 });
 console.log(`ws://${address.address}:${address.port}/ws (subprotocol: daevox.v1)`);
 ```
@@ -48,7 +54,9 @@ npm run example:websocket:test
 - Клиент согласует subprotocol `daevox.v1`; text envelope имеет точную форму
   `{ controller, event, body }`, binary payload не поддерживается.
 - WebSocket-контроллер напрямую наследует `WebSocketControllerBase` и объявляет собственные `name`
-  и `events`; новый экземпляр создаётся для каждого сообщения после middleware.
+  и `events` с `as const`; новый экземпляр создаётся для каждого сообщения после middleware.
+- Регистрация статически связывает literal `handler` с instance-методом и проверяет его AppState,
+  `WebSocketHandlerContext` и необязательный object-result.
 - Сообщения одной сессии выполняются последовательно, разные сессии могут выполняться параллельно.
 - `onConnect` может заменить сгенерированный `clientId`; одна ссылка `ctx.state` живёт до
   `onDisconnect`.

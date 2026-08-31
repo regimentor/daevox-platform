@@ -54,14 +54,14 @@ test('close ждёт settlement HTTP-handler после уничтожения r
   class Work {}
   class Listener extends EventListenerBase {
     static name = 'after-response';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     work() {
       eventHandled.resolve();
     }
   }
   class Controller extends HttpControllerBase {
     static prefix = '/race';
-    static routes = [{ method: 'GET', path: '/', handler: 'run' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'run' }] as const;
     async run() {
       handlerStarted.resolve();
       await releaseHandler.promise;
@@ -109,12 +109,12 @@ test('push из HTTP-handler после forced transport cutoff получает
   class Work {}
   class Listener extends EventListenerBase {
     static name = 'cutoff';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     work() {}
   }
   class Controller extends HttpControllerBase {
     static prefix = '/cutoff';
-    static routes = [{ method: 'GET', path: '/', handler: 'run' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'run' }] as const;
     async run() {
       handlerStarted.resolve();
       await releasePush.promise;
@@ -153,7 +153,7 @@ test('close опустошает event mailbox до закрытия JobRunner',
   class Work {}
   class Listener extends EventListenerBase {
     static name = 'jobs-during-drain';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     async work() {
       listenerStarted.resolve();
       await releaseListener.promise;
@@ -162,7 +162,7 @@ test('close опустошает event mailbox до закрытия JobRunner',
   }
   class Controller extends HttpControllerBase {
     static prefix = '/drain';
-    static routes = [{ method: 'POST', path: '/', handler: 'run' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'run' }] as const;
     run() {
       this.events.push({ listener: 'jobs-during-drain', event: 'work' }, new Work());
       return { status: 202 };
@@ -205,7 +205,7 @@ test('forced event shutdown отменяет active, наблюдает pending 
   }
   class Listener extends EventListenerBase {
     static name = 'forced';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     async work(data: any, { signal }: any) {
       assert.equal(data.id, 1);
       activeStarted.resolve();
@@ -226,7 +226,7 @@ test('forced event shutdown отменяет active, наблюдает pending 
   }
   class Controller extends HttpControllerBase {
     static prefix = '/forced';
-    static routes = [{ method: 'POST', path: '/', handler: 'run' }];
+    static routes = [{ method: 'POST', path: '/', handler: 'run' }] as const;
     run() {
       for (const id of [1, 2, 3]) {
         this.events.push({ listener: 'forced', event: 'work' }, new Work(id));
@@ -275,14 +275,14 @@ test('close ждёт WebSocket message-handler после закрытия се�
   class Work {}
   class Listener extends EventListenerBase {
     static name = 'after-session';
-    static events = [{ name: 'work', data: Work, handler: 'work' }];
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     work() {
       eventHandled.resolve();
     }
   }
   class Controller extends WebSocketControllerBase {
     static name = 'race';
-    static events = [{ name: 'run', handler: 'run' }];
+    static events = [{ name: 'run', handler: 'run' }] as const;
     async run() {
       handlerStarted.resolve();
       await releaseHandler.promise;

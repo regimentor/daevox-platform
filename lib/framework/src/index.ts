@@ -50,6 +50,7 @@ export type {
   AppStateInstance,
   EventOptions,
   HttpControllerClass,
+  HttpHandler,
   HttpMiddleware,
   HttpOptions,
   HttpRequestContext,
@@ -59,6 +60,7 @@ export type {
   ListenOptions,
   WebSocketDisconnectContext,
   WebSocketHandlerContext,
+  WebSocketHandler,
   WebSocketLifecycleContext,
   WebSocketMessageMiddleware,
   WebSocketOptions,
@@ -77,7 +79,10 @@ export type { HttpControllerOptions } from './HttpControllerBase.ts';
 export type { JobClass, JobContext, JobRun } from './Job.ts';
 export type { JobRunOptions, JobRunnerConfig } from './JobRunner.ts';
 export type { WebSocketControllerOptions } from './WebSocketControllerBase.ts';
-export type { WebSocketEventDeclaration } from './WebSocketControllerRegistry.ts';
+export type {
+  WebSocketControllerClass,
+  WebSocketEventDeclaration,
+} from './WebSocketControllerRegistry.ts';
 export type {
   WebSocketSendMessage,
   WebSocketSendResult,

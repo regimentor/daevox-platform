@@ -12,16 +12,9 @@ export class AuthController extends HttpControllerBase {
       path: '/login',
       handler: 'login',
     },
-  ];
+  ] as const;
 
-  #db: ReturnType<typeof AppState.instance.getDb>;
-
-  constructor(...args: any[]) {
-    super(...args);
-    this.#db = AppState.instance.getDb();
-  }
-
-  async login(_appState: any, ctx: HttpRequestContext) {
+  async login(_appState: AppState, ctx: HttpRequestContext) {
     const { body } = ctx;
     if (!body) {
       throw new HttpError(400, { body: 'No body' });
@@ -32,7 +25,8 @@ export class AuthController extends HttpControllerBase {
       throw new HttpError(400, { body: 'No login' });
     }
 
-    const loginExists = await this.#db
+    const loginExists = await _appState
+      .getDb()
       .select()
       .from(schema.users)
       .where(eq(schema.users.login, login));
@@ -41,7 +35,7 @@ export class AuthController extends HttpControllerBase {
       throw new HttpError(404, { body: 'Login does not exist' });
     }
 
-    const token = await createToken(login);
+    const token = await createToken(login, _appState.getConfig().JWT_SECRET);
 
     return { status: 200, body: { token } };
   }

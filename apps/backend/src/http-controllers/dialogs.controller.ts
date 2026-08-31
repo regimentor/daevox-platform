@@ -20,30 +20,30 @@ export class DialogsController extends HttpControllerBase {
       method: 'POST',
       handler: 'sendMessage',
     },
-  ];
+  ] as const;
 
-  #db: ReturnType<typeof AppState.instance.getDb>;
-
-  constructor(...args: any[]) {
-    super(...args);
-    this.#db = AppState.instance.getDb();
-  }
-
-  async createDialog(_appState: any, ctx: HttpRequestContext) {
-    const { login } = ctx.state as { login: string };
-    const [user] = await this.#db.select().from(schema.users).where(eq(schema.users.login, login));
+  async createDialog(_appState: AppState, ctx: HttpRequestContext<{ login: string }>) {
+    if (!ctx.body) return { status: 400, data: { message: 'Body is required' } };
+    const { login } = ctx.body;
+    const [user] = await _appState
+      .getDb()
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.login, login));
     if (!user) {
       return { status: 404, data: { message: 'User not found' } };
     }
 
-    const dialog = await this.#db.insert(schema.dialogs).values({ userId: user.id });
+    const dialog = await _appState.getDb().insert(schema.dialogs).values({ userId: user.id });
     return { status: 200, data: { dialog: dialog } };
   }
 
-  listDialogs() {
-    const dialogs = this.#db.select().from(schema.dialogs);
+  listDialogs(_appState: AppState) {
+    const dialogs = _appState.getDb().select().from(schema.dialogs);
     return { status: 200, data: { dialogs: dialogs } };
   }
 
-  sendMessage() {}
+  sendMessage() {
+    return { status: 200, data: { message: 'Message sent' } };
+  }
 }

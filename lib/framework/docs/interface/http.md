@@ -22,16 +22,24 @@ HTTP-контроллеры публикуют статические декла
 ```ts
 import { Application, HttpControllerBase } from '@daevox/framework';
 
-class HealthController extends HttpControllerBase {
-  static prefix = '/api';
-  static routes = [{ method: 'GET', path: '/health', handler: 'health' }];
-
-  health() {
-    return { status: 200, body: { ok: true } };
+class AppState {
+  healthStatus() {
+    return 'ok';
   }
 }
 
-const application = new Application().registerHttpController(HealthController);
+class HealthController extends HttpControllerBase {
+  static prefix = '/api';
+  static routes = [{ method: 'GET', path: '/health', handler: 'health' }] as const;
+
+  health(appState: AppState) {
+    return { status: 200, body: { status: appState.healthStatus() } };
+  }
+}
+
+const application = new Application({ appState: AppState }).registerHttpController(
+  HealthController,
+);
 const address = await application.listen({ host: '127.0.0.1', port: 0 });
 console.log(await (await fetch(`http://${address.address}:${address.port}/api/health`)).json());
 await application.close();
@@ -44,7 +52,9 @@ node example.ts
 ## Инварианты
 
 - HTTP-контроллер напрямую наследует `HttpControllerBase` и объявляет собственные `prefix`,
-  `routes` и, при необходимости, `middleware`.
+  `routes` с `as const` и, при необходимости, `middleware`.
+- Регистрация статически связывает literal `handler` с instance-методом и проверяет его AppState,
+  `HttpRequestContext` и `HttpResponse`.
 - Регистрация строго и атомарно проверяет метаданные, копирует middleware и замораживает каталог до
   начала `listen()`.
 - Новый экземпляр HTTP-контроллера создаётся только после успешного сопоставления HTTP-маршрута и

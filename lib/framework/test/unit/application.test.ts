@@ -30,7 +30,7 @@ function controller({ prefix = '/users', routes }: any = {}) {
     getById() {}
 
     current() {}
-  };
+  } as any;
 }
 
 test('Application регистрирует HTTP-контроллер и возвращает себя', () => {
@@ -52,7 +52,7 @@ test('Application запрещает регистрацию и повторны�
 test('Application запрещает регистрацию WebSocket-контроллера после начала listen', async () => {
   class NotificationsController extends WebSocketControllerBase {
     static name = 'notifications';
-    static events = [{ name: 'subscribe', handler: 'subscribe' }];
+    static events = [{ name: 'subscribe', handler: 'subscribe' }] as const;
     subscribe() {}
   }
   const app = new Application({ appState: TestAppState });
@@ -99,7 +99,7 @@ test('HTTP-контроллер обязан напрямую наследова
   class IndirectBase extends HttpControllerBase {}
   class IndirectController extends IndirectBase {
     static prefix = '/users';
-    static routes = [{ method: 'GET', path: '/', handler: 'list' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'list' }] as const;
     list() {}
   }
 
@@ -114,13 +114,13 @@ test('HTTP-контроллер обязан напрямую наследова
 test('prefix и routes должны быть собственными непустыми метаданными', () => {
   class Parent extends HttpControllerBase {
     static prefix = '/users';
-    static routes = [{ method: 'GET', path: '/', handler: 'list' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'list' }] as const;
     list() {}
   }
 
   for (const HttpController of [
     class MissingPrefix extends HttpControllerBase {
-      static routes = [{ method: 'GET', path: '/', handler: 'list' }];
+      static routes = [{ method: 'GET', path: '/', handler: 'list' }] as const;
       list() {}
     },
     controller({ prefix: '' }),
@@ -145,17 +145,18 @@ test('HTTP-обработчик должен быть собственным м�
   }
   class InheritedHandler extends Parent {
     static prefix = '/users';
-    static routes = [{ method: 'GET', path: '/', handler: 'list' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'list' }] as const;
   }
   class StaticHandler extends HttpControllerBase {
     static prefix = '/users';
-    static routes = [{ method: 'GET', path: '/', handler: 'list' }];
+    static routes = [{ method: 'GET', path: '/', handler: 'list' }] as const;
     static list() {}
   }
 
   for (const HttpController of [InheritedHandler, StaticHandler]) {
     assert.throws(
-      () => new Application({ appState: TestAppState }).registerHttpController(HttpController),
+      () =>
+        new Application({ appState: TestAppState }).registerHttpController(HttpController as any),
       InvalidHttpControllerError,
     );
   }

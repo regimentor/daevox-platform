@@ -31,7 +31,11 @@ type stripping, без loader, transpilation или emit. TypeScript 7 нуже�
 ```ts
 import { Application, HttpControllerBase } from '@daevox/framework';
 
-class AppState {}
+class AppState {
+  currentSubject() {
+    return 'anonymous';
+  }
+}
 
 class UsersController extends HttpControllerBase {
   static prefix = '/users';
@@ -39,13 +43,13 @@ class UsersController extends HttpControllerBase {
   static routes = [
     { method: 'GET', path: '/', handler: 'list' },
     { method: 'GET', path: '/:id', handler: 'getById' },
-  ];
+  ] as const;
 
-  async list() {
-    return { status: 200, body: { users: [] } };
+  async list(appState, _ctx) {
+    return { status: 200, body: { subject: appState.currentSubject(), users: [] } };
   }
 
-  async getById(ctx) {
+  async getById(_appState, ctx) {
     return { status: 200, body: { id: ctx.params.id } };
   }
 }
@@ -73,8 +77,10 @@ console.log(`Listening on http://${address.address}:${address.port}`);
 
 `Application.registerHttpController()` принимает класс, напрямую наследующий `HttpControllerBase`. Класс объявляет собственные статические поля `prefix` и `routes`, а каждый указанный HTTP-обработчик должен быть собственным методом его прототипа.
 TypeScript проверяет наличие и форму `prefix`, `routes` и необязательного `middleware` в точке
-регистрации; runtime дополнительно проверяет, что поля собственные, метаданные точные, а обработчики
-действительно объявлены классом.
+регистрации. Для статической проверки строковых имён handler массив `routes` объявляется с
+`as const`: регистрация отклоняет отсутствующий instance-метод, несовместимые AppState/context и
+неверный результат. Runtime дополнительно проверяет, что поля собственные, метаданные точные, а
+обработчики действительно объявлены классом.
 
 Объявление HTTP-маршрута содержит обязательные поля `method`, `path` и `handler`, а также может
 содержать необязательный массив `middleware`:
@@ -103,6 +109,9 @@ HTTP-маршрута приложение создаёт новый экзем�
 callbacks транспорта и `onError`. Обработчики получают `(appState, ctx)`, middleware —
 `(appState, ctx, next)`, а `ctx.state` остаётся локальным состоянием запроса или WebSocket-сессии.
 Методы `beforeAppStart`, `onAppStart` и `onAppClose` могут быть синхронными или асинхронными.
+Конкретный тип экземпляра выводится из `new Application({ appState: AppState })` и сохраняется во
+всех HTTP- и WebSocket-seams. Прикладной класс не обязан наследоваться от framework-класса или
+объявлять lifecycle hooks; публичные generic-типы без аргумента используют `AppStateInstance`.
 
 Каждый HTTP-контроллер получает `this.websocket` — узкий application-wide sender для server push:
 
@@ -188,7 +197,7 @@ async function middleware(ctx, next) {
 ```ts
 import { Application, HttpControllerBase, HttpError } from '@daevox/framework';
 
-async function attachRequestId(ctx, next) {
+async function attachRequestId(_appState, ctx, next) {
   ctx.state.requestId = crypto.randomUUID();
   const response = await next();
   response.headers ??= new Headers();
@@ -196,7 +205,7 @@ async function attachRequestId(ctx, next) {
   return response;
 }
 
-function requireAuthentication(ctx, next) {
+function requireAuthentication(_appState, ctx, next) {
   if (!ctx.headers.has('authorization')) {
     return { status: 401, body: { error: 'Unauthorized' } };
   }
@@ -204,7 +213,7 @@ function requireAuthentication(ctx, next) {
   return next();
 }
 
-function requireAdmin(ctx, next) {
+function requireAdmin(_appState, ctx, next) {
   if (ctx.state.role !== 'admin') throw new HttpError(403);
   return next();
 }
@@ -219,14 +228,15 @@ class UsersController extends HttpControllerBase {
       handler: 'deleteById',
       middleware: [requireAdmin],
     },
-  ];
+  ] as const;
 
-  async deleteById(ctx) {
+  async deleteById(_appState, ctx) {
     return { status: 204 };
   }
 }
 
 const application = new Application({
+  appState: AppState,
   http: { middleware: [attachRequestId] },
 });
 ```
@@ -242,17 +252,17 @@ Middleware не вызываются для ошибок, возникших д�
 ```ts
 import { Application, WebSocketControllerBase, WebSocketEventError } from '@daevox/framework';
 
-function countMessages(ctx, next) {
+function countMessages(_appState, ctx, next) {
   ctx.state.messageCount = (ctx.state.messageCount ?? 0) + 1;
   return next();
 }
 
-function requireAuthentication(ctx, next) {
+function requireAuthentication(_appState, ctx, next) {
   if (!ctx.state.auth) throw new WebSocketEventError('UNAUTHORIZED');
   return next();
 }
 
-function requireTopic(ctx, next) {
+function requireTopic(_appState, ctx, next) {
   if (typeof ctx.body.topic !== 'string') {
     throw new WebSocketEventError('INVALID_TOPIC');
   }
@@ -268,14 +278,15 @@ class NotificationsController extends WebSocketControllerBase {
       handler: 'subscribe',
       middleware: [requireTopic],
     },
-  ];
+  ] as const;
 
-  subscribe(ctx) {
+  subscribe(_appState, ctx) {
     return { topic: ctx.body.topic, messageCount: ctx.state.messageCount };
   }
 }
 
 const application = new Application({
+  appState: AppState,
   websocket: { middleware: [countMessages] },
 });
 ```
@@ -299,7 +310,8 @@ Middleware не вызываются для неверного envelope, неи�
 
 `Application.registerWebSocketController()` принимает класс, напрямую наследующий `WebSocketControllerBase`. Контроллер объявляет собственные `static name` и `static events`.
 TypeScript проверяет форму `name`, `events` и необязательного `middleware` в точке регистрации;
-проверка собственных полей, wire-имён и методов обработчиков остаётся runtime-инвариантом.
+`events` с `as const` также связывает строковый handler с совместимым instance-методом. Проверка
+собственных полей и wire-имён остаётся runtime-инвариантом.
 
 Пример:
 
@@ -311,13 +323,13 @@ class NotificationsController extends WebSocketControllerBase {
   static events = [
     { name: 'subscribe', handler: 'subscribe' },
     { name: 'mark_read', handler: 'markRead' },
-  ];
+  ] as const;
 
-  async subscribe(ctx) {
+  async subscribe(_appState, ctx) {
     return { subscribed: ctx.body.topic };
   }
 
-  async markRead() {}
+  async markRead(_appState, _ctx) {}
 }
 
 application.registerWebSocketController(NotificationsController);
@@ -412,7 +424,7 @@ class OrderCreated {
 
 class AuditEventListener extends EventListenerBase {
   static name = 'audit';
-  static events = [{ name: 'OrderCreated', data: OrderCreated, handler: 'orderCreated' }];
+  static events = [{ name: 'OrderCreated', data: OrderCreated, handler: 'orderCreated' }] as const;
 
   async orderCreated(data, { signal }) {
     console.log('order created', data.orderId);

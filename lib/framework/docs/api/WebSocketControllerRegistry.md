@@ -8,14 +8,40 @@ Source / Исходный модуль: [`src/WebSocketControllerRegistry.ts`](.
 
 Declarative WebSocket event metadata. / Метаданные WebSocket-события.
 
+## WebSocketControllerClass
+
+Constructable WebSocket controller. / Создаваемый WebSocket-контроллер.
+
+Type: {: WebSocketControllerBase, name: [string][1], events: any, middleware: any?}
+
+### Properties
+
+- `` **any**&#x20;
+- `name` **[string][1]**&#x20;
+- `events` **any**&#x20;
+- `middleware` **any?**&#x20;
+
+[1]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
+
 ## TypeScript declarations / TypeScript-декларации
 
 ### `WebSocketEventDeclaration`
 
 ```ts
-export interface WebSocketEventDeclaration {
+export interface WebSocketEventDeclaration<TAppState extends object = AppStateInstance> {
   name: string;
   handler: string;
-  middleware?: WebSocketMessageMiddleware[];
+  middleware?: readonly WebSocketMessageMiddleware<TAppState>[];
 }
+```
+
+### `WebSocketControllerClass`
+
+```ts
+export type WebSocketControllerClass<TAppState extends object = AppStateInstance> = {
+  new (options: WebSocketControllerOptions): WebSocketControllerBase;
+  readonly name: string;
+  readonly events: readonly WebSocketEventDeclaration<TAppState>[];
+  readonly middleware?: readonly WebSocketMessageMiddleware<TAppState>[];
+};
 ```

@@ -1,13 +1,11 @@
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
-import { AppState } from '../app-state.ts';
-
-const secret = new TextEncoder().encode(AppState.instance.getConfig().JWT_SECRET);
 
 interface AccessTokenClaims extends JWTPayload {
   login: string;
 }
 
-async function createToken(login: string) {
+async function createToken(login: string, secret: string) {
+  const $secret = new TextEncoder().encode(secret);
   return new SignJWT({
     login,
   })
@@ -16,11 +14,12 @@ async function createToken(login: string) {
     })
     .setIssuedAt()
     .setExpirationTime('30d')
-    .sign(secret);
+    .sign($secret);
 }
 
-async function verifyToken<PayloadType = AccessTokenClaims>(token: string) {
-  const { payload } = await jwtVerify<PayloadType>(token, secret, {
+async function verifyToken<PayloadType = AccessTokenClaims>(token: string, secret: string) {
+  const $secret = new TextEncoder().encode(secret);
+  const { payload } = await jwtVerify<PayloadType>(token, $secret, {
     algorithms: ['HS256'],
   });
 
