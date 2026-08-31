@@ -67,7 +67,7 @@ test('mailbox сохраняет FIFO одного listener и не блокир
   class SerialListener extends EventListenerBase {
     static name = 'serial';
     static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
-    async work(data: any) {
+    async work(_appState: TestAppState, data: any) {
       order.push(`start:${data.id}`);
       if (data.id === 1) {
         firstStarted.resolve();
@@ -80,7 +80,7 @@ test('mailbox сохраняет FIFO одного listener и не блокир
   class ParallelListener extends EventListenerBase {
     static name = 'parallel';
     static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
-    work(data: any) {
+    work(_appState: TestAppState, data: any) {
       order.push(`parallel:${data.id}`);
       parallelFinished.resolve();
     }
@@ -132,7 +132,7 @@ test('mailbox запускает не более одного handler за од�
   class FairListener extends EventListenerBase {
     static name = 'fair';
     static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
-    work(data: any) {
+    work(_appState: TestAppState, data: any) {
       order.push(data.id);
       if (data.id === 2) finished.resolve();
     }
@@ -272,7 +272,7 @@ test('registry и push копируют адрес, но передают ту �
   class Listener extends EventListenerBase {
     static name = 'snapshot';
     static events = declarations;
-    work(data: any) {
+    work(_appState: TestAppState, data: any) {
       assert.equal(data, sent);
       throw new Error('observed');
     }
@@ -298,7 +298,7 @@ test('registry и push копируют адрес, но передают ту �
     },
   });
   t.after(() => application.close());
-  application.registerEventListener(Listener);
+  application.registerEventListener(Listener as any);
   declaration.name = 'changed';
   declaration.data = class Changed {};
   declaration.handler = 'changed';
@@ -331,7 +331,7 @@ test('ошибки handler изолированы от HTTP и тот же liste
     static name = 'resilient';
     static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
     count = 0;
-    work(data: any) {
+    work(_appState: TestAppState, data: any) {
       this.count += 1;
       counters.push(this.count);
       if (data.kind === 'sync') throw new Error('sync failure');
@@ -474,7 +474,7 @@ test('handler timeout отменяет signal, но FIFO ждёт поздний
   class Listener extends EventListenerBase {
     static name = 'timeout';
     static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
-    async work(data: any, { signal }: any) {
+    async work(_appState: TestAppState, data: any, { signal }: any) {
       if (data.id === 1) {
         await new Promise<any>((resolve: any) => {
           signal.addEventListener(
@@ -551,7 +551,7 @@ test('ошибка observer передаётся в console.error и не зад
   class Listener extends EventListenerBase {
     static name = 'observer';
     static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
-    work(data: any) {
+    work(_appState: TestAppState, data: any) {
       if (data.id < 3) throw new Error(`handler:${data.id}`);
       finished.resolve();
     }
@@ -625,7 +625,7 @@ test('WebSocket-контроллер получает events, а listener error 
   class Listener extends EventListenerBase {
     static name = 'websocket-listener';
     static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
-    work(data: any) {
+    work(_appState: TestAppState, data: any) {
       assert.equal(data.value, 'payload');
       throw new Error('listener failed later');
     }

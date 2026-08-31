@@ -206,7 +206,7 @@ test('forced event shutdown отменяет active, наблюдает pending 
   class Listener extends EventListenerBase {
     static name = 'forced';
     static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
-    async work(data: any, { signal }: any) {
+    async work(_appState: TestAppState, data: any, { signal }: any) {
       assert.equal(data.id, 1);
       activeStarted.resolve();
       await new Promise<any>((resolve: any) =>

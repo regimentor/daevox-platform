@@ -73,6 +73,7 @@ export type {
 export type {
   ApplicationEventDataClass,
   ApplicationEventDeclaration,
+  EventListenerClass,
 } from './EventListenerRegistry.ts';
 export type { ApplicationEventAddress } from './EventSender.ts';
 export type { HttpControllerOptions } from './HttpControllerBase.ts';

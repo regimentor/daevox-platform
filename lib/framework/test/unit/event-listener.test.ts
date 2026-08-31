@@ -162,7 +162,10 @@ test('registerEventListener отклоняет классы вне строго�
 
   for (const candidate of invalid) {
     const application = new Application({ appState: TestAppState });
-    assert.throws(() => application.registerEventListener(candidate), InvalidEventListenerError);
+    assert.throws(
+      () => application.registerEventListener(candidate as any),
+      InvalidEventListenerError,
+    );
     await application.close();
   }
 });
@@ -252,12 +255,15 @@ test('публичные event errors доступны как отдельные
   }
 });
 
-test('HTTP-контроллер fire-and-forget передаёт исходный DTO адресованному listener', async (t: any) => {
+test('EventListener handler получает AppState, исходный DTO и context', async (t: any) => {
   let releaseHandler: any;
   const handlerGate = new Promise<any>((resolve: any) => {
     releaseHandler = resolve;
   });
-  let received: any;
+  let receivedAppState: any;
+  let receivedData: any;
+  let receivedContext: any;
+  let controllerAppState: any;
   let handlerStarted: any;
   const started = new Promise<any>((resolve: any) => {
     handlerStarted = resolve;
@@ -270,11 +276,20 @@ test('HTTP-контроллер fire-and-forget передаёт исходны�
       this.id = id;
     }
   }
+  class EventAppState {
+    ready = false;
+
+    beforeAppStart() {
+      this.ready = true;
+    }
+  }
   class AuditListener extends EventListenerBase {
     static name = 'audit';
     static events = [{ name: 'created', data: Created, handler: 'created' }] as const;
-    async created(data: any) {
-      received = data;
+    async created(appState: EventAppState, data: Created, context: any) {
+      receivedAppState = appState;
+      receivedData = data;
+      receivedContext = context;
       handlerStarted();
       await handlerGate;
     }
@@ -282,14 +297,15 @@ test('HTTP-контроллер fire-and-forget передаёт исходны�
   class OrdersController extends HttpControllerBase {
     static prefix = '/orders';
     static routes = [{ method: 'POST', path: '/', handler: 'create' }] as const;
-    create() {
+    create(appState: EventAppState) {
+      controllerAppState = appState;
       const event = new Created('order-1');
       const pushResult = this.events.push({ listener: 'audit', event: 'created' }, event);
       return { status: 202, body: { accepted: pushResult === undefined } };
     }
   }
 
-  const application = new Application({ appState: TestAppState });
+  const application = new Application({ appState: EventAppState });
   t.after(async () => {
     releaseHandler();
     await application.close();
@@ -304,6 +320,11 @@ test('HTTP-контроллер fire-and-forget передаёт исходны�
   assert.equal(response.status, 202);
   assert.deepEqual(await response.json(), { accepted: true });
   await started;
-  assert.ok(received instanceof Created);
-  assert.equal(received.id, 'order-1');
+  assert.ok(receivedAppState instanceof EventAppState);
+  assert.equal(receivedAppState, controllerAppState);
+  assert.equal(receivedAppState.ready, true);
+  assert.ok(receivedData instanceof Created);
+  assert.equal(receivedData.id, 'order-1');
+  assert.equal(receivedContext.signal instanceof AbortSignal, true);
+  assert.equal(Object.isFrozen(receivedContext), true);
 });

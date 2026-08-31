@@ -493,7 +493,7 @@ async function main() {
   class FastSoakEventListener extends EventListenerBase {
     static name = 'soak-fast';
     static events = [{ name: 'work', data: SoakApplicationEvent, handler: 'work' }] as const;
-    work(data: any) {
+    work(_appState: any, data: any) {
       applicationEvents.recordHandled(data);
       if (data.poison) throw new Error(`soak event poison:${data.sequence}`);
     }
@@ -502,7 +502,7 @@ async function main() {
   class SlowSoakEventListener extends EventListenerBase {
     static name = 'soak-slow';
     static events = [{ name: 'work', data: SoakApplicationEvent, handler: 'work' }] as const;
-    async work(data: any) {
+    async work(_appState: any, data: any) {
       applicationEvents.recordHandled(data);
       await new Promise<any>((resolve: any) => setTimeout(resolve, 2));
       if (data.poison) throw new Error(`soak event poison:${data.sequence}`);

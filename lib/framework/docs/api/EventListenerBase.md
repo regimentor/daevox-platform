@@ -14,9 +14,10 @@ Context of one accepted application event. / Контекст принятого
 
 ## ApplicationEventHandler
 
-Handler of one accepted application event. / Обработчик принятого события.
+Handler of one accepted application event, with application state, DTO, and cancellation context.
+Обработчик принятого события с состоянием приложения, DTO и контекстом отмены.
 
-Type: function (data: Data, context: [ApplicationEventContext][1]): (any | [Promise][2]\<any>)
+Type: function (appState: TAppState, data: Data, context: [ApplicationEventContext][1]): (any | [Promise][2]\<any>)
 
 ## EventListenerBase
 
@@ -72,7 +73,8 @@ export interface ApplicationEventContext {
 ### `ApplicationEventHandler`
 
 ```ts
-export type ApplicationEventHandler<Data = unknown> = (
+export type ApplicationEventHandler<Data = unknown, TAppState extends object = AppStateInstance> = (
+  appState: TAppState,
   data: Data,
   context: ApplicationEventContext,
 ) => unknown | Promise<unknown>;

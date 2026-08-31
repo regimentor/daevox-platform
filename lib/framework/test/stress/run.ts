@@ -396,7 +396,7 @@ async function applicationEventScenario(config: any) {
   class SerialEventListener extends EventListenerBase {
     static name = 'stress-serial';
     static events = [{ name: 'work', data: StressEvent, handler: 'work' }] as const;
-    async work(data: any) {
+    async work(_appState: any, data: any) {
       handled.push(data.label);
       if (data.label === 'active') {
         resolveSerialStarted();
@@ -407,7 +407,7 @@ async function applicationEventScenario(config: any) {
   class ParallelEventListener extends EventListenerBase {
     static name = 'stress-parallel';
     static events = [{ name: 'work', data: StressEvent, handler: 'work' }] as const;
-    work(data: any) {
+    work(_appState: any, data: any) {
       handled.push(data.label);
       resolveParallelHandled();
     }
@@ -512,7 +512,7 @@ async function applicationEventThroughput(config: any) {
   class FastThroughputListener extends EventListenerBase {
     static name = 'throughput-fast';
     static events = [{ name: 'work', data: ThroughputEvent, handler: 'work' }] as const;
-    work(data: any) {
+    work(_appState: any, data: any) {
       record(data);
       if (data.poison) throw new Error(`event poison:${data.id}`);
     }
@@ -521,7 +521,7 @@ async function applicationEventThroughput(config: any) {
   class SlowThroughputListener extends EventListenerBase {
     static name = 'throughput-slow';
     static events = [{ name: 'work', data: ThroughputEvent, handler: 'work' }] as const;
-    async work(data: any) {
+    async work(_appState: any, data: any) {
       record(data);
       await new Promise<any>((resolve: any) => setTimeout(resolve, 2));
       if (data.poison) throw new Error(`event poison:${data.id}`);
@@ -720,7 +720,7 @@ async function applicationEventShutdownChaos(config: any) {
     class ChaosListener extends EventListenerBase {
       static name = 'chaos';
       static events = [{ name: 'work', data: ChaosEvent, handler: 'work' }] as const;
-      async work(data: any, { signal }: any) {
+      async work(_appState: any, data: any, { signal }: any) {
         if (seen.has(data.id)) duplicates += 1;
         seen.add(data.id);
         if (data.id === 0) {

@@ -7,6 +7,8 @@ import type { HttpControllerOptions } from './HttpControllerBase.ts';
 import { HttpRouter } from './HttpRouter.ts';
 import type { NormalizedHttpRoute } from './HttpRouter.ts';
 import { EventListenerRegistry } from './EventListenerRegistry.ts';
+import type { ApplicationEventDataClass, EventListenerClass } from './EventListenerRegistry.ts';
+import type { ApplicationEventHandler } from './EventListenerBase.ts';
 import { JobRunner } from './JobRunner.ts';
 import type { JobRunnerConfig } from './JobRunner.ts';
 import { WebSocketControllerRegistry } from './WebSocketControllerRegistry.ts';
@@ -201,6 +203,36 @@ type CheckedWebSocketController<
 > = [InvalidWebSocketHandlerDeclaration<TAppState, TController>] extends [never]
   ? unknown
   : { readonly __invalidWebSocketHandlerDeclaration: never };
+
+/** Invalid application-event declarations selected from one listener. / Некорректные декларации внутренних событий listener. @private */
+type InvalidEventHandlerDeclaration<
+  TAppState extends object,
+  TEventListener extends EventListenerClass<TAppState>,
+> = TEventListener['events'][number] extends infer TEvent
+  ? TEvent extends {
+      readonly data: infer TData extends ApplicationEventDataClass;
+      readonly handler: infer THandler extends string;
+    }
+    ? string extends THandler
+      ? TEvent
+      : THandler extends keyof InstanceType<TEventListener>
+        ? InstanceType<TEventListener>[THandler] extends ApplicationEventHandler<
+            InstanceType<TData>,
+            TAppState
+          >
+          ? never
+          : TEvent
+        : TEvent
+    : TEvent
+  : never;
+
+/** Registration-time application-event handler proof. / Проверка handler внутренних событий при регистрации. @private */
+type CheckedEventListener<
+  TAppState extends object,
+  TEventListener extends EventListenerClass<TAppState>,
+> = [InvalidEventHandlerDeclaration<TAppState, TEventListener>] extends [never]
+  ? unknown
+  : { readonly __invalidEventHandlerDeclaration: never };
 
 /** WebSocket transport and lifecycle configuration. / Конфигурация WebSocket. @public */
 export interface WebSocketOptions<TAppState extends object = AppStateInstance> {
@@ -902,7 +934,9 @@ export class Application<TAppState extends object = AppStateInstance> {
    * @returns This application. / Это приложение.
    * @public
    */
-  registerEventListener(EventListener: any) {
+  registerEventListener<const TEventListener extends EventListenerClass<TAppState>>(
+    EventListener: TEventListener & CheckedEventListener<TAppState, TEventListener>,
+  ): this {
     if (this.#state !== 'new') {
       throw new ApplicationStateError('Application no longer accepts event listeners');
     }
@@ -963,7 +997,7 @@ export class Application<TAppState extends object = AppStateInstance> {
     this.#listenPromise = (async () => {
       try {
         await (this.#appState as AppStateInstance).beforeAppStart?.();
-        this.#eventDispatcher.start({
+        this.#eventDispatcher.start(this.#appState, {
           jobRunner: this.#jobRunner,
           websocket: this.#webSocketSender,
         });

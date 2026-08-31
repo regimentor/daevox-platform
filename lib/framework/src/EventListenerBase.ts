@@ -1,5 +1,6 @@
 import { InvalidEventListenerError } from './errors.ts';
 import type { JobRunnerCapability, WebSocketSenderCapability } from './capabilities.ts';
+import type { AppStateInstance } from './Application.ts';
 
 /** Dependencies supplied to an event listener. / Зависимости слушателя событий. @public */
 export interface EventListenerDependencies {
@@ -12,8 +13,13 @@ export interface ApplicationEventContext {
   signal: AbortSignal;
 }
 
-/** Handler of one accepted application event. / Обработчик принятого события. @public */
-export type ApplicationEventHandler<Data = unknown> = (
+/**
+ * Handler of one accepted application event, with application state, DTO, and cancellation context.
+ * Обработчик принятого события с состоянием приложения, DTO и контекстом отмены.
+ * @public
+ */
+export type ApplicationEventHandler<Data = unknown, TAppState extends object = AppStateInstance> = (
+  appState: TAppState,
   data: Data,
   context: ApplicationEventContext,
 ) => unknown | Promise<unknown>;

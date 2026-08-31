@@ -426,8 +426,8 @@ class AuditEventListener extends EventListenerBase {
   static name = 'audit';
   static events = [{ name: 'OrderCreated', data: OrderCreated, handler: 'orderCreated' }] as const;
 
-  async orderCreated(data, { signal }) {
-    console.log('order created', data.orderId);
+  async orderCreated(appState, data, { signal }) {
+    console.log('order created', appState, data.orderId);
     // CPU-heavy работу следует явно передавать в this.jobRunner.
     // await this.jobRunner.run(AuditJob, data, { signal });
   }
@@ -435,6 +435,12 @@ class AuditEventListener extends EventListenerBase {
 
 application.registerEventListener(AuditEventListener);
 ```
+
+Handler получает тот же экземпляр `AppState`, который передаётся HTTP- и WebSocket-handler:
+`(appState, data, context)`. TypeScript проверяет форму `name` и `events` в точке регистрации, а
+`events` с `as const` связывает имя handler с instance-методом, concrete `AppState`, DTO-классом и
+`ApplicationEventContext`. Собственность static-полей, wire-имена и точная runtime-форма metadata
+проверяются при регистрации.
 
 HTTP- и WebSocket-контроллеры получают одинаковый узкий фасад `this.events`:
 
@@ -460,8 +466,8 @@ DTO, переполнения или закрытого sender синхронн�
 разные listener работают независимо. Доставка in-memory и at-most-once: persistence, retry,
 acknowledgements, подписок и listener middleware нет. Listener выполняется в основном потоке, поэтому
 синхронная CPU-heavy работа блокирует event loop; для неё доступен `this.jobRunner`. Listener также
-получает `this.websocket`, но не получает `this.events`, поэтому не может строить цепочки внутренних
-событий.
+получает `this.websocket`, а handler — принадлежащий `Application` объект `AppState`, но listener не
+получает `this.events`, поэтому не может строить цепочки внутренних событий.
 
 ```ts
 const application = new Application({

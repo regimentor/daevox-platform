@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Application } from '../../src/Application.ts';
+import { EventListenerBase } from '../../src/EventListenerBase.ts';
 import { HttpControllerBase } from '../../src/HttpControllerBase.ts';
+import type {
+  ApplicationEventContext,
+  ApplicationEventHandler,
+  EventListenerClass,
+} from '../../src/index.ts';
 import type {
   AppStateInstance,
   HttpControllerClass,
@@ -228,6 +234,79 @@ function rejectInvalidWebSocketControllers() {
 }
 void rejectInvalidWebSocketControllers;
 
+class CreatedEvent {
+  readonly id = 'created';
+}
+
+const typedApplicationEventHandler: ApplicationEventHandler<CreatedEvent, ConcreteAppState> = (
+  appState,
+  data,
+  context,
+) => ({ subject: appState.getSubject(), id: data.id, aborted: context.signal.aborted });
+void typedApplicationEventHandler;
+
+class OtherEvent {
+  readonly other = true;
+}
+
+class TypedEventListener extends EventListenerBase {
+  static name = 'typed-events';
+  static events = [{ name: 'created', data: CreatedEvent, handler: 'created' }] as const;
+
+  created(appState: ConcreteAppState, data: CreatedEvent, _context: ApplicationEventContext) {
+    return { subject: appState.getSubject(), id: data.id };
+  }
+}
+
+class MissingEventHandler extends EventListenerBase {
+  static name = 'missing-event-handler';
+  static events = [{ name: 'created', data: CreatedEvent, handler: 'missing' }] as const;
+}
+
+class WrongEventState extends EventListenerBase {
+  static name = 'wrong-event-state';
+  static events = [{ name: 'created', data: CreatedEvent, handler: 'created' }] as const;
+
+  created(_appState: { other: true }, _data: CreatedEvent, _context: ApplicationEventContext) {}
+}
+
+class WrongEventData extends EventListenerBase {
+  static name = 'wrong-event-data';
+  static events = [{ name: 'created', data: CreatedEvent, handler: 'created' }] as const;
+
+  created(_appState: ConcreteAppState, _data: OtherEvent, _context: ApplicationEventContext) {}
+}
+
+class WrongEventContext extends EventListenerBase {
+  static name = 'wrong-event-context';
+  static events = [{ name: 'created', data: CreatedEvent, handler: 'created' }] as const;
+
+  created(_appState: ConcreteAppState, _data: CreatedEvent, _context: string) {}
+}
+
+class WidenedListenerEvents extends EventListenerBase {
+  static name = 'widened-listener-events';
+  static events = [{ name: 'created', data: CreatedEvent, handler: 'created' }];
+
+  created(_appState: ConcreteAppState, _data: CreatedEvent, _context: ApplicationEventContext) {}
+}
+
+inferredApplication.registerEventListener(TypedEventListener);
+
+function rejectInvalidEventListeners() {
+  // @ts-expect-error handler name must identify an instance method
+  inferredApplication.registerEventListener(MissingEventHandler);
+  // @ts-expect-error handler AppState must match the Application AppState
+  inferredApplication.registerEventListener(WrongEventState);
+  // @ts-expect-error handler data must match the declared DTO class
+  inferredApplication.registerEventListener(WrongEventData);
+  // @ts-expect-error handler context must match the application-event contract
+  inferredApplication.registerEventListener(WrongEventContext);
+  // @ts-expect-error handler names require literal event metadata declared with as const
+  inferredApplication.registerEventListener(WidenedListenerEvents);
+}
+void rejectInvalidEventListeners;
+
 class MissingWebSocketEvents extends WebSocketControllerBase {
   static name = 'typed';
 }
@@ -235,6 +314,17 @@ class MissingWebSocketEvents extends WebSocketControllerBase {
 class InvalidWebSocketEvents extends WebSocketControllerBase {
   static name = 'typed';
   static events = [{ name: 'get', handler: 42 }] as const;
+}
+
+class MissingListenerEvents extends EventListenerBase {
+  static name = 'missing-listener-events';
+}
+
+class InvalidListenerEvents extends EventListenerBase {
+  static name = 'invalid-listener-events';
+  static events = [{ name: 'created', data: 42, handler: 'created' }] as const;
+
+  created() {}
 }
 
 const staticContractChecks = {
@@ -252,9 +342,21 @@ const staticContractChecks = {
     false satisfies typeof MissingWebSocketEvents extends WebSocketControllerClass ? true : false,
   invalidWebSocketEvents:
     false satisfies typeof InvalidWebSocketEvents extends WebSocketControllerClass ? true : false,
+  validEventListener:
+    true satisfies typeof TypedEventListener extends EventListenerClass<ConcreteAppState>
+      ? true
+      : false,
+  missingListenerEvents:
+    false satisfies typeof MissingListenerEvents extends EventListenerClass<ConcreteAppState>
+      ? true
+      : false,
+  invalidListenerEvents:
+    false satisfies typeof InvalidListenerEvents extends EventListenerClass<ConcreteAppState>
+      ? true
+      : false,
 };
 
-test('TypeScript проверяет статические поля HTTP- и WebSocket-контроллеров', () => {
+test('TypeScript проверяет статические поля контроллеров и listener', () => {
   assert.deepEqual(staticContractChecks, {
     validHttp: true,
     missingHttpPrefix: false,
@@ -262,5 +364,8 @@ test('TypeScript проверяет статические поля HTTP- и Web
     validWebSocket: true,
     missingWebSocketEvents: false,
     invalidWebSocketEvents: false,
+    validEventListener: true,
+    missingListenerEvents: false,
+    invalidListenerEvents: false,
   });
 });

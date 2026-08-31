@@ -30,7 +30,7 @@ Errors by operation and observable effect: [error map](interface/errors.md). / �
 
 ### [Events](interface/application-events.md)
 
-[`EventOptions`](api/Application.md#eventoptions), [`EventSenderCapability`](api/capabilities.md#eventsendercapability), [`InvalidEventListenerError`](api/errors.md#invalideventlistenererror), [`EventListenerConflictError`](api/errors.md#eventlistenerconflicterror), [`InvalidEventOptionsError`](api/errors.md#invalideventoptionserror), [`InvalidEventPushError`](api/errors.md#invalideventpusherror), [`EventQueueFullError`](api/errors.md#eventqueuefullerror), [`EventSenderClosedError`](api/errors.md#eventsenderclosederror), [`EventHandlerTimeoutError`](api/errors.md#eventhandlertimeouterror), [`EventDroppedError`](api/errors.md#eventdroppederror), [`EventListenerDependencies`](api/EventListenerBase.md#eventlistenerdependencies), [`ApplicationEventContext`](api/EventListenerBase.md#applicationeventcontext), [`ApplicationEventHandler`](api/EventListenerBase.md#applicationeventhandler), [`EventListenerBase`](api/EventListenerBase.md#eventlistenerbase), [`ApplicationEventDataClass`](api/EventListenerRegistry.md#applicationeventdataclass), [`ApplicationEventDeclaration`](api/EventListenerRegistry.md#applicationeventdeclaration), [`ApplicationEventAddress`](api/EventSender.md#applicationeventaddress)
+[`EventOptions`](api/Application.md#eventoptions), [`EventSenderCapability`](api/capabilities.md#eventsendercapability), [`InvalidEventListenerError`](api/errors.md#invalideventlistenererror), [`EventListenerConflictError`](api/errors.md#eventlistenerconflicterror), [`InvalidEventOptionsError`](api/errors.md#invalideventoptionserror), [`InvalidEventPushError`](api/errors.md#invalideventpusherror), [`EventQueueFullError`](api/errors.md#eventqueuefullerror), [`EventSenderClosedError`](api/errors.md#eventsenderclosederror), [`EventHandlerTimeoutError`](api/errors.md#eventhandlertimeouterror), [`EventDroppedError`](api/errors.md#eventdroppederror), [`EventListenerDependencies`](api/EventListenerBase.md#eventlistenerdependencies), [`ApplicationEventContext`](api/EventListenerBase.md#applicationeventcontext), [`ApplicationEventHandler`](api/EventListenerBase.md#applicationeventhandler), [`EventListenerBase`](api/EventListenerBase.md#eventlistenerbase), [`ApplicationEventDataClass`](api/EventListenerRegistry.md#applicationeventdataclass), [`ApplicationEventDeclaration`](api/EventListenerRegistry.md#applicationeventdeclaration), [`EventListenerClass`](api/EventListenerRegistry.md#eventlistenerclass), [`ApplicationEventAddress`](api/EventSender.md#applicationeventaddress)
 
 ### [Jobs](interface/jobs.md)
 
@@ -46,7 +46,7 @@ Errors by operation and observable effect: [error map](interface/errors.md). / �
 - [capabilities](api/capabilities.md) — 3 public entities / публичных сущностей
 - [errors](api/errors.md) — 37 public entities / публичных сущностей
 - [EventListenerBase](api/EventListenerBase.md) — 4 public entities / публичных сущностей
-- [EventListenerRegistry](api/EventListenerRegistry.md) — 2 public entities / публичных сущностей
+- [EventListenerRegistry](api/EventListenerRegistry.md) — 3 public entities / публичных сущностей
 - [EventSender](api/EventSender.md) — 1 public entities / публичных сущностей
 - [HttpControllerBase](api/HttpControllerBase.md) — 2 public entities / публичных сущностей
 - [Job](api/Job.md) — 4 public entities / публичных сущностей

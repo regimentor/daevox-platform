@@ -11,7 +11,8 @@ status: accepted
 а каждый зарегистрированный `EventListener` является долгоживущим получателем с собственным FIFO
 mailbox и обрабатывает события последовательно. Listener объявляет собственные статические `name` и
 непустой массив `events`, регистрируется до `listen()` и получает принадлежащие приложению `jobRunner` и
-`websocket`, но не `EventSender`.
+`websocket`, но не `EventSender`. Handler вызывается как `(appState, data, context)` и получает тот же
+экземпляр `AppState`, который принадлежит `Application` и передаётся transport-handler.
 
 `EventSender.push(address, data)` синхронно проверяет адрес и класс данных, помещает принятое событие в mailbox и
 не возвращает Promise обработчика. Ошибки адреса, данных, переполнения и состояния вызова выбрасываются
@@ -29,8 +30,9 @@ mailbox и обрабатывает события последовательн�
 
 Необработанная ошибка handler не заменяет экземпляр listener: после наблюдения ошибки тот же экземпляр переходит
 к следующему событию; целостность его внутреннего состояния остаётся ответственностью listener. Обработчик
-получает вторым аргументом `{ signal }`; `events.handlerTimeout` по умолчанию равен `30000` мс. Listener не имеет lifecycle hooks
-и не владеет внешними ресурсами.
+получает первым аргументом изменяемый `AppState`, вторым исходный DTO, третьим `{ signal }`;
+`events.handlerTimeout` по умолчанию равен `30000` мс. Listener не имеет lifecycle hooks и не владеет
+внешними ресурсами.
 
 По истечении `handlerTimeout` фреймворк отменяет `signal` и однократно передаёт `EventHandlerTimeoutError` наблюдателю,
 но не запускает следующее событие до фактического settlement текущего handler. Это сохраняет строгий FIFO и делает
@@ -40,6 +42,8 @@ Listener обязан напрямую наследовать `EventListenerBase
 проверяются при регистрации, копируются и замораживаются. Имена соответствуют `^[A-Za-z0-9_-]+$`, каждая
 декларация содержит класс данных и имя собственного метода prototype, а адреса не повторяются. Все экземпляры listener
 создаются во время `listen()`; ошибка конструктора необратимо переводит запуск `Application` в failed-состояние.
+TypeScript в `Application.registerEventListener()` дополнительно связывает literal handler с concrete `AppState`,
+экземпляром объявленного DTO и `ApplicationEventContext`; own-поля и wire-имена остаются runtime-инвариантами.
 
 Лимит `queueSize` считает только ожидающие в mailbox события, но не уже выполняющийся handler. Наблюдатель `events.onError`
 вызывается без ожидания; его синхронная ошибка или rejected Promise передаются в `console.error` и не задерживают mailbox.
@@ -69,7 +73,7 @@ Handler может завершаться синхронно или возвра
 прикладной ошибки нет: handler сам перехватывает ожидаемые отказы, а любая escaping error считается ошибкой listener.
 
 HTTP-контроллер получает read-only свойства `jobRunner`, `websocket` и `events`, WebSocket-контроллер — `jobRunner` и `events`, а listener — `jobRunner` и
-`websocket`; все эти свойства enumerable и non-configurable. `Application.registerEventListener()` регистрирует класс только до `listen()`
+`websocket`; все эти свойства enumerable и non-configurable. `AppState` не становится свойством listener и передаётся только аргументом handler. `Application.registerEventListener()` регистрирует класс только до `listen()`
 и возвращает тот же `Application`; повтор класса или имени представлен `EventListenerConflictError`, а поздняя регистрация —
 существующим `ApplicationStateError`.
 
@@ -102,7 +106,7 @@ forced cutoff перехватывается внутри, но больше н�
 Listener выполняется в основном потоке. Синхронная CPU-heavy работа или бесконечный цикл блокируют event loop и не могут быть прерваны
 таймером фреймворка; listener сам передаёт такую работу в `jobRunner`, а остальные риски блокирующего кода несёт приложение.
 
-Публично экспортируются `EventListenerBase` и публичные классы ошибок механизма. `EventSender`, registry, dispatcher и mailbox остаются внутренними;
+Публично экспортируются `EventListenerBase`, `EventListenerClass`, типы event handler/declaration и публичные классы ошибок механизма. `EventSender`, registry, dispatcher и mailbox остаются внутренними;
 приложение получает sender только как `this.events` контроллера. DTO не требует базового класса фреймворка. `this.events` существует даже без
 зарегистрированных listener или явной `events`-конфигурации; неизвестный адрес по-прежнему представлен `InvalidEventPushError`.
 

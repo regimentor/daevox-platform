@@ -1,21 +1,27 @@
 import { EventListenerBase } from './EventListenerBase.ts';
 import type { ApplicationEventHandler, EventListenerDependencies } from './EventListenerBase.ts';
+import type { AppStateInstance } from './Application.ts';
 import { EventListenerConflictError, InvalidEventListenerError } from './errors.ts';
 
 /** Constructable application-event DTO. / Создаваемый DTO внутреннего события. @public */
 export type ApplicationEventDataClass<Data = unknown> = new (...args: any[]) => Data;
 
 /** Declarative application-event metadata. / Метаданные внутреннего события. @public */
-export interface ApplicationEventDeclaration<Data = unknown> {
+export interface ApplicationEventDeclaration<
+  Data = unknown,
+  TAppState extends object = AppStateInstance,
+> {
   name: string;
   data: ApplicationEventDataClass<Data>;
-  handler: string;
+  handler: string & keyof Record<string, ApplicationEventHandler<Data, TAppState>>;
 }
 
-/** Runtime event-listener instance. / Экземпляр event listener во время выполнения. @private */
-type EventListenerInstance = EventListenerBase & Record<string, ApplicationEventHandler<any>>;
-/** Runtime event-listener constructor. / Конструктор event listener времени выполнения. @private */
-type EventListenerClass = new (dependencies: EventListenerDependencies) => EventListenerInstance;
+/** Event-listener class accepted for registration. / Класс listener внутренних событий для регистрации. @public */
+export type EventListenerClass<TAppState extends object = AppStateInstance> = {
+  new (dependencies: EventListenerDependencies): EventListenerBase;
+  readonly name: string;
+  readonly events: readonly ApplicationEventDeclaration<unknown, TAppState>[];
+};
 
 /** Validated event declaration. / Проверенная декларация внутреннего события. @private */
 export interface NormalizedEventDeclaration {
@@ -27,7 +33,7 @@ export interface NormalizedEventDeclaration {
 /** Validated listener metadata. / Проверенные метаданные слушателя событий. @private */
 export interface NormalizedEventListener {
   readonly name: string;
-  readonly EventListener: EventListenerClass;
+  readonly EventListener: EventListenerClass<any>;
   readonly events: readonly NormalizedEventDeclaration[];
 }
 
@@ -78,7 +84,7 @@ function isConstructor(value: unknown): value is ApplicationEventDataClass {
  * @private
  */
 function normalizeDeclaration(
-  EventListener: EventListenerClass,
+  EventListener: EventListenerClass<any>,
   declaration: any,
 ): NormalizedEventDeclaration {
   if (
@@ -130,7 +136,7 @@ export class EventListenerRegistry {
    * Registered classes. / Зарегистрированные классы.
    * @private
    */
-  #classes = new Set<EventListenerClass>();
+  #classes = new Set<EventListenerClass<any>>();
 
   /**
    * Validates, snapshots, and registers a listener class atomically.
@@ -138,7 +144,7 @@ export class EventListenerRegistry {
    * @param EventListener Candidate class. / Проверяемый класс.
    * @private
    */
-  register(EventListener: EventListenerClass): void {
+  register(EventListener: EventListenerClass<any>): void {
     if (this.#classes.has(EventListener)) {
       throw new EventListenerConflictError('Event listener class has already been registered');
     }

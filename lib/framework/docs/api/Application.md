@@ -139,7 +139,7 @@ Registers an addressed application-event listener before listening starts.
 
 - `EventListener` **any** Listener class. / Класс слушателя.
 
-Returns **any** This application. / Это приложение.
+Returns **this** This application. / Это приложение.
 
 ### registerHttpController
 

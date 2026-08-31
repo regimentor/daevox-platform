@@ -1,6 +1,6 @@
 import { EventSender } from './EventSender.ts';
 import type { ApplicationEventAddress } from './EventSender.ts';
-import type { EventListenerDependencies } from './EventListenerBase.ts';
+import type { EventListenerBase, EventListenerDependencies } from './EventListenerBase.ts';
 import type {
   EventListenerRegistry,
   NormalizedEventDeclaration,
@@ -38,7 +38,7 @@ interface ActiveEvent extends PendingEvent {
 /** Per-listener FIFO mailbox. / FIFO mailbox отдельного слушателя. @private */
 interface EventMailbox {
   metadata: NormalizedEventListener;
-  listener: Record<string, (...args: any[]) => unknown>;
+  listener: EventListenerBase;
   pending: PendingEvent[];
   active: ActiveEvent | undefined;
   scheduled: boolean;
@@ -60,6 +60,12 @@ export class EventDispatcher {
    * @private
    */
   #options: EventDispatcherOptions;
+  /**
+   * Application-owned state passed to every handler. / Принадлежащее приложению состояние,
+   * передаваемое каждому обработчику.
+   * @private
+   */
+  #appState: object | undefined;
   /**
    * Runtime mailboxes. / Mailbox времени выполнения.
    * @private
@@ -102,10 +108,12 @@ export class EventDispatcher {
   /**
    * Constructs all registered listeners and creates their mailboxes.
    * Создаёт все зарегистрированные слушатели и их mailbox.
+   * @param appState Application-owned state. / Принадлежащее приложению состояние.
    * @param dependencies Listener dependencies. / Зависимости слушателей.
    * @private
    */
-  start(dependencies: EventListenerDependencies): void {
+  start(appState: object, dependencies: EventListenerDependencies): void {
+    this.#appState = appState;
     const created = new Map<string, EventMailbox>();
     for (const metadata of this.#registry.values()) {
       created.set(metadata.name, {
@@ -240,7 +248,12 @@ export class EventDispatcher {
     active.timer = timer;
     let result: unknown;
     try {
-      result = mailbox.listener[item.event.handler](
+      const handler = (
+        mailbox.listener as EventListenerBase & Record<string, (...args: any[]) => unknown>
+      )[item.event.handler];
+      result = handler.call(
+        mailbox.listener,
+        this.#appState,
         item.data,
         Object.freeze({ signal: abortController.signal }),
       );

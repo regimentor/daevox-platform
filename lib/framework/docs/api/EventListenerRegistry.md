@@ -14,7 +14,20 @@ Type: function (...args: [Array][1]\<any>): Data
 
 Declarative application-event metadata. / Метаданные внутреннего события.
 
+## EventListenerClass
+
+Event-listener class accepted for registration. / Класс listener внутренних событий для регистрации.
+
+Type: {: EventListenerBase, name: [string][2], events: any}
+
+### Properties
+
+- `` **any**&#x20;
+- `name` **[string][2]**&#x20;
+- `events` **any**&#x20;
+
 [1]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Array
+[2]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
 
 ## TypeScript declarations / TypeScript-декларации
 
@@ -27,9 +40,22 @@ export type ApplicationEventDataClass<Data = unknown> = new (...args: any[]) => 
 ### `ApplicationEventDeclaration`
 
 ```ts
-export interface ApplicationEventDeclaration<Data = unknown> {
+export interface ApplicationEventDeclaration<
+  Data = unknown,
+  TAppState extends object = AppStateInstance,
+> {
   name: string;
   data: ApplicationEventDataClass<Data>;
-  handler: string;
+  handler: string & keyof Record<string, ApplicationEventHandler<Data, TAppState>>;
 }
+```
+
+### `EventListenerClass`
+
+```ts
+export type EventListenerClass<TAppState extends object = AppStateInstance> = {
+  new (dependencies: EventListenerDependencies): EventListenerBase;
+  readonly name: string;
+  readonly events: readonly ApplicationEventDeclaration<unknown, TAppState>[];
+};
 ```
