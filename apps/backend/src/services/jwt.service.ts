@@ -2,13 +2,12 @@ import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 
 interface AccessTokenClaims extends JWTPayload {
   login: string;
+  id: number;
 }
 
-async function createToken(login: string, secret: string) {
+async function createToken(claims: AccessTokenClaims, secret: string) {
   const $secret = new TextEncoder().encode(secret);
-  return new SignJWT({
-    login,
-  })
+  return new SignJWT(claims)
     .setProtectedHeader({
       alg: 'HS256',
     })
