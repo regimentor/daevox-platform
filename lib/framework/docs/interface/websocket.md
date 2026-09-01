@@ -57,6 +57,8 @@ npm run example:websocket:test
   и `events` с `as const`; новый экземпляр создаётся для каждого сообщения после middleware.
 - Регистрация статически связывает literal `handler` с instance-методом и проверяет его AppState,
   `WebSocketHandlerContext` и необязательный object-result.
+- `registerRuntimeWebSocketController()` публикует новый controller и его события для следующего
+  сообщения уже существующей либо новой WebSocket-сессии после успешного startup.
 - Сообщения одной сессии выполняются последовательно, разные сессии могут выполняться параллельно.
 - `onConnect` может заменить сгенерированный `clientId`; одна ссылка `ctx.state` живёт до
   `onDisconnect`.

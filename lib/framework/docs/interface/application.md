@@ -7,6 +7,7 @@
 
 - Generated types: [`Application`, `ApplicationOptions`, `ListenOptions`](../api/Application.md).
 - Пользовательское назначение: [README — жизненный цикл](../../README.md#жизненный-цикл).
+- Пример runtime-регистрации: [`examples/runtime-registration/`](../../examples/runtime-registration/).
 - Implementation seam: [`src/Application.ts`](../../src/Application.ts).
 
 ## Сводка из ADR
@@ -38,7 +39,9 @@ node example.ts
 
 ## Инварианты
 
-- HTTP-контроллеры, WebSocket-контроллеры и слушатели событий регистрируются до `listen()`.
+- Startup-регистрация HTTP-контроллеров, WebSocket-контроллеров и слушателей событий выполняется
+  до `listen()`. После успешного `onAppStart()` доступны отдельные runtime-методы регистрации.
+- Runtime-регистрация синхронна, возвращает тот же `Application` и закрывается в начале `close()`.
 - `listen()` однократен; ошибка запуска, начавшийся `close()` и завершённое приложение необратимы.
 - `close()` прекращает новый ingress, закрывает WebSocket-сессии, ждёт transport settlement или
   forced cutoff, запечатывает event sender, ограниченно опустошает mailboxes и затем закрывает Job
@@ -58,6 +61,7 @@ node example.ts
 
 - [ADR 0003 — выполнение запросов и жизненный цикл](../adr/0003-request-execution-and-lifecycle.md).
 - [ADR 0011 — transport settlement и полный порядок shutdown](../adr/0011-addressed-application-events.md).
+- [ADR 0015 — runtime-регистрация](../adr/0015-runtime-registration.md).
 
 ## Проверка через seam
 

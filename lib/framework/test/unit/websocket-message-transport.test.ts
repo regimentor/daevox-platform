@@ -208,6 +208,41 @@ test('daevox.v1 принимает handshake только на едином endp
   }
 });
 
+test('существующая WebSocket-сессия видит runtime-регистрацию контроллера', async () => {
+  class RuntimeController extends WebSocketControllerBase {
+    static name = 'runtime';
+    static events = [{ name: 'ping', handler: 'ping' }] as const;
+
+    ping() {
+      return { pong: true };
+    }
+  }
+
+  const app = new Application({ appState: TestAppState });
+  const address = await app.listen({ port: 0 });
+  const socket = await opened(`ws://127.0.0.1:${address.port}/websocket`);
+  try {
+    socket.send(JSON.stringify({ controller: 'runtime', event: 'ping', body: {} }));
+    assert.deepEqual(JSON.parse(await nextMessage(socket)), {
+      controller: 'runtime',
+      event: 'ping',
+      body: { error: { code: 'UNKNOWN_CONTROLLER' } },
+    });
+
+    assert.equal(app.registerRuntimeWebSocketController(RuntimeController), app);
+
+    socket.send(JSON.stringify({ controller: 'runtime', event: 'ping', body: {} }));
+    assert.deepEqual(JSON.parse(await nextMessage(socket)), {
+      controller: 'runtime',
+      event: 'ping',
+      body: { pong: true },
+    });
+  } finally {
+    socket.close();
+    await app.close();
+  }
+});
+
 test('onConnect может назначить clientId, который сохраняется в message и disconnect contexts', async () => {
   let messageContext: any;
   let disconnectContext: any;

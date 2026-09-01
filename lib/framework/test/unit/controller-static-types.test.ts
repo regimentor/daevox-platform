@@ -96,6 +96,11 @@ class WidenedHttpRoutes extends HttpControllerBase {
 
 inferredApplication.registerHttpController(TypedHttpController);
 
+function acceptValidRuntimeHttpControllers() {
+  inferredApplication.registerRuntimeHttpController(TypedHttpController);
+}
+void acceptValidRuntimeHttpControllers;
+
 function rejectInvalidHttpControllers() {
   // @ts-expect-error handler name must identify an instance method
   inferredApplication.registerHttpController(MissingHttpHandler);
@@ -107,6 +112,8 @@ function rejectInvalidHttpControllers() {
   inferredApplication.registerHttpController(WrongHttpResult);
   // @ts-expect-error handler names require literal route metadata declared with as const
   inferredApplication.registerHttpController(WidenedHttpRoutes);
+  // @ts-expect-error runtime registration preserves the handler proof
+  inferredApplication.registerRuntimeHttpController(WrongHttpResult);
 }
 void rejectInvalidHttpControllers;
 
@@ -220,6 +227,11 @@ class WidenedWebSocketEvents extends WebSocketControllerBase {
 
 inferredApplication.registerWebSocketController(TypedWebSocketController);
 
+function acceptValidRuntimeWebSocketControllers() {
+  inferredApplication.registerRuntimeWebSocketController(TypedWebSocketController);
+}
+void acceptValidRuntimeWebSocketControllers;
+
 function rejectInvalidWebSocketControllers() {
   // @ts-expect-error handler name must identify an instance method
   inferredApplication.registerWebSocketController(MissingWebSocketHandler);
@@ -231,6 +243,8 @@ function rejectInvalidWebSocketControllers() {
   inferredApplication.registerWebSocketController(WrongWebSocketResult);
   // @ts-expect-error handler names require literal event metadata declared with as const
   inferredApplication.registerWebSocketController(WidenedWebSocketEvents);
+  // @ts-expect-error runtime registration preserves the handler proof
+  inferredApplication.registerRuntimeWebSocketController(WrongWebSocketContext);
 }
 void rejectInvalidWebSocketControllers;
 
@@ -293,6 +307,11 @@ class WidenedListenerEvents extends EventListenerBase {
 
 inferredApplication.registerEventListener(TypedEventListener);
 
+function acceptValidRuntimeEventListeners() {
+  inferredApplication.registerRuntimeEventListener(TypedEventListener);
+}
+void acceptValidRuntimeEventListeners;
+
 function rejectInvalidEventListeners() {
   // @ts-expect-error handler name must identify an instance method
   inferredApplication.registerEventListener(MissingEventHandler);
@@ -304,6 +323,8 @@ function rejectInvalidEventListeners() {
   inferredApplication.registerEventListener(WrongEventContext);
   // @ts-expect-error handler names require literal event metadata declared with as const
   inferredApplication.registerEventListener(WidenedListenerEvents);
+  // @ts-expect-error runtime registration preserves the handler proof
+  inferredApplication.registerRuntimeEventListener(WrongEventData);
 }
 void rejectInvalidEventListeners;
 

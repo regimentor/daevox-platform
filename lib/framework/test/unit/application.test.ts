@@ -66,6 +66,70 @@ test('Application запрещает регистрацию WebSocket-контр
   await app.close();
 });
 
+test('Application публикует HTTP-контроллер runtime-регистрацией для следующего ingress', async () => {
+  class RuntimeController extends HttpControllerBase {
+    static prefix = '/runtime';
+    static routes = [{ method: 'GET', path: '/', handler: 'status' }] as const;
+
+    status() {
+      return { status: 200, body: { source: 'runtime' } };
+    }
+  }
+
+  const app = new Application({ appState: TestAppState });
+  const address = await app.listen({ port: 0 });
+  try {
+    const before = await fetch(`http://127.0.0.1:${address.port}/runtime/`);
+    assert.equal(before.status, 404);
+
+    assert.equal(app.registerRuntimeHttpController(RuntimeController), app);
+
+    const after = await fetch(`http://127.0.0.1:${address.port}/runtime/`);
+    assert.equal(after.status, 200);
+    assert.deepEqual(await after.json(), { source: 'runtime' });
+  } finally {
+    await app.close();
+  }
+});
+
+test('runtime-регистрация открыта только в running и закрывается синхронно', async () => {
+  class RuntimeController extends HttpControllerBase {
+    static prefix = '/runtime-state';
+    static routes = [{ method: 'GET', path: '/', handler: 'status' }] as const;
+    status() {
+      return { status: 200 };
+    }
+  }
+
+  let application: Application<any>;
+  class HookState {
+    beforeAppStart() {
+      assert.throws(
+        () => application.registerRuntimeHttpController(RuntimeController),
+        ApplicationStateError,
+      );
+    }
+    onAppStart() {
+      assert.throws(
+        () => application.registerRuntimeHttpController(RuntimeController),
+        ApplicationStateError,
+      );
+    }
+  }
+
+  application = new Application({ appState: HookState });
+  assert.throws(
+    () => application.registerRuntimeHttpController(RuntimeController),
+    ApplicationStateError,
+  );
+  await application.listen({ port: 0 });
+  await application.close();
+  assert.throws(
+    () => application.registerRuntimeHttpController(RuntimeController),
+    ApplicationStateError,
+  );
+});
+
 test('Application.close до listen необратимо закрывает приложение', async () => {
   const app = new Application({ appState: TestAppState });
   await app.close();

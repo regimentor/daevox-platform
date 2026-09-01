@@ -73,9 +73,17 @@ console.log(`Listening on http://${address.address}:${address.port}`);
 [API-документации](docs/API.md). Поведенческие инварианты, связанные ADR, примеры и seam-тесты
 собраны в [карте interface фреймворка](docs/interface/README.md).
 
+Полный пример runtime-регистрации HTTP-, WebSocket- и event-ресурсов находится в
+[`examples/runtime-registration/`](examples/runtime-registration/). Его тест запускается командой
+`npm run example:runtime-registration:test --workspace @daevox/framework`.
+
 ## HTTP-контроллеры и маршруты
 
 `Application.registerHttpController()` принимает класс, напрямую наследующий `HttpControllerBase`. Класс объявляет собственные статические поля `prefix` и `routes`, а каждый указанный HTTP-обработчик должен быть собственным методом его прототипа.
+
+После успешного `listen()` и завершения `onAppStart()` новый HTTP-контроллер можно синхронно
+добавить через `registerRuntimeHttpController()`; аналогичные runtime-методы существуют для
+WebSocket-контроллеров и слушателей внутренних событий.
 TypeScript проверяет наличие и форму `prefix`, `routes` и необязательного `middleware` в точке
 регистрации. Для статической проверки строковых имён handler массив `routes` объявляется с
 `as const`: регистрация отклоняет отсутствующий instance-метод, несовместимые AppState/context и

@@ -128,6 +128,32 @@ export class EventDispatcher {
   }
 
   /**
+   * Constructs and publishes one listener atomically after startup.
+   * Атомарно создаёт и публикует одного listener после запуска.
+   * @param EventListener Listener class. / Класс listener.
+   * @param appState Application-owned state. / Принадлежащее приложению состояние.
+   * @param dependencies Listener dependencies. / Зависимости listener.
+   * @private
+   */
+  registerRuntime(
+    EventListener: import('./EventListenerRegistry.ts').EventListenerClass<any>,
+    appState: object,
+    dependencies: EventListenerDependencies,
+  ): void {
+    const metadata = this.#registry.prepare(EventListener);
+    const mailbox: EventMailbox = {
+      metadata,
+      listener: new metadata.EventListener(dependencies),
+      pending: [],
+      active: undefined,
+      scheduled: false,
+    };
+    this.#registry.commit(metadata);
+    this.#appState = appState;
+    this.#mailboxes.set(metadata.name, mailbox);
+  }
+
+  /**
    * Stops accepting new events.
    * Прекращает принимать новые события.
    * @private

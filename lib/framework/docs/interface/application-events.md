@@ -71,10 +71,13 @@ npm run example:application-events
   или `console.error`.
 - `handlerTimeout` отменяет signal, но следующий элемент ждёт фактический settlement handler.
 - Listener получает `jobRunner` и `websocket`, но не `events`, поэтому event chains отсутствуют.
-- TypeScript связывает literal handler с `AppState`, DTO и context в `registerEventListener()`;
+- TypeScript связывает literal handler с `AppState`, DTO и context в startup- и
+  `registerRuntimeEventListener()`;
   own-поля и wire-имена остаются runtime-инвариантами.
 - Shutdown запечатывает sender после transport settlement, затем ограниченно опустошает mailboxes;
   forced cutoff отменяет active и наблюдает queued элементы как `EventDroppedError`.
+- Runtime listener сначала создаётся и только затем публикуется в registry и mailbox; ошибка его
+  конструктора не оставляет частичного адреса и допускает следующую регистрацию.
 
 ## Авторитетное решение
 

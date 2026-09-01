@@ -808,6 +808,8 @@ export class Application<TAppState extends object = AppStateInstance> {
    * @private
    */
   #state: 'new' | 'starting' | 'running' | 'failed' | 'closing' | 'closed' = 'new';
+  /** Runtime-registration readiness after the startup hook settles. / Готовность runtime-регистрации после startup hook. @private */
+  #runtimeRegistrationReady = false;
   /**
    * In-flight HTTP requests. / Активные HTTP-запросы.
    * @private
@@ -928,6 +930,30 @@ export class Application<TAppState extends object = AppStateInstance> {
   }
 
   /**
+   * Registers a WebSocket-controller class while the application is running.
+   * Регистрирует класс WebSocket-контроллера во время работы приложения.
+   * @param WebSocketController Direct subclass of {@link WebSocketControllerBase}. /
+   * Прямой подкласс {@link WebSocketControllerBase}.
+   * @returns This application. / Это приложение.
+   * @public
+   */
+  registerRuntimeWebSocketController<const TController extends WebSocketControllerClass<TAppState>>(
+    WebSocketController: TController & CheckedWebSocketController<TAppState, TController>,
+  ): this {
+    if (this.#state !== 'running' || !this.#runtimeRegistrationReady) {
+      throw new ApplicationStateError('Application is not ready for runtime WebSocket controllers');
+    }
+    if (this.#webSocketControllerClasses.has(WebSocketController)) {
+      throw new DuplicateWebSocketControllerError(
+        'WebSocket controller has already been registered',
+      );
+    }
+    this.#webSocketControllers.register(WebSocketController);
+    this.#webSocketControllerClasses.add(WebSocketController);
+    return this;
+  }
+
+  /**
    * Registers an addressed application-event listener before listening starts.
    * Регистрирует слушателя адресуемых внутренних событий до начала запуска.
    * @param EventListener Listener class. / Класс слушателя.
@@ -945,6 +971,26 @@ export class Application<TAppState extends object = AppStateInstance> {
   }
 
   /**
+   * Registers an addressed application-event listener while the application is running.
+   * Регистрирует слушателя адресуемых внутренних событий во время работы приложения.
+   * @param EventListener Listener class. / Класс слушателя.
+   * @returns This application. / Это приложение.
+   * @public
+   */
+  registerRuntimeEventListener<const TEventListener extends EventListenerClass<TAppState>>(
+    EventListener: TEventListener & CheckedEventListener<TAppState, TEventListener>,
+  ): this {
+    if (this.#state !== 'running' || !this.#runtimeRegistrationReady) {
+      throw new ApplicationStateError('Application is not ready for runtime event listeners');
+    }
+    this.#eventDispatcher.registerRuntime(EventListener, this.#appState, {
+      jobRunner: this.#jobRunner,
+      websocket: this.#webSocketSender,
+    });
+    return this;
+  }
+
+  /**
    * Registers all declared HTTP routes of an HTTP-controller class.
    * Регистрирует все объявленные HTTP-маршруты класса HTTP-контроллера.
    * @param HttpController Direct subclass of {@link HttpControllerBase}. / Прямой
@@ -957,6 +1003,37 @@ export class Application<TAppState extends object = AppStateInstance> {
     if (this.#state !== 'new') {
       throw new ApplicationStateError('Application no longer accepts HTTP controllers');
     }
+    this.#registerHttpController(HttpController);
+    return this;
+  }
+
+  /**
+   * Registers all declared HTTP routes while the application is running.
+   * Регистрирует все объявленные HTTP-маршруты во время работы приложения.
+   * @param HttpController Direct subclass of {@link HttpControllerBase}. / Прямой
+   * подкласс {@link HttpControllerBase}.
+   * @returns This application. / Это приложение.
+   * @public
+   */
+  registerRuntimeHttpController<const TController extends HttpControllerClass<TAppState>>(
+    HttpController: TController & CheckedHttpController<TAppState, TController>,
+  ): this {
+    if (this.#state !== 'running' || !this.#runtimeRegistrationReady) {
+      throw new ApplicationStateError('Application is not ready for runtime HTTP controllers');
+    }
+    this.#registerHttpController(HttpController);
+    return this;
+  }
+
+  /**
+   * Validates and publishes one HTTP-controller class atomically.
+   * Атомарно проверяет и публикует один класс HTTP-контроллера.
+   * @param HttpController Controller class. / Класс контроллера.
+   * @private
+   */
+  #registerHttpController<TController extends HttpControllerClass<TAppState>>(
+    HttpController: TController,
+  ): void {
     if (this.#httpControllers.has(HttpController)) {
       throw new DuplicateHttpControllerError('HTTP controller has already been registered');
     }
@@ -979,7 +1056,6 @@ export class Application<TAppState extends object = AppStateInstance> {
       this.#httpRouteMiddleware.set(metadata.route, metadata.middleware);
     }
     this.#httpControllers.add(HttpController);
-    return this;
   }
 
   /**
@@ -1047,7 +1123,10 @@ export class Application<TAppState extends object = AppStateInstance> {
         server.listen({ port, host }, () => {
           this.#state = 'running';
           Promise.resolve((this.#appState as AppStateInstance).onAppStart?.()).then(
-            () => resolve(server.address()),
+            () => {
+              this.#runtimeRegistrationReady = true;
+              resolve(server.address());
+            },
             (error) => {
               this.close().catch(() => {});
               reject(error);
@@ -1361,6 +1440,7 @@ export class Application<TAppState extends object = AppStateInstance> {
     if (!this.#closePromise) {
       const stateAtClose = this.#state;
       this.#state = 'closing';
+      this.#runtimeRegistrationReady = false;
       this.#closePromise = (async () => {
         if (stateAtClose === 'starting') {
           try {

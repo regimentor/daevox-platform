@@ -21,6 +21,8 @@
     "docs:lint": "documentation lint src/*.ts --shallow",
     "example:jobs-http": "node examples/jobs-http/main.ts",
     "example:application-events": "node examples/application-events/main.ts",
+    "example:runtime-registration": "node examples/runtime-registration/main.ts",
+    "example:runtime-registration:test": "node --test examples/runtime-registration/*.test.ts",
     "example:middleware-auth": "node examples/middleware-auth/main.ts",
     "example:middleware-auth:test": "node --test examples/middleware-auth/authorization.test.ts",
     "example:websocket": "node examples/websocket/main.ts",

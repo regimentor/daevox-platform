@@ -130,6 +130,18 @@ Registers a named WebSocket-controller class before listening starts.
 
 Returns **this** This application. / Это приложение.
 
+### registerRuntimeWebSocketController
+
+Registers a WebSocket-controller class while the application is running.
+Регистрирует класс WebSocket-контроллера во время работы приложения.
+
+#### Parameters
+
+- `WebSocketController` **any** Direct subclass of [WebSocketControllerBase][7]. /
+  Прямой подкласс [WebSocketControllerBase][7].
+
+Returns **this** This application. / Это приложение.
+
 ### registerEventListener
 
 Registers an addressed application-event listener before listening starts.
@@ -141,10 +153,33 @@ Registers an addressed application-event listener before listening starts.
 
 Returns **this** This application. / Это приложение.
 
+### registerRuntimeEventListener
+
+Registers an addressed application-event listener while the application is running.
+Регистрирует слушателя адресуемых внутренних событий во время работы приложения.
+
+#### Parameters
+
+- `EventListener` **any** Listener class. / Класс слушателя.
+
+Returns **this** This application. / Это приложение.
+
 ### registerHttpController
 
 Registers all declared HTTP routes of an HTTP-controller class.
 Регистрирует все объявленные HTTP-маршруты класса HTTP-контроллера.
+
+#### Parameters
+
+- `HttpController` **any** Direct subclass of [HttpControllerBase][8]. / Прямой
+  подкласс [HttpControllerBase][8].
+
+Returns **this** This application. / Это приложение.
+
+### registerRuntimeHttpController
+
+Registers all declared HTTP routes while the application is running.
+Регистрирует все объявленные HTTP-маршруты во время работы приложения.
 
 #### Parameters
 

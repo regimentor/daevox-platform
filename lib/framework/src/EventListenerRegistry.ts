@@ -145,6 +145,18 @@ export class EventListenerRegistry {
    * @private
    */
   register(EventListener: EventListenerClass<any>): void {
+    const metadata = this.prepare(EventListener);
+    this.commit(metadata);
+  }
+
+  /**
+   * Validates and snapshots listener metadata without publishing it.
+   * Проверяет и копирует metadata listener без публикации.
+   * @param EventListener Candidate class. / Проверяемый класс.
+   * @returns Prepared metadata. / Подготовленные metadata.
+   * @private
+   */
+  prepare(EventListener: EventListenerClass<any>): NormalizedEventListener {
     if (this.#classes.has(EventListener)) {
       throw new EventListenerConflictError('Event listener class has already been registered');
     }
@@ -177,14 +189,24 @@ export class EventListenerRegistry {
     if (eventNames.size !== normalizedEvents.length) {
       throw new EventListenerConflictError('Event listener contains duplicate event addresses');
     }
-    if (this.#listeners.has(name)) {
+    return Object.freeze({ name, EventListener, events: Object.freeze(normalizedEvents) });
+  }
+
+  /**
+   * Publishes prepared metadata after a runtime listener has been constructed.
+   * Публикует подготовленные metadata после создания runtime listener.
+   * @param metadata Prepared metadata. / Подготовленные metadata.
+   * @private
+   */
+  commit(metadata: NormalizedEventListener): void {
+    if (this.#classes.has(metadata.EventListener)) {
+      throw new EventListenerConflictError('Event listener class has already been registered');
+    }
+    if (this.#listeners.has(metadata.name)) {
       throw new EventListenerConflictError('Event listener name has already been registered');
     }
-    this.#classes.add(EventListener);
-    this.#listeners.set(
-      name,
-      Object.freeze({ name, EventListener, events: Object.freeze(normalizedEvents) }),
-    );
+    this.#classes.add(metadata.EventListener);
+    this.#listeners.set(metadata.name, metadata);
   }
 
   /**

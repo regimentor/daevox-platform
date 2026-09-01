@@ -57,6 +57,8 @@ node example.ts
   `HttpRequestContext` и `HttpResponse`.
 - Регистрация строго и атомарно проверяет метаданные, копирует middleware и замораживает каталог до
   начала `listen()`.
+- `registerRuntimeHttpController()` применяет те же проверки после успешного запуска приложения и
+  публикует маршрут для следующего ingress без перезапуска transport.
 - Новый экземпляр HTTP-контроллера создаётся только после успешного сопоставления HTTP-маршрута и
   только если middleware-цепочка дошла до HTTP-обработчика.
 - `HttpRequestContext` не раскрывает `IncomingMessage`, `ServerResponse` или socket.

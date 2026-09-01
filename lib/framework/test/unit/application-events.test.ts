@@ -613,6 +613,77 @@ test('ошибка конструктора listener делает запуск �
   await assert.rejects(application.listen({ port: 0 }), ApplicationStateError);
 });
 
+test('runtime-регистрация listener публикует адрес и mailbox для EventSender', async (t: any) => {
+  const received = deferred();
+  class Work {
+    declare value: string;
+
+    constructor(value: string) {
+      this.value = value;
+    }
+  }
+  class RuntimeListener extends EventListenerBase {
+    static name = 'runtime-listener';
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
+
+    work(_appState: TestAppState, data: Work) {
+      received.resolve(data.value);
+    }
+  }
+  class TriggerController extends HttpControllerBase {
+    static prefix = '/runtime-events';
+    static routes = [{ method: 'POST', path: '/', handler: 'trigger' }] as const;
+
+    trigger() {
+      this.events.push({ listener: 'runtime-listener', event: 'work' }, new Work('accepted'));
+      return { status: 202 };
+    }
+  }
+
+  const application = new Application({ appState: TestAppState });
+  t.after(() => application.close());
+  application.registerHttpController(TriggerController);
+  const address = await application.listen({ port: 0 });
+
+  assert.equal(application.registerRuntimeEventListener(RuntimeListener), application);
+  const response = await fetch(`http://127.0.0.1:${address.port}/runtime-events`, {
+    method: 'POST',
+  });
+  assert.equal(response.status, 202);
+  assert.equal(await received.promise, 'accepted');
+});
+
+test('ошибка runtime-конструктора listener не публикует состояние и допускает повтор', async (t: any) => {
+  const constructionError = new Error('runtime construction failed');
+  class Work {}
+  class BrokenListener extends EventListenerBase {
+    static name = 'runtime-broken';
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
+
+    constructor(options: any) {
+      super(options);
+      throw constructionError;
+    }
+
+    work() {}
+  }
+  class RecoveredListener extends EventListenerBase {
+    static name = 'runtime-recovered';
+    static events = [{ name: 'work', data: Work, handler: 'work' }] as const;
+    work() {}
+  }
+
+  const application = new Application({ appState: TestAppState });
+  t.after(() => application.close());
+  await application.listen({ port: 0 });
+
+  assert.throws(
+    () => application.registerRuntimeEventListener(BrokenListener),
+    (error: any) => error === constructionError,
+  );
+  assert.equal(application.registerRuntimeEventListener(RecoveredListener), application);
+});
+
 test('WebSocket-контроллер получает events, а listener error не меняет protocol result', async (t: any) => {
   const observed = deferred();
   class Work {
