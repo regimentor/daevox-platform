@@ -77,3 +77,11 @@ ADR 0008 по-прежнему определяет адресацию, envelope
   запущенную без ожидания стороннюю работу.
 - Встроенная JWT-реализация, middleware фоновых задач, raw transport objects, hot reload, server
   push и управление пользовательскими сессиями не входят в решение.
+
+## Уточнение для классового JSON body contract
+
+Для HTTP-маршрута с `body` принятое требование передавать прочитанное значение только через
+`ctx.state` уточняется: route middleware и handler могут повторно вызывать
+`ctx.requestBody.json()` и получают общий success/failure cache с одной identity экземпляра.
+Другие representations и маршруты без `body` сохраняют strict one-shot семантику. Остальной
+порядок и error isolation middleware не меняются.

@@ -112,7 +112,9 @@ interface HttpRouteDeclaration<
   readonly middleware?: readonly HttpMiddleware<AppState, InstanceType<BodyClass>>[];
 }
 
-declare class HttpControllerBase {}
+declare class HttpControllerBase {
+  protected readonly __controllerBrand: true;
+}
 
 type HttpControllerClass<AppState extends object> = {
   new (): HttpControllerBase;
@@ -257,6 +259,7 @@ class WrongDescriptorDto {
     age: { type: String },
   } as const satisfies HttpRouteJsonBodySchema<WrongDescriptorDto>;
 }
+void WrongDescriptorDto;
 
 class MissingSchemaFieldDto {
   name!: string;
@@ -278,6 +281,7 @@ class WrongNullabilityDto {
     nickname: { type: String },
   } as const satisfies HttpRouteJsonBodySchema<WrongNullabilityDto>;
 }
+void WrongNullabilityDto;
 
 class WrongBodyController extends HttpControllerBase {
   static prefix = '/wrong';

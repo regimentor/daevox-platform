@@ -25,6 +25,8 @@
     "example:runtime-registration:test": "node --test examples/runtime-registration/*.test.ts",
     "example:middleware-auth": "node examples/middleware-auth/main.ts",
     "example:middleware-auth:test": "node --test examples/middleware-auth/authorization.test.ts",
+    "example:http-json-body-contract": "node examples/http-json-body-contract/main.ts",
+    "example:http-json-body-contract:test": "node --test examples/http-json-body-contract/*.test.ts",
     "example:websocket": "node examples/websocket/main.ts",
     "example:websocket:test": "node --test examples/websocket/*.test.ts",
     "fuzz:corpus": "node test/fuzz/run.ts",

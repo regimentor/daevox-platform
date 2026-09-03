@@ -91,7 +91,7 @@ TypeScript проверяет наличие и форму `prefix`, `routes` и
 обработчики действительно объявлены классом.
 
 Объявление HTTP-маршрута содержит обязательные поля `method`, `path` и `handler`, а также может
-содержать необязательный массив `middleware`:
+содержать `body`, `bodyLimit` и массив `middleware`:
 
 ```ts
 { method: 'GET', path: '/:id', handler: 'getById' }
@@ -111,6 +111,48 @@ TypeScript проверяет наличие и форму `prefix`, `routes` и
 HTTP-контроллеры можно регистрировать только до вызова `listen()`. Для каждого найденного
 HTTP-маршрута приложение создаёт новый экземпляр HTTP-контроллера, только если middleware-цепочка
 дошла до HTTP-обработчика.
+
+### Классовый контракт JSON-тела
+
+`body: UserBody` связывает HTTP-маршрут с прикладным классом. Его собственная `static schema`
+задаёт допустимые JSON-поля; `await ctx.requestBody.json()` лениво проверяет input и возвращает
+экземпляр `UserBody`:
+
+```ts
+import {
+  HttpControllerBase,
+  minLength,
+  required,
+  type HttpRequestContext,
+  type HttpRouteJsonBodySchema,
+} from '@daevox/framework';
+
+class UserBody {
+  name!: string;
+  aliases!: string[];
+
+  static schema = {
+    name: { type: String, validators: [required(), minLength(1)] },
+    aliases: { type: [String], validators: [required()] },
+  } as const satisfies HttpRouteJsonBodySchema<UserBody>;
+}
+
+class UsersController extends HttpControllerBase {
+  static prefix = '/users';
+  static routes = [{ method: 'POST', path: '/', handler: 'create', body: UserBody }] as const;
+
+  async create(_appState: object, ctx: HttpRequestContext<UserBody>) {
+    const body = await ctx.requestBody.json();
+    return { status: 201, body: { name: body.name } };
+  }
+}
+```
+
+Descriptors первой версии: `String`, `Number`, `Boolean`, `null`, другой contract class,
+`bodyClass(() => Class)` для циклических ссылок и одноэлементный `[Descriptor]`. Неизвестные поля,
+неверные типы и validator failures дают `HttpRouteJsonBodyValidationError` с ordered RFC 6901
+paths. Route middleware и handler разделяют success/failure cache contract-aware `json()`; другие
+представления остаются несовместимыми и reader без `body` сохраняет strict one-shot семантику.
 
 `Application` принимает обязательный класс `appState` и создаёт ровно один его экземпляр. Этот
 экземпляр передаётся первым аргументом HTTP- и WebSocket-middleware, обработчикам, lifecycle
@@ -165,8 +207,9 @@ const form = await ctx.requestBody.formData();
 ```
 
 Reader однократный: первый вызов синхронно переводит `used` в `true`, а повторная или параллельная
-операция отклоняется `TypeError`. Middleware и HTTP-обработчик получают один reader; middleware
-передаёт разобранное значение дальше явно через `ctx.state`.
+несовместимая операция отклоняется `TypeError`. На HTTP-маршруте с `body` повторные вызовы
+`json()` разделяют один success/failure cache и одну identity экземпляра. Без `body` сохраняется
+strict one-shot семантика. Middleware и HTTP-обработчик получают один reader.
 
 `json()` принимает `application/json` и `*+json`; `formData()` —
 `application/x-www-form-urlencoded` и `multipart/form-data`; `text()` и `bytes()` служат escape

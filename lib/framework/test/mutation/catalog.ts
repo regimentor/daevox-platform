@@ -1,5 +1,32 @@
 export const modules = [
   {
+    id: 'http-route-json-body-contract',
+    label: 'HTTP route JSON body contract',
+    source: 'src/HttpRouteJsonBodyContract.ts',
+    related: ['test/unit/http-route-json-body-contract.test.ts'],
+    tests: ['test/unit/http-route-json-body-contract.test.ts'],
+    mutants: [
+      {
+        id: 'unknown-field',
+        description: 'accept unknown JSON object fields',
+        find: 'if (!fieldNames.has(name)) {',
+        replace: 'if (fieldNames.has(name)) {',
+      },
+      {
+        id: 'root-phase-gate',
+        description: 'run root validators after field violations',
+        find: 'if (violations.length === 0) contract.validateRoots(input, [], violations);',
+        replace: 'if (violations.length !== 0) contract.validateRoots(input, [], violations);',
+      },
+      {
+        id: 'constructor-prototype',
+        description: 'reject the exact body class prototype',
+        find: 'if (Object.getPrototypeOf(instance) !== BodyClass.prototype) {',
+        replace: 'if (Object.getPrototypeOf(instance) === BodyClass.prototype) {',
+      },
+    ],
+  },
+  {
     id: 'http-request-body-reader',
     label: 'HTTP request-body representations',
     source: 'src/HttpRequestBodyReader.ts',
@@ -15,9 +42,9 @@ export const modules = [
       {
         id: 'json-charset',
         description: 'reject the supported JSON charset',
-        find: "if (contentType?.charset !== undefined && contentType.charset !== 'utf-8') {\n        throw new HttpRequestBodyError('UNSUPPORTED_MEDIA_TYPE');\n      }\n      try {\n        return JSON.parse",
+        find: "if (contentType?.charset !== undefined && contentType.charset !== 'utf-8') {\n        throw new HttpRequestBodyError('UNSUPPORTED_MEDIA_TYPE');\n      }\n      let parsed: unknown;",
         replace:
-          "if (contentType?.charset !== undefined && contentType.charset === 'utf-8') {\n        throw new HttpRequestBodyError('UNSUPPORTED_MEDIA_TYPE');\n      }\n      try {\n        return JSON.parse",
+          "if (contentType?.charset !== undefined && contentType.charset === 'utf-8') {\n        throw new HttpRequestBodyError('UNSUPPORTED_MEDIA_TYPE');\n      }\n      let parsed: unknown;",
       },
       {
         id: 'multipart-boundary',

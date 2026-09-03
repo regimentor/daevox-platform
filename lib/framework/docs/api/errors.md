@@ -16,6 +16,13 @@ Invalid HTTP-controller declaration. / Некорректное объявлен
 
 Invalid HTTP-route declaration or definition. / Некорректное объявление или определение HTTP-маршрута.
 
+## InvalidHttpRouteJsonBodyContractError
+
+**Extends InvalidHttpRouteError**
+
+Invalid declaration or schema of an HTTP-route JSON body contract.
+Некорректное объявление или schema контракта JSON-тела HTTP-маршрута.
+
 ## DuplicateHttpControllerError
 
 **Extends Error**
@@ -44,7 +51,13 @@ Invalid HTTP configuration. / Некорректная конфигурация 
 
 Machine-readable HTTP request-body failure. / Машиночитаемый отказ тела HTTP-запроса.
 
-Type: (`"MALFORMED_BODY"` | `"UNSUPPORTED_MEDIA_TYPE"`)
+Type: (`"MALFORMED_BODY"` | `"UNSUPPORTED_MEDIA_TYPE"` | `"INVALID_JSON_BODY"`)
+
+## HttpRouteJsonBodyFrameworkViolationCode
+
+Framework-owned JSON body violation codes. / Принадлежащие framework коды нарушений JSON-тела.
+
+Type: (`"INVALID_TYPE"` | `"NULL_NOT_ALLOWED"` | `"UNKNOWN_FIELD"` | `"MAX_DEPTH"` | `"MAX_VALUES"` | `"TOO_MANY_VIOLATIONS"` | `"REQUIRED"` | `"MIN_LENGTH"` | `"MAX_LENGTH"` | `"MIN"` | `"MAX"` | `"INTEGER"`)
 
 ## HttpRequestBodyError
 
@@ -69,6 +82,39 @@ Type: [HttpRequestBodyErrorCode][1]
 Client-visible HTTP status. / Видимый клиенту HTTP-статус.
 
 Type: (`400` | `415`)
+
+## HttpRouteJsonBodyViolation
+
+One stable client-visible JSON body violation. / Одно стабильное видимое клиенту нарушение JSON-тела.
+
+## HttpRouteJsonBodyValidationError
+
+**Extends HttpRequestBodyError**
+
+Expected failure of an HTTP-route JSON body contract.
+Ожидаемый отказ контракта JSON-тела HTTP-маршрута.
+
+### Parameters
+
+- `violations` **any** Ordered violations. / Упорядоченные нарушения.
+
+### code
+
+Stable machine-readable code. / Стабильный машиночитаемый код.
+
+Type: `"INVALID_JSON_BODY"`
+
+### status
+
+Stable HTTP status. / Стабильный HTTP-статус.
+
+Type: `400`
+
+### violations
+
+Ordered immutable violations. / Упорядоченные неизменяемые нарушения.
+
+Type: any
 
 ## InvalidWebSocketControllerError
 
@@ -362,7 +408,36 @@ Application-owned job runner is closed. / Принадлежащий прило�
 ### `HttpRequestBodyErrorCode`
 
 ```ts
-export type HttpRequestBodyErrorCode = 'MALFORMED_BODY' | 'UNSUPPORTED_MEDIA_TYPE';
+export type HttpRequestBodyErrorCode =
+  'MALFORMED_BODY' | 'UNSUPPORTED_MEDIA_TYPE' | 'INVALID_JSON_BODY';
+```
+
+### `HttpRouteJsonBodyFrameworkViolationCode`
+
+```ts
+export type HttpRouteJsonBodyFrameworkViolationCode =
+  | 'INVALID_TYPE'
+  | 'NULL_NOT_ALLOWED'
+  | 'UNKNOWN_FIELD'
+  | 'MAX_DEPTH'
+  | 'MAX_VALUES'
+  | 'TOO_MANY_VIOLATIONS'
+  | 'REQUIRED'
+  | 'MIN_LENGTH'
+  | 'MAX_LENGTH'
+  | 'MIN'
+  | 'MAX'
+  | 'INTEGER';
+```
+
+### `HttpRouteJsonBodyViolation`
+
+```ts
+export interface HttpRouteJsonBodyViolation {
+  readonly path: string;
+  readonly code: string;
+  readonly message: string;
+}
 ```
 
 ### `WebSocketProtocolErrorCode`

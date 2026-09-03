@@ -163,6 +163,12 @@ class BufferedHttpRequestBodyReader<JsonBody> implements HttpRequestBodyReader<J
   /** Request cancellation signal. / Сигнал отмены запроса. @private */
   readonly #signal: AbortSignal;
 
+  /** Optional transformation of parsed JSON. / Необязательное преобразование разобранного JSON. @private */
+  readonly #transformJson: ((input: unknown) => JsonBody) | undefined;
+
+  /** Shared contract-aware JSON operation. / Общая contract-aware JSON-операция. @private */
+  #jsonPromise: Promise<JsonBody> | undefined;
+
   /** Snapshot-release listener. / Listener освобождения snapshot. @private */
   readonly #onAbort: () => void;
 
@@ -182,10 +188,16 @@ class BufferedHttpRequestBodyReader<JsonBody> implements HttpRequestBodyReader<J
    * @param signal Request cancellation signal. / Сигнал отмены запроса.
    * @private
    */
-  constructor(bytes: Buffer, contentType: string | undefined, signal: AbortSignal) {
+  constructor(
+    bytes: Buffer,
+    contentType: string | undefined,
+    signal: AbortSignal,
+    transformJson: ((input: unknown) => JsonBody) | undefined,
+  ) {
     this.#bytes = bytes;
     this.#contentType = contentType;
     this.#signal = signal;
+    this.#transformJson = transformJson;
     this.#onAbort = () => {
       this.#bytes = undefined;
     };
@@ -201,6 +213,20 @@ class BufferedHttpRequestBodyReader<JsonBody> implements HttpRequestBodyReader<J
    * @public
    */
   async json(): Promise<JsonBody> {
+    if (this.#transformJson !== undefined) {
+      if (this.#jsonPromise === undefined) this.#jsonPromise = this.#readJson();
+      return this.#jsonPromise;
+    }
+    return this.#readJson();
+  }
+
+  /**
+   * Performs the single JSON representation read.
+   * Выполняет единственное чтение JSON-представления.
+   * @returns Parsed or transformed JSON. / Разобранный или преобразованный JSON.
+   * @private
+   */
+  async #readJson(): Promise<JsonBody> {
     const bytes = this.#takeBytes();
     try {
       const contentType = parseContentType(this.#contentType);
@@ -214,12 +240,13 @@ class BufferedHttpRequestBodyReader<JsonBody> implements HttpRequestBodyReader<J
       if (contentType?.charset !== undefined && contentType.charset !== 'utf-8') {
         throw new HttpRequestBodyError('UNSUPPORTED_MEDIA_TYPE');
       }
+      let parsed: unknown;
       try {
-        return JSON.parse(JSON_UTF8_DECODER.decode(bytes)) as JsonBody;
+        parsed = JSON.parse(JSON_UTF8_DECODER.decode(bytes));
       } catch (error) {
-        if (error instanceof HttpRequestBodyError) throw error;
         throw new HttpRequestBodyError('MALFORMED_BODY', { cause: error });
       }
+      return this.#transformJson ? this.#transformJson(parsed) : (parsed as JsonBody);
     } finally {
       this.#release();
     }
@@ -350,8 +377,11 @@ export function createHttpRequestBodyReader<JsonBody = unknown>(
   bytes: Buffer,
   contentType: string | undefined,
   signal: AbortSignal,
+  transformJson?: (input: unknown) => JsonBody,
 ): HttpRequestBodyReader<JsonBody> {
-  return Object.freeze(new BufferedHttpRequestBodyReader<JsonBody>(bytes, contentType, signal));
+  return Object.freeze(
+    new BufferedHttpRequestBodyReader<JsonBody>(bytes, contentType, signal, transformJson),
+  );
 }
 
 /**

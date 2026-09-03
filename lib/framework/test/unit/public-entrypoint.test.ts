@@ -111,6 +111,7 @@ test('the package entrypoint exposes only the supported runtime interface', () =
     'HttpError',
     'HttpRequestBodyError',
     'HttpRouteConflictError',
+    'HttpRouteJsonBodyValidationError',
     'InvalidEventListenerError',
     'InvalidEventOptionsError',
     'InvalidEventPushError',
@@ -118,6 +119,7 @@ test('the package entrypoint exposes only the supported runtime interface', () =
     'InvalidHttpOptionsError',
     'InvalidHttpPathEncodingError',
     'InvalidHttpRouteError',
+    'InvalidHttpRouteJsonBodyContractError',
     'InvalidJobError',
     'InvalidJobOptionsError',
     'InvalidWebSocketControllerError',
@@ -137,5 +139,12 @@ test('the package entrypoint exposes only the supported runtime interface', () =
     'WebSocketEventError',
     'WebSocketProtocolError',
     'WorkerTerminatedError',
+    'bodyClass',
+    'integer',
+    'max',
+    'maxLength',
+    'min',
+    'minLength',
+    'required',
   ]);
 });
