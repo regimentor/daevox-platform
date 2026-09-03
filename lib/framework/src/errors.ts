@@ -15,6 +15,13 @@ export class InvalidHttpControllerError extends TypeError {}
 export class InvalidHttpRouteError extends TypeError {}
 
 /**
+ * Invalid declaration or schema of an HTTP-route JSON body contract.
+ * Некорректное объявление или schema контракта JSON-тела HTTP-маршрута.
+ * @public
+ */
+export class InvalidHttpRouteJsonBodyContractError extends InvalidHttpRouteError {}
+
+/**
 
  * Repeated registration of the same HTTP-controller class. / Повторная регистрация одного класса HTTP-контроллера.
 
@@ -55,7 +62,25 @@ export class InvalidHttpPathEncodingError extends URIError {}
 export class InvalidHttpOptionsError extends TypeError {}
 
 /** Machine-readable HTTP request-body failure. / Машиночитаемый отказ тела HTTP-запроса. @public */
-export type HttpRequestBodyErrorCode = 'MALFORMED_BODY' | 'UNSUPPORTED_MEDIA_TYPE';
+export type HttpRequestBodyErrorCode =
+  | 'MALFORMED_BODY'
+  | 'UNSUPPORTED_MEDIA_TYPE'
+  | 'INVALID_JSON_BODY';
+
+/** Framework-owned JSON body violation codes. / Принадлежащие framework коды нарушений JSON-тела. @public */
+export type HttpRouteJsonBodyFrameworkViolationCode =
+  | 'INVALID_TYPE'
+  | 'NULL_NOT_ALLOWED'
+  | 'UNKNOWN_FIELD'
+  | 'MAX_DEPTH'
+  | 'MAX_VALUES'
+  | 'TOO_MANY_VIOLATIONS'
+  | 'REQUIRED'
+  | 'MIN_LENGTH'
+  | 'MAX_LENGTH'
+  | 'MIN'
+  | 'MAX'
+  | 'INTEGER';
 
 /**
  * Expected failure while selecting or parsing an HTTP request-body representation.
@@ -77,12 +102,80 @@ export class HttpRequestBodyError extends Error {
    * @public
    */
   constructor(code: HttpRequestBodyErrorCode, options?: ErrorOptions) {
-    if (code !== 'MALFORMED_BODY' && code !== 'UNSUPPORTED_MEDIA_TYPE') {
+    if (
+      code !== 'MALFORMED_BODY' &&
+      code !== 'UNSUPPORTED_MEDIA_TYPE' &&
+      code !== 'INVALID_JSON_BODY'
+    ) {
       throw new TypeError('HttpRequestBodyError code is invalid');
     }
     super(code, options);
     this.code = code;
-    this.status = code === 'MALFORMED_BODY' ? 400 : 415;
+    this.status = code === 'UNSUPPORTED_MEDIA_TYPE' ? 415 : 400;
+  }
+}
+
+/** One stable client-visible JSON body violation. / Одно стабильное видимое клиенту нарушение JSON-тела. @public */
+export interface HttpRouteJsonBodyViolation {
+  readonly path: string;
+  readonly code: string;
+  readonly message: string;
+}
+
+/**
+ * Expected failure of an HTTP-route JSON body contract.
+ * Ожидаемый отказ контракта JSON-тела HTTP-маршрута.
+ * @public
+ */
+export class HttpRouteJsonBodyValidationError extends HttpRequestBodyError {
+  /** Stable machine-readable code. / Стабильный машиночитаемый код. @public */
+  declare readonly code: 'INVALID_JSON_BODY';
+
+  /** Stable HTTP status. / Стабильный HTTP-статус. @public */
+  declare readonly status: 400;
+
+  /** Ordered immutable violations. / Упорядоченные неизменяемые нарушения. @public */
+  declare readonly violations: readonly HttpRouteJsonBodyViolation[];
+
+  /**
+   * Creates a validation failure from non-empty violations.
+   * Создаёт validation failure из непустого списка нарушений.
+   * @param violations Ordered violations. / Упорядоченные нарушения.
+   * @public
+   */
+  constructor(violations: readonly HttpRouteJsonBodyViolation[]) {
+    super('INVALID_JSON_BODY');
+    if (
+      !Array.isArray(violations) ||
+      violations.length === 0 ||
+      violations.some(
+        (violation) =>
+          violation === null ||
+          typeof violation !== 'object' ||
+          Reflect.ownKeys(violation).length !== 3 ||
+          !Object.hasOwn(violation, 'path') ||
+          !Object.hasOwn(violation, 'code') ||
+          !Object.hasOwn(violation, 'message') ||
+          typeof violation.path !== 'string' ||
+          !/^(?:\/(?:[^~]|~[01])*)*$/.test(violation.path) ||
+          typeof violation.code !== 'string' ||
+          !/^[A-Z][A-Z0-9_]{0,63}$/.test(violation.code) ||
+          typeof violation.message !== 'string' ||
+          [...violation.message].length < 1 ||
+          [...violation.message].length > 512,
+      )
+    ) {
+      throw new TypeError('HttpRouteJsonBodyValidationError violations are invalid');
+    }
+    this.violations = Object.freeze(
+      violations.map((violation) =>
+        Object.freeze({
+          path: violation.path,
+          code: violation.code,
+          message: violation.message,
+        }),
+      ),
+    );
   }
 }
 

@@ -11,6 +11,9 @@ import type {
   HttpHandler,
   HttpRequestBodyErrorCode,
   HttpRequestBodyReader,
+  HttpRouteJsonBodyFrameworkViolationCode,
+  HttpRouteJsonBodySchema,
+  HttpRouteJsonBodyValidationError,
 } from '../../src/index.ts';
 import type {
   AppStateInstance,
@@ -84,8 +87,50 @@ void typedHttpHandler;
 
 const bodyReader = undefined as unknown as HttpRequestBodyReader<CreateUserBody>;
 const bodyErrorCode = undefined as unknown as HttpRequestBodyErrorCode;
+const frameworkViolationCode = undefined as unknown as HttpRouteJsonBodyFrameworkViolationCode;
+type ValidationErrorCodeIsLiteral = Expect<
+  Equal<HttpRouteJsonBodyValidationError['code'], 'INVALID_JSON_BODY'>
+>;
+type ValidationErrorStatusIsLiteral = Expect<
+  Equal<HttpRouteJsonBodyValidationError['status'], 400>
+>;
 void bodyReader;
 void bodyErrorCode;
+void frameworkViolationCode;
+void (undefined as unknown as ValidationErrorCodeIsLiteral);
+void (undefined as unknown as ValidationErrorStatusIsLiteral);
+
+class UnsupportedLiteralBody {
+  status!: 'active';
+
+  static schema = {
+    // @ts-expect-error literal primitive fields are not supported
+    status: { type: String },
+  } as const satisfies HttpRouteJsonBodySchema<UnsupportedLiteralBody>;
+}
+
+class UnsupportedTupleBody {
+  pair!: readonly [string, string];
+
+  static schema = {
+    // @ts-expect-error tuple fields are not supported
+    pair: { type: [String] },
+  } as const satisfies HttpRouteJsonBodySchema<UnsupportedTupleBody>;
+}
+
+type BrandedString = string & { readonly __brand: 'BrandedString' };
+class UnsupportedBrandedBody {
+  value!: BrandedString;
+
+  static schema = {
+    // @ts-expect-error branded primitive fields are not supported
+    value: { type: String },
+  } as const satisfies HttpRouteJsonBodySchema<UnsupportedBrandedBody>;
+}
+
+void UnsupportedLiteralBody;
+void UnsupportedTupleBody;
+void UnsupportedBrandedBody;
 
 const validByteSizes = ['0B', '1kb', '2MiB', '3GIB'] as const satisfies readonly ByteSize[];
 // @ts-expect-error ByteSize requires a unit
@@ -168,6 +213,66 @@ function rejectInvalidHttpControllers() {
   inferredApplication.registerRuntimeHttpController(WrongHttpResult);
 }
 void rejectInvalidHttpControllers;
+
+class TypedJsonBody {
+  name!: string;
+  aliases!: readonly string[];
+  nickname?: string | null;
+
+  static schema = {
+    name: { type: String },
+    aliases: { type: [String] },
+    nickname: { type: String, nullable: true },
+  } as const satisfies HttpRouteJsonBodySchema<TypedJsonBody>;
+}
+
+const typedRouteMiddleware: HttpMiddleware<ConcreteAppState, TypedJsonBody> = (
+  _state,
+  context,
+  next,
+) => {
+  context.requestBody.json().then((body) => body.name.toUpperCase());
+  return next();
+};
+
+class TypedJsonController extends HttpControllerBase {
+  static prefix = '/typed-json';
+  static routes = [
+    {
+      method: 'POST',
+      path: '/',
+      handler: 'create',
+      body: TypedJsonBody,
+      middleware: [typedRouteMiddleware],
+    },
+  ] as const;
+
+  create(_state: ConcreteAppState, context: HttpRequestContext<TypedJsonBody>) {
+    return { status: 200, body: context.requestBody.json() };
+  }
+}
+
+class WrongTypedJsonController extends HttpControllerBase {
+  static prefix = '/wrong-typed-json';
+  static routes = [{ method: 'POST', path: '/', handler: 'create', body: TypedJsonBody }] as const;
+
+  create(_state: ConcreteAppState, _context: HttpRequestContext<{ other: true }>) {
+    return { status: 204 };
+  }
+}
+
+inferredApplication.registerHttpController(TypedJsonController);
+// @ts-expect-error body contract must agree with the named HTTP-handler context
+inferredApplication.registerHttpController(WrongTypedJsonController);
+
+class WrongTypedJsonBody {
+  age!: number;
+  static schema = {
+    // @ts-expect-error a number field requires the Number descriptor
+    age: { type: String },
+  } as const satisfies HttpRouteJsonBodySchema<WrongTypedJsonBody>;
+}
+void WrongTypedJsonBody;
 
 const sharedMiddleware: HttpMiddleware<AppStateInstance> = (_state, _context, next) => next();
 const fullyTypedApplication = new Application({

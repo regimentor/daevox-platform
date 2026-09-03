@@ -327,11 +327,16 @@ export type HttpHandler<
 ### `HttpRouteDeclaration`
 
 ```ts
-export interface HttpRouteDeclaration<TAppState extends object = AppStateInstance> {
+export interface HttpRouteDeclaration<
+  TAppState extends object = AppStateInstance,
+  JsonBody = unknown,
+  State extends object = Record<string, unknown>,
+> {
   method: string;
   path: string;
   handler: string;
-  middleware?: readonly HttpMiddleware<TAppState>[];
+  body?: HttpRouteJsonBodyClass<JsonBody & object>;
+  middleware?: readonly HttpMiddleware<TAppState, JsonBody, State>[];
   bodyLimit?: number | ByteSize;
 }
 ```
@@ -342,7 +347,7 @@ export interface HttpRouteDeclaration<TAppState extends object = AppStateInstanc
 export type HttpControllerClass<TAppState extends object = AppStateInstance> = {
   new (options: HttpControllerOptions): HttpControllerBase;
   readonly prefix: string;
-  readonly routes: readonly HttpRouteDeclaration<TAppState>[];
+  readonly routes: readonly HttpControllerRouteShape<TAppState>[];
   readonly middleware?: readonly HttpMiddleware<TAppState>[];
 };
 ```

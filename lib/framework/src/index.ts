@@ -8,6 +8,15 @@ export { HttpControllerBase } from './HttpControllerBase.ts';
 export { Job } from './Job.ts';
 export { WebSocketControllerBase } from './WebSocketControllerBase.ts';
 export {
+  bodyClass,
+  integer,
+  max,
+  maxLength,
+  min,
+  minLength,
+  required,
+} from './HttpRouteJsonBodyContract.ts';
+export {
   ApplicationStateError,
   DuplicateHttpControllerError,
   DuplicateWebSocketControllerError,
@@ -18,6 +27,7 @@ export {
   EventSenderClosedError,
   HttpError,
   HttpRequestBodyError,
+  HttpRouteJsonBodyValidationError,
   HttpRouteConflictError,
   InvalidEventListenerError,
   InvalidEventOptionsError,
@@ -26,6 +36,7 @@ export {
   InvalidHttpOptionsError,
   InvalidHttpPathEncodingError,
   InvalidHttpRouteError,
+  InvalidHttpRouteJsonBodyContractError,
   InvalidJobError,
   InvalidJobOptionsError,
   InvalidWebSocketControllerError,
@@ -99,7 +110,21 @@ export type {
 export type {
   HttpErrorResponse,
   HttpRequestBodyErrorCode,
+  HttpRouteJsonBodyFrameworkViolationCode,
+  HttpRouteJsonBodyViolation,
   WebSocketProtocolErrorCode,
   WebSocketProtocolErrorOptions,
 } from './errors.ts';
 export type { HttpRequestBodyReader } from './HttpRequestBodyReader.ts';
+export type {
+  HttpRouteJsonBodyClass,
+  HttpRouteJsonBodyDescriptor,
+  HttpRouteJsonBodyField,
+  HttpRouteJsonBodyFieldValidator,
+  HttpRouteJsonBodyInput,
+  HttpRouteJsonBodyRootValidator,
+  HttpRouteJsonBodyRootValidatorFailure,
+  HttpRouteJsonBodySchema,
+  HttpRouteJsonBodyValidationContext,
+  HttpRouteJsonBodyValidatorFailure,
+} from './HttpRouteJsonBodyContract.ts';

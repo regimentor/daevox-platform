@@ -64,6 +64,12 @@ node example.ts
 - `HttpRequestContext` не раскрывает `IncomingMessage`, `ServerResponse` или socket.
 - `ctx.requestBody` предоставляет однократные асинхронные `json()`, `text()`, `bytes()` и
   `formData()`; JSON generic распространяется из `HttpRequestContext<JsonBody, State>`.
+- HTTP-маршрут может объявить `body: BodyClass`; собственная `static schema` класса проверяется и
+  компилируется атомарно при регистрации, а contract-aware `json()` возвращает точный экземпляр.
+- Contract descriptors поддерживают primitives, `null`, вложенные классы, массивы и
+  `bodyClass()` для циклов; field/root validators выполняются фазами до materialization.
+- Невалидный input даёт ordered RFC 6901 violations в безопасном `400`; malformed validators и
+  constructor/property failures остаются наблюдаемыми application bugs `500`.
 - Aggregate body limit применяется до middleware, а выбор и разбор representation выполняются
   лениво внутри общей middleware/handler цепочки.
 - Формы используют нативные in-memory `FormData`/`File`; `File.name` остаётся недоверенным вводом.
@@ -77,6 +83,7 @@ node example.ts
 - [ADR 0003 — выполнение handler и lifecycle](../adr/0003-request-execution-and-lifecycle.md).
 - [ADR 0005 — транспортно-специализированные контроллеры](../adr/0005-transport-specific-controllers.md).
 - [ADR 0009 — middleware handler](../adr/0009-handler-middleware.md).
+- [ADR 0016 — классовый контракт JSON-тела](../adr/0016-http-route-json-body-contract.md).
 
 ## Проверка через seam
 
@@ -86,3 +93,5 @@ node example.ts
 - [`test/unit/http-error.test.ts`](../../test/unit/http-error.test.ts) — публичный `HttpError`.
 - [`test/unit/controller-static-types.test.ts`](../../test/unit/controller-static-types.test.ts) —
   статический TypeScript-контракт контроллера.
+- [`test/unit/http-route-json-body-contract.test.ts`](../../test/unit/http-route-json-body-contract.test.ts)
+  — schema, validators, materialization, limits и reader cache через public seam.

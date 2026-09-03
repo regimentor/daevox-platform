@@ -62,8 +62,9 @@ npm run example:middleware-auth:test
 - HTTP middleware запускается после успешной transport-маршрутизации и ограниченного буферизования,
   но до ленивого representation parsing. Превышение body limit через seam не проходит; ожидаемый
   `HttpRequestBodyError` может быть перехвачен middleware.
-- HTTP middleware и handler разделяют один `ctx.requestBody`; прочитанное представление передаётся
-  следующему слою явно через `ctx.state`.
+- HTTP middleware и handler разделяют один `ctx.requestBody`. Для обычного reader значение можно
+  передать через `ctx.state`; contract-aware `json()` само разделяет success/failure cache и одну
+  identity материализованного экземпляра между route middleware и handler.
 - HTTP `ctx.state` живёт один запрос; WebSocket `ctx.state` — одну сессию от `onConnect` до
   `onDisconnect`.
 - HTTP unexpected error становится `500`; WebSocket unexpected error становится `HANDLER_ERROR` и

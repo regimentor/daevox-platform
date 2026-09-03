@@ -25,6 +25,7 @@ import {
   InvalidHttpRouteError,
   HttpError,
   HttpRequestBodyError,
+  HttpRouteJsonBodyValidationError,
   DuplicateWebSocketControllerError,
   InvalidEventOptionsError,
   InvalidWebSocketOptionsError,
@@ -37,6 +38,11 @@ import {
   releaseHttpRequestBodyReader,
 } from './HttpRequestBodyReader.ts';
 import type { HttpRequestBodyReader } from './HttpRequestBodyReader.ts';
+import {
+  compileHttpRouteJsonBodyContract,
+  type CompiledHttpRouteJsonBodyContract,
+  type HttpRouteJsonBodyClass,
+} from './HttpRouteJsonBodyContract.ts';
 
 /** Public metadata of a matched HTTP route. / Метаданные найденного HTTP-маршрута. @public */
 export interface HttpRouteContext {
@@ -109,19 +115,38 @@ export type HttpHandler<
 ) => HttpResponse | Promise<HttpResponse>;
 
 /** Declarative HTTP route. / Декларативный HTTP-маршрут. @public */
-export interface HttpRouteDeclaration<TAppState extends object = AppStateInstance> {
+export interface HttpRouteDeclaration<
+  TAppState extends object = AppStateInstance,
+  JsonBody = unknown,
+  State extends object = Record<string, unknown>,
+> {
   method: string;
   path: string;
   handler: string;
-  middleware?: readonly HttpMiddleware<TAppState>[];
+  body?: HttpRouteJsonBodyClass<JsonBody & object>;
+  middleware?: readonly HttpMiddleware<TAppState, JsonBody, State>[];
   bodyLimit?: number | ByteSize;
+}
+
+/** HTTP-controller class accepted for registration. / Класс HTTP-контроллера для регистрации. @public */
+interface HttpControllerRouteShape<TAppState extends object> {
+  readonly method: string;
+  readonly path: string;
+  readonly handler: string;
+  readonly body?: {
+    new (): object;
+    readonly schema: object;
+    readonly validators?: readonly Function[];
+  };
+  readonly middleware?: readonly HttpMiddleware<TAppState, any, any>[];
+  readonly bodyLimit?: number | ByteSize;
 }
 
 /** HTTP-controller class accepted for registration. / Класс HTTP-контроллера для регистрации. @public */
 export type HttpControllerClass<TAppState extends object = AppStateInstance> = {
   new (options: HttpControllerOptions): HttpControllerBase;
   readonly prefix: string;
-  readonly routes: readonly HttpRouteDeclaration<TAppState>[];
+  readonly routes: readonly HttpControllerRouteShape<TAppState>[];
   readonly middleware?: readonly HttpMiddleware<TAppState>[];
 };
 
@@ -134,18 +159,40 @@ type InvalidHttpHandlerDeclaration<
     ? string extends THandler
       ? TRoute
       : THandler extends keyof InstanceType<TController>
-        ? InstanceType<TController>[THandler] extends HttpHandler<TAppState, any, any>
+        ? InstanceType<TController>[THandler] extends HttpHandler<
+            TAppState,
+            RouteJsonBody<TRoute>,
+            any
+          >
           ? never
           : TRoute
         : TRoute
     : TRoute
   : never;
 
+/** JSON body inferred from one route declaration. / JSON-тело, выведенное из одного объявления HTTP-маршрута. @private */
+type RouteJsonBody<Route> = Route extends { readonly body: new () => infer Body } ? Body : any;
+
+/** Invalid route-middleware declarations selected from one controller. / Некорректные route middleware одного контроллера. @private */
+type InvalidHttpRouteMiddlewareDeclaration<
+  TAppState extends object,
+  TController extends HttpControllerClass<TAppState>,
+> = TController['routes'][number] extends infer TRoute
+  ? TRoute extends { readonly middleware: readonly (infer TMiddleware)[] }
+    ? TMiddleware extends HttpMiddleware<TAppState, RouteJsonBody<TRoute>, any>
+      ? never
+      : TRoute
+    : never
+  : never;
+
 /** Registration-time HTTP handler proof. / Проверка HTTP-обработчиков при регистрации. @private */
 type CheckedHttpController<
   TAppState extends object,
   TController extends HttpControllerClass<TAppState>,
-> = [InvalidHttpHandlerDeclaration<TAppState, TController>] extends [never]
+> = [
+  | InvalidHttpHandlerDeclaration<TAppState, TController>
+  | InvalidHttpRouteMiddlewareDeclaration<TAppState, TController>,
+] extends [never]
   ? unknown
   : { readonly __invalidHttpHandlerDeclaration: never };
 
@@ -347,16 +394,8 @@ interface ActiveHttpRequest {
 
  */
 const DECLARATION_KEYS = ['handler', 'method', 'path'];
-/**
- * Exact fields accepted in an HTTP-route declaration with middleware.
- * Точные поля объявления HTTP-маршрута с middleware.
- * @private
- */
-const MIDDLEWARE_DECLARATION_KEYS = ['handler', 'method', 'middleware', 'path'];
-/** Route declaration fields with an aggregate body limit. / Поля маршрута с aggregate body limit. @private */
-const BODY_LIMIT_DECLARATION_KEYS = ['bodyLimit', 'handler', 'method', 'path'];
-/** Route declaration fields with middleware and a body limit. / Поля маршрута с middleware и body limit. @private */
-const COMPLETE_DECLARATION_KEYS = ['bodyLimit', 'handler', 'method', 'middleware', 'path'];
+/** Optional fields accepted around required HTTP-route metadata. / Необязательные поля вокруг обязательных метаданных HTTP-маршрута. @private */
+const OPTIONAL_DECLARATION_KEYS = new Set(['body', 'bodyLimit', 'middleware']);
 /**
  * Supported HTTP configuration keys. / Поддерживаемые ключи конфигурации HTTP.
  * @private
@@ -763,20 +802,26 @@ function normalizeRoute<TAppState extends object>(
   HttpController: HttpControllerClass<TAppState>,
   prefixSegments: any,
   declaration: any,
+  bodyContracts: Map<Function, CompiledHttpRouteJsonBodyContract>,
 ) {
   if (
     declaration === null ||
     typeof declaration !== 'object' ||
     Array.isArray(declaration) ||
-    (!hasExactlyOwnKeys(declaration, DECLARATION_KEYS) &&
-      !hasExactlyOwnKeys(declaration, MIDDLEWARE_DECLARATION_KEYS) &&
-      !hasExactlyOwnKeys(declaration, BODY_LIMIT_DECLARATION_KEYS) &&
-      !hasExactlyOwnKeys(declaration, COMPLETE_DECLARATION_KEYS))
+    !hasExactlyOwnKeys(
+      declaration,
+      Reflect.ownKeys(declaration).filter(
+        (key): key is string =>
+          typeof key === 'string' &&
+          (DECLARATION_KEYS.includes(key) || OPTIONAL_DECLARATION_KEYS.has(key)),
+      ),
+    ) ||
+    !DECLARATION_KEYS.every((key) => Object.hasOwn(declaration, key))
   ) {
     throw routeError('HTTP route declaration has invalid fields');
   }
 
-  const { bodyLimit, handler, method, path } = declaration;
+  const { body, bodyLimit, handler, method, path } = declaration;
   if (
     !isHttpToken(method) ||
     typeof path !== 'string' ||
@@ -817,6 +862,8 @@ function normalizeRoute<TAppState extends object>(
     }),
     middleware,
     bodyLimit: normalizedBodyLimit,
+    bodyContract:
+      body === undefined ? undefined : compileHttpRouteJsonBodyContract(body, bodyContracts),
   };
 }
 
@@ -853,6 +900,10 @@ export class Application<TAppState extends object = AppStateInstance> {
   #httpRouteMiddleware = new WeakMap<NormalizedHttpRoute, readonly HttpMiddleware<TAppState>[]>();
   /** Effective route body-limit overrides. / Переопределения body limit HTTP-маршрутов. @private */
   #httpRouteBodyLimits = new WeakMap<NormalizedHttpRoute, number>();
+  /** Compiled JSON body contracts by route. / Скомпилированные контракты JSON-тела по HTTP-маршрутам. @private */
+  #httpRouteBodyContracts = new WeakMap<NormalizedHttpRoute, CompiledHttpRouteJsonBodyContract>();
+  /** Published compiled plans pinned by body class. / Опубликованные compiled plans, закреплённые по body class. @private */
+  #compiledHttpRouteBodyContracts = new Map<Function, CompiledHttpRouteJsonBodyContract>();
   /**
    * Application-owned job runner. / Принадлежащий приложению исполнитель задач.
    * @private
@@ -1120,17 +1171,22 @@ export class Application<TAppState extends object = AppStateInstance> {
     } catch (error) {
       throw controllerError('HTTP controller prefix is invalid', error);
     }
+    const bodyContracts = new Map(this.#compiledHttpRouteBodyContracts);
     const normalizedMetadata = routes.map((declaration: any) =>
-      normalizeRoute(HttpController, prefixSegments, declaration),
+      normalizeRoute(HttpController, prefixSegments, declaration, bodyContracts),
     );
     const normalizedRoutes = normalizedMetadata.map((metadata: any) => metadata.route);
 
     this.#httpRouter.registerAll(normalizedRoutes);
+    this.#compiledHttpRouteBodyContracts = bodyContracts;
     this.#httpControllerMiddleware.set(HttpController, middleware);
     for (const metadata of normalizedMetadata) {
       this.#httpRouteMiddleware.set(metadata.route, metadata.middleware);
       if (metadata.bodyLimit !== undefined) {
         this.#httpRouteBodyLimits.set(metadata.route, metadata.bodyLimit);
+      }
+      if (metadata.bodyContract !== undefined) {
+        this.#httpRouteBodyContracts.set(metadata.route, metadata.bodyContract);
       }
     }
     this.#httpControllers.add(HttpController);
@@ -1284,6 +1340,7 @@ export class Application<TAppState extends object = AppStateInstance> {
       bytes,
       request.headers['content-type'],
       abortController.signal,
+      this.#httpRouteBodyContracts.get(match.route)?.materialize,
     );
     const ctx = Object.freeze({
       method: request.method.toUpperCase(),
@@ -1347,7 +1404,13 @@ export class Application<TAppState extends object = AppStateInstance> {
       }
       if (error instanceof HttpRequestBodyError) {
         const message = error.status === 400 ? 'Bad Request' : 'Unsupported Media Type';
-        this.#writeJson(response, error.status, { error: message });
+        this.#writeJson(
+          response,
+          error.status,
+          error instanceof HttpRouteJsonBodyValidationError
+            ? { error: message, code: error.code, violations: error.violations }
+            : { error: message },
+        );
         return;
       }
       this.#reportUnexpected(error, ctx);

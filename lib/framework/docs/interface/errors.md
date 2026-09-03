@@ -11,16 +11,18 @@
 
 ## HTTP
 
-| Класс                                                                           | Операция                                                        | Эффект                                                        |
-| ------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------- |
-| [`InvalidHttpControllerError`](../api/errors.md#invalidhttpcontrollererror)     | `registerHttpController()` с неверным классом или metadata      | Регистрация атомарно отклонена                                |
-| [`InvalidHttpRouteError`](../api/errors.md#invalidhttprouteerror)               | Неверная декларация HTTP-маршрута или handler                   | Регистрация атомарно отклонена                                |
-| [`DuplicateHttpControllerError`](../api/errors.md#duplicatehttpcontrollererror) | Повтор класса HTTP-контроллера                                  | Регистрация отклонена                                         |
-| [`HttpRouteConflictError`](../api/errors.md#httprouteconflicterror)             | Конфликт структурно одинаковых HTTP-маршрутов одного метода     | Регистрация отклонена без частичного каталога                 |
-| [`InvalidHttpPathEncodingError`](../api/errors.md#invalidhttppathencodingerror) | Некорректное percent-encoding при регистрации или маршрутизации | Регистрация отклонена либо HTTP `400`                         |
-| [`InvalidHttpOptionsError`](../api/errors.md#invalidhttpoptionserror)           | Неверная секция `http` в `ApplicationOptions`                   | Создание `Application` отклонено                              |
-| [`HttpError`](../api/errors.md#httperror)                                       | Ожидаемый отказ HTTP-handler или `onConnect`                    | Заданный HTTP status, headers и body; `onError` не вызывается |
-| [`HttpRequestBodyError`](../api/errors.md#httprequestbodyerror)                 | Malformed body либо неподдерживаемый media type/charset         | Безопасный `400` или `415`; может быть перехвачен middleware  |
+| Класс                                                                                             | Операция                                                        | Эффект                                                                  |
+| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [`InvalidHttpControllerError`](../api/errors.md#invalidhttpcontrollererror)                       | `registerHttpController()` с неверным классом или metadata      | Регистрация атомарно отклонена                                          |
+| [`InvalidHttpRouteError`](../api/errors.md#invalidhttprouteerror)                                 | Неверная декларация HTTP-маршрута или handler                   | Регистрация атомарно отклонена                                          |
+| [`DuplicateHttpControllerError`](../api/errors.md#duplicatehttpcontrollererror)                   | Повтор класса HTTP-контроллера                                  | Регистрация отклонена                                                   |
+| [`HttpRouteConflictError`](../api/errors.md#httprouteconflicterror)                               | Конфликт структурно одинаковых HTTP-маршрутов одного метода     | Регистрация отклонена без частичного каталога                           |
+| [`InvalidHttpPathEncodingError`](../api/errors.md#invalidhttppathencodingerror)                   | Некорректное percent-encoding при регистрации или маршрутизации | Регистрация отклонена либо HTTP `400`                                   |
+| [`InvalidHttpOptionsError`](../api/errors.md#invalidhttpoptionserror)                             | Неверная секция `http` в `ApplicationOptions`                   | Создание `Application` отклонено                                        |
+| [`HttpError`](../api/errors.md#httperror)                                                         | Ожидаемый отказ HTTP-handler или `onConnect`                    | Заданный HTTP status, headers и body; `onError` не вызывается           |
+| [`HttpRequestBodyError`](../api/errors.md#httprequestbodyerror)                                   | Malformed body либо неподдерживаемый media type/charset         | Безопасный `400` или `415`; может быть перехвачен middleware            |
+| [`InvalidHttpRouteJsonBodyContractError`](../api/errors.md#invalidhttproutejsonbodycontracterror) | Неверный `body` class/schema/validator metadata                 | Регистрация атомарно отклонена                                          |
+| [`HttpRouteJsonBodyValidationError`](../api/errors.md#httproutejsonbodyvalidationerror)           | JSON не соответствует route body contract                       | Безопасный `400` с ordered violations; может быть перехвачен middleware |
 
 ## WebSocket
 
