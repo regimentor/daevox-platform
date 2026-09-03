@@ -20,6 +20,7 @@
 | [`InvalidHttpPathEncodingError`](../api/errors.md#invalidhttppathencodingerror) | Некорректное percent-encoding при регистрации или маршрутизации | Регистрация отклонена либо HTTP `400`                         |
 | [`InvalidHttpOptionsError`](../api/errors.md#invalidhttpoptionserror)           | Неверная секция `http` в `ApplicationOptions`                   | Создание `Application` отклонено                              |
 | [`HttpError`](../api/errors.md#httperror)                                       | Ожидаемый отказ HTTP-handler или `onConnect`                    | Заданный HTTP status, headers и body; `onError` не вызывается |
+| [`HttpRequestBodyError`](../api/errors.md#httprequestbodyerror)                 | Malformed body либо неподдерживаемый media type/charset         | Безопасный `400` или `415`; может быть перехвачен middleware  |
 
 ## WebSocket
 

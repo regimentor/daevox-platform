@@ -148,14 +148,43 @@ HTTP-обработчик получает объект `ctx`:
   params,  // параметры HTTP-маршрута
   query,   // URLSearchParams
   headers, // WHATWG Headers
-  body,    // разобранное JSON-тело или undefined
+  requestBody, // HttpRequestBodyReader с json(), text(), bytes(), formData() и used
   signal,  // AbortSignal запроса
   state,   // изменяемое состояние одного HTTP-запроса
   route,   // замороженные { method, path, handler } найденного HTTP-маршрута
 }
 ```
 
-Непустое тело запроса должно иметь media type `application/json` или `*+json` и кодировку UTF-8. Максимальный размер задаётся опцией `http.bodyLimit`.
+Представление выбирается лениво и асинхронно:
+
+```ts
+const command = await ctx.requestBody.json();
+const text = await ctx.requestBody.text();
+const bytes = await ctx.requestBody.bytes();
+const form = await ctx.requestBody.formData();
+```
+
+Reader однократный: первый вызов синхронно переводит `used` в `true`, а повторная или параллельная
+операция отклоняется `TypeError`. Middleware и HTTP-обработчик получают один reader; middleware
+передаёт разобранное значение дальше явно через `ctx.state`.
+
+`json()` принимает `application/json` и `*+json`; `formData()` —
+`application/x-www-form-urlencoded` и `multipart/form-data`; `text()` и `bytes()` служат escape
+hatch. Текстовый wire-контракт — UTF-8. `bytes()` возвращает независимый `Buffer`, а формы —
+нативные `FormData` и in-memory `File`. `File.name` является недоверенным вводом и не должен
+использоваться как filesystem path без прикладной нормализации.
+
+Aggregate limit задаётся глобально через `http.bodyLimit` и может быть переопределён полем
+`bodyLimit` декларации HTTP-маршрута. Допустимы целые bytes и строки `B`, `KB`, `MB`, `GB`, `KiB`,
+`MiB`, `GiB`; default — `1MiB`. Буфер, parser overhead, возвращённые копии и параллельные запросы
+могут занимать больше heap, чем значение limit. Отдельных field/file/part limits пока нет.
+
+Malformed representation даёт безопасный `400`, превышение limit — `413`, неподдерживаемый media
+type или charset — `415`. Middleware может перехватить `HttpRequestBodyError`; отмена использует
+стандартный `DOMException` с именем `AbortError`.
+
+Ломающая миграция: синхронное `ctx.body` удалено без compatibility mode. Замените `ctx.body` на
+`await ctx.requestBody.json()` и сделайте HTTP middleware/обработчик асинхронным при необходимости.
 
 ### HTTP-ответы и ошибки
 
@@ -520,7 +549,7 @@ export default class SumJob extends Job {
 Экземпляр HTTP-контроллера получает принадлежащий приложению исполнитель задач как `this.jobRunner`:
 
 ```ts
-const result = await this.jobRunner.run(SumJob, ctx.body, {
+const result = await this.jobRunner.run(SumJob, await ctx.requestBody.json(), {
   signal: ctx.signal,
   timeout: 5_000,
 });

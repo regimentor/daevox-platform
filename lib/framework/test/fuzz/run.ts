@@ -37,12 +37,17 @@ class FuzzHttpController extends HttpControllerBase {
   static routes = [
     { method: 'GET', path: '/health', handler: 'health' },
     { method: 'POST', path: '/echo', handler: 'echo' },
+    { method: 'POST', path: '/form', handler: 'form' },
   ] as const;
   health() {
     return { status: 200, body: { ok: true } };
   }
-  echo(_appState: any, ctx: any) {
-    return { status: 200, body: ctx.body };
+  async echo(_appState: any, ctx: any) {
+    return { status: 200, body: await ctx.requestBody.json() };
+  }
+  async form(_appState: any, ctx: any) {
+    await ctx.requestBody.formData();
+    return { status: 204 };
   }
 }
 
@@ -248,8 +253,22 @@ async function writeChunks(socket: any, chunks: any, testCase: any, limits: any,
     ) {
       remainingTime(deadline, limits.caseTimeout, testCase.name);
       const chunk = original.subarray(offset, offset + (testCase.chunkSize ?? original.byteLength));
-      if (!socket.write(chunk))
-        await new Promise<any>((resolve: any) => socket.once('drain', resolve));
+      if (socket.destroyed) return;
+      if (!socket.write(chunk)) {
+        await new Promise<any>((resolve: any) => {
+          const finish = () => {
+            socket.off('drain', finish);
+            socket.off('close', finish);
+            socket.off('error', finish);
+            resolve(undefined);
+          };
+          socket.once('drain', finish);
+          socket.once('close', finish);
+          socket.once('error', finish);
+          if (socket.destroyed) finish();
+        });
+      }
+      if (socket.destroyed) return;
       if (testCase.chunkSize) await new Promise<any>((resolve: any) => setTimeout(resolve, 1));
     }
   }
@@ -368,6 +387,19 @@ function applyInjection(testCase: any, injection: any) {
     return {
       ...testCase,
       chunks: [clientFrame({ payload: VALID_ENVELOPE })],
+    };
+  }
+  if (
+    injection === 'http-multipart-boundary' &&
+    testCase.name === 'http-multipart-missing-boundary'
+  ) {
+    return {
+      ...testCase,
+      chunks: [
+        Buffer.from(
+          'POST /fuzz/form HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 3\r\n\r\na=b',
+        ),
+      ],
     };
   }
   return testCase;

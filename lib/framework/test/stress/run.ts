@@ -89,6 +89,39 @@ function request(address: any, route: any, body: any = undefined) {
 }
 request.agent = new http.Agent({ keepAlive: true });
 
+function multipartRequest(address: any, route: string, body: Buffer, boundary: string) {
+  const startedAt = performance.now();
+  return new Promise<any>((resolve: any, reject: any) => {
+    const clientRequest = http.request(
+      {
+        ...address,
+        agent: request.agent,
+        headers: {
+          'content-length': body.byteLength,
+          'content-type': `multipart/form-data; boundary=${boundary}`,
+        },
+        method: 'POST',
+        path: route,
+      },
+      (response: any) => {
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk: Buffer) => chunks.push(chunk));
+        response.on('end', () => {
+          const text = Buffer.concat(chunks).toString();
+          resolve({
+            latencyMs: performance.now() - startedAt,
+            status: response.statusCode,
+            value: text ? JSON.parse(text) : undefined,
+          });
+        });
+      },
+    );
+    clientRequest.setTimeout(5_000, () => clientRequest.destroy(new Error('HTTP timeout')));
+    clientRequest.on('error', reject);
+    clientRequest.end(body);
+  });
+}
+
 function openWebSocket(url: any, protocol: any = 'daevox.v1') {
   const startedAt = performance.now();
   return new Promise<any>((resolve: any, reject: any) => {
@@ -303,6 +336,38 @@ async function createJobResource(config: any, poolSize: any, durationMode: any) 
   };
 }
 
+async function createFileUploadResource() {
+  const boundary = 'daevox-stress-upload';
+  const fileBytes = Buffer.alloc(32 * 1024, 0x61);
+  const body = Buffer.concat([
+    Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="stress.bin"\r\nContent-Type: application/octet-stream\r\n\r\n`,
+    ),
+    fileBytes,
+    Buffer.from(`\r\n--${boundary}--\r\n`),
+  ]);
+  class UploadController extends HttpControllerBase {
+    static prefix = '/stress';
+    static routes = [
+      { method: 'POST', path: '/upload', handler: 'upload', bodyLimit: '64KiB' },
+    ] as const;
+    async upload(_appState: any, ctx: any) {
+      const file = (await ctx.requestBody.formData()).get('file');
+      if (!(file instanceof File) || file.size !== fileBytes.byteLength) {
+        return { status: 400, body: { error: 'Invalid upload' } };
+      }
+      return { status: 200, body: { size: file.size } };
+    }
+  }
+  const application = new Application({ appState: TestAppState });
+  application.registerHttpController(UploadController);
+  const address = await application.listen({ port: 0 });
+  return {
+    close: () => application.close(),
+    operation: () => multipartRequest(address, '/stress/upload', body, boundary),
+  };
+}
+
 async function queueScenario(config: any) {
   const gate = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * 2);
   const gateView = new Int32Array(gate);
@@ -314,10 +379,11 @@ async function queueScenario(config: any) {
     async queue(_appState: any, ctx: any) {
       submissions += 1;
       try {
+        const body = await ctx.requestBody.json();
         const result = await this.jobRunner.run(StressJob, {
           durationMs: 0,
-          gate: ctx.body.block ? gate : undefined,
-          label: ctx.body.label,
+          gate: body.block ? gate : undefined,
+          label: body.label,
           order,
           submittedAtNs: process.hrtime.bigint(),
         });
@@ -415,10 +481,11 @@ async function applicationEventScenario(config: any) {
   class EventController extends HttpControllerBase {
     static prefix = '/stress/events';
     static routes = [{ method: 'POST', path: '/', handler: 'push' }] as const;
-    push(_appState: any, ctx: any) {
-      const listener = ctx.body.parallel ? 'stress-parallel' : 'stress-serial';
+    async push(_appState: any, ctx: any) {
+      const body = await ctx.requestBody.json();
+      const listener = body.parallel ? 'stress-parallel' : 'stress-serial';
       try {
-        this.events.push({ listener, event: 'work' }, new StressEvent(ctx.body.label));
+        this.events.push({ listener, event: 'work' }, new StressEvent(body.label));
         return { status: 202, body: { accepted: true } };
       } catch (error: any) {
         if (error instanceof EventQueueFullError) {
@@ -555,8 +622,8 @@ async function applicationEventThroughput(config: any) {
   class ThroughputHttpController extends HttpControllerBase {
     static prefix = '/stress/event-throughput';
     static routes = [{ method: 'POST', path: '/', handler: 'push' }] as const;
-    push(_appState: any, ctx: any) {
-      const result = push(this.events, ctx.body);
+    async push(_appState: any, ctx: any) {
+      const result = push(this.events, await ctx.requestBody.json());
       return { status: result.accepted ? 202 : 503, body: result };
     }
   }
@@ -612,7 +679,7 @@ async function applicationEventThroughput(config: any) {
       },
     });
     await waitFor(
-      () => handledIds.size >= acceptedIds.size,
+      () => handledIds.size >= acceptedIds.size && observedErrors >= expectedErrors,
       `event throughput drain after ${step.concurrency}`,
     );
     metrics.eventQueueWaitMs = distribution(queueWaitMs.slice(queueWaitStart));
@@ -747,8 +814,9 @@ async function applicationEventShutdownChaos(config: any) {
     class ChaosHttpController extends HttpControllerBase {
       static prefix = '/stress/event-chaos';
       static routes = [{ method: 'POST', path: '/', handler: 'push' }] as const;
-      push(_appState: any, ctx: any) {
-        return { status: 202, body: push(this.events, ctx.body.id) };
+      async push(_appState: any, ctx: any) {
+        const body = await ctx.requestBody.json();
+        return { status: 202, body: push(this.events, body.id) };
       }
     }
 
@@ -1161,6 +1229,11 @@ async function childMain(config: any, outputPath: any) {
     }
   }
   profiles.queue = await queueScenario(config);
+  profiles['http-file-upload'] = await runRamp(
+    'http-file-upload',
+    config,
+    await createFileUploadResource(),
+  );
   profiles.applicationEvents = await applicationEventScenario(config);
   profiles['application-event-throughput'] = await applicationEventThroughput(config);
   profiles['application-event-shutdown-chaos'] = await applicationEventShutdownChaos(config);
@@ -1227,9 +1300,13 @@ async function main() {
   process.stdout.write(summary);
 }
 
-main()
-  .catch((error: any) => {
-    process.stderr.write(`${error.stack ?? error}\n`);
-    process.exitCode = 1;
-  })
-  .finally(() => request.agent.destroy());
+const processKeepAlive = setInterval(() => {}, 1_000);
+try {
+  await main();
+} catch (error: any) {
+  process.stderr.write(`${error.stack ?? error}\n`);
+  process.exitCode = 1;
+} finally {
+  clearInterval(processKeepAlive);
+  request.agent.destroy();
+}

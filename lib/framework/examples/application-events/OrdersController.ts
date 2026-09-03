@@ -19,8 +19,8 @@ export class OrdersController extends HttpControllerBase {
   static prefix = '/orders';
   static routes = [{ method: 'POST', path: '/', handler: 'create' }] as const;
 
-  create(_appState: ExampleAppState, ctx: HttpRequestContext<unknown>) {
-    const event = new OrderCreated(orderIdFrom(ctx.body));
+  async create(_appState: ExampleAppState, ctx: HttpRequestContext<unknown>) {
+    const event = new OrderCreated(orderIdFrom(await ctx.requestBody.json()));
     this.events.push({ listener: 'audit', event: 'OrderCreated' }, event);
     return { status: 202, body: { orderId: event.orderId, accepted: true } };
   }

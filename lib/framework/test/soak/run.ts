@@ -97,6 +97,7 @@ function operationState() {
 
 function createMetrics() {
   return {
+    form: operationState(),
     http: operationState(),
     jobCancelled: operationState(),
     jobSuccess: operationState(),
@@ -154,6 +155,34 @@ function httpRequest(address: any, route: any, body: any, { abortAfterMs }: any 
   });
 }
 httpRequest.agent = new http.Agent({ keepAlive: true, maxSockets: 32 });
+
+function formRequest(address: any, route: string, body: Buffer, boundary: string) {
+  return new Promise<any>((resolve: any, reject: any) => {
+    const request = http.request(
+      {
+        ...address,
+        agent: httpRequest.agent,
+        headers: {
+          'content-length': body.byteLength,
+          'content-type': `multipart/form-data; boundary=${boundary}`,
+        },
+        method: 'POST',
+        path: route,
+      },
+      (response: any) => {
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk: Buffer) => chunks.push(chunk));
+        response.on('end', () => {
+          const text = Buffer.concat(chunks).toString();
+          resolve({ status: response.statusCode, value: text ? JSON.parse(text) : undefined });
+        });
+      },
+    );
+    request.setTimeout(5_000, () => request.destroy(new Error('HTTP operation timed out')));
+    request.on('error', reject);
+    request.end(body);
+  });
+}
 
 function openWebSocket(url: any, sockets: any) {
   return new Promise<any>((resolve: any, reject: any) => {
@@ -440,25 +469,33 @@ async function main() {
     static prefix = '/soak';
     static routes = [
       { method: 'POST', path: '/echo', handler: 'echo' },
+      { method: 'POST', path: '/form', handler: 'form', bodyLimit: '16KiB' },
       { method: 'POST', path: '/job/success', handler: 'jobSuccess' },
       { method: 'POST', path: '/job/cancel', handler: 'jobCancel' },
       { method: 'POST', path: '/job/timeout', handler: 'jobTimeout' },
     ] as const;
     async echo(_appState: any, ctx: any) {
-      applicationEvents.push(this.events, ctx.body.sequence, 'http');
-      return { status: 200, body: ctx.body };
+      const body = await ctx.requestBody.json();
+      applicationEvents.push(this.events, body.sequence, 'http');
+      return { status: 200, body };
+    }
+    async form(_appState: any, ctx: any) {
+      const file = (await ctx.requestBody.formData()).get('file');
+      return { status: 200, body: { size: file instanceof File ? file.size : -1 } };
     }
     async jobSuccess(_appState: any, ctx: any) {
-      applicationEvents.push(this.events, ctx.body.sequence, 'jobSuccess');
-      const result = await this.jobRunner.run(SoakJob, { delayMs: 2, sequence: ctx.body.sequence });
+      const body = await ctx.requestBody.json();
+      applicationEvents.push(this.events, body.sequence, 'jobSuccess');
+      const result = await this.jobRunner.run(SoakJob, { delayMs: 2, sequence: body.sequence });
       return { status: 200, body: result };
     }
     async jobCancel(_appState: any, ctx: any) {
-      applicationEvents.push(this.events, ctx.body.sequence, 'jobCancelled');
+      const body = await ctx.requestBody.json();
+      applicationEvents.push(this.events, body.sequence, 'jobCancelled');
       try {
         await this.jobRunner.run(
           SoakJob,
-          { delayMs: config.jobTimeoutMs * 4, sequence: ctx.body.sequence },
+          { delayMs: config.jobTimeoutMs * 4, sequence: body.sequence },
           { signal: ctx.signal },
         );
         return { status: 500, body: { outcome: 'not-cancelled' } };
@@ -467,11 +504,12 @@ async function main() {
       }
     }
     async jobTimeout(_appState: any, ctx: any) {
-      applicationEvents.push(this.events, ctx.body.sequence, 'jobTimeout');
+      const body = await ctx.requestBody.json();
+      applicationEvents.push(this.events, body.sequence, 'jobTimeout');
       try {
         await this.jobRunner.run(
           SoakJob,
-          { delayMs: config.jobTimeoutMs * 4, sequence: ctx.body.sequence },
+          { delayMs: config.jobTimeoutMs * 4, sequence: body.sequence },
           { timeout: config.jobTimeoutMs },
         );
         return { status: 500, body: { outcome: 'not-timed-out' } };
@@ -578,11 +616,26 @@ async function main() {
       eventLoop.reset();
     }, config.sampleIntervalMs);
 
+    const formBoundary = 'daevox-soak-form';
+    const formFile = Buffer.alloc(4 * 1024, 0x61);
+    const formBody = Buffer.concat([
+      Buffer.from(
+        `--${formBoundary}\r\nContent-Disposition: form-data; name="file"; filename="soak.bin"\r\nContent-Type: application/octet-stream\r\n\r\n`,
+      ),
+      formFile,
+      Buffer.from(`\r\n--${formBoundary}--\r\n`),
+    ]);
     const operations = [
       async (current: any) => {
         const result = await httpRequest(address, '/soak/echo', { sequence: current });
         if (result.status !== 200 || result.value.sequence !== current) {
           throw new Error('HTTP response mismatch');
+        }
+      },
+      async () => {
+        const result = await formRequest(address, '/soak/form', formBody, formBoundary);
+        if (result.status !== 200 || result.value.size !== formFile.byteLength) {
+          throw new Error('Form response mismatch');
         }
       },
       async (current: any) => {
@@ -619,7 +672,7 @@ async function main() {
         }
       },
     ];
-    const names = ['http', 'websocket', 'jobSuccess', 'jobCancelled', 'jobTimeout'];
+    const names = ['http', 'form', 'websocket', 'jobSuccess', 'jobCancelled', 'jobTimeout'];
     workloadPromises = Array.from(
       { length: config.operationConcurrency },
       async (_: any, worker: any) => {

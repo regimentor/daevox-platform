@@ -17,12 +17,12 @@ function valuesFromBody(body: unknown): unknown {
   return body !== null && typeof body === 'object' && 'values' in body ? body.values : undefined;
 }
 
-function validateValues(
+async function validateValues(
   _appState: ExampleAppState,
   ctx: HttpRequestContext<unknown>,
   next: HttpNext,
-): HttpResponse | Promise<HttpResponse> {
-  const values = valuesFromBody(ctx.body);
+): Promise<HttpResponse> {
+  const values = valuesFromBody(await ctx.requestBody.json());
   if (!finiteValues(values)) {
     throw new HttpError(422, {
       body: { error: 'values must be finite numbers' },

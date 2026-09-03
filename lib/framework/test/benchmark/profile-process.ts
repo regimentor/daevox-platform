@@ -32,7 +32,10 @@ function distribution(values: any) {
   };
 }
 
-function request(address: any, { body, method = 'GET', path }: any) {
+function request(
+  address: any,
+  { body, contentType = 'application/json', method = 'GET', path }: any,
+) {
   const startedAt = performance.now();
   return new Promise<any>((resolve: any, reject: any) => {
     const clientRequest = nodeHttp.request(
@@ -44,7 +47,7 @@ function request(address: any, { body, method = 'GET', path }: any) {
             ? undefined
             : {
                 'content-length': Buffer.byteLength(body),
-                'content-type': 'application/json',
+                'content-type': contentType,
               },
         method,
         path,
@@ -128,10 +131,30 @@ async function createHttpOperation(profile: any, config: any, injectedDelayMs: a
     static routes = [{ method: 'POST', path: '/', handler: 'run' }] as const;
     async run(_appState: any, ctx: any) {
       if (injectedDelayMs > 0) await delay(injectedDelayMs);
-      return { status: 200, body: { size: ctx.body.value.length } };
+      if (profile === 'http-text') {
+        return { status: 200, body: { size: (await ctx.requestBody.text()).length } };
+      }
+      if (profile === 'http-multipart') {
+        const file = (await ctx.requestBody.formData()).get('file');
+        return { status: 200, body: { size: file instanceof File ? file.size : -1 } };
+      }
+      const parsed = await ctx.requestBody.json();
+      return { status: 200, body: { size: parsed.value.length } };
     }
   }
-  const body = JSON.stringify({ value });
+  const boundary = 'daevox-benchmark';
+  const body =
+    profile === 'http-text'
+      ? value
+      : profile === 'http-multipart'
+        ? `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="input.bin"\r\nContent-Type: application/octet-stream\r\n\r\n${value}\r\n--${boundary}--\r\n`
+        : JSON.stringify({ value });
+  const contentType =
+    profile === 'http-text'
+      ? 'text/plain; charset=utf-8'
+      : profile === 'http-multipart'
+        ? `multipart/form-data; boundary=${boundary}`
+        : 'application/json';
   const application = new Application({
     appState: TestAppState,
     http: { bodyLimit: profile === 'http-body-limit' ? 65_536 : 1024 },
@@ -140,7 +163,7 @@ async function createHttpOperation(profile: any, config: any, injectedDelayMs: a
   const address = await application.listen({ port: 0 });
   return {
     close: () => application.close(),
-    operation: () => request(address, { body, method: 'POST', path: '/benchmark' }),
+    operation: () => request(address, { body, contentType, method: 'POST', path: '/benchmark' }),
   };
 }
 

@@ -309,6 +309,7 @@ async function cancelWhileReadingBody(iteration: any) {
 async function cancelDuringHandler(iteration: any) {
   const started = deferred();
   const aborted = deferred();
+  const bodyReadRejected = deferred();
   const releaseHandler = deferred();
   class HandlerController extends HttpControllerBase {
     static prefix = '/handler';
@@ -317,6 +318,11 @@ async function cancelDuringHandler(iteration: any) {
       started.resolve();
       ctx.signal.addEventListener('abort', aborted.resolve, { once: true });
       await releaseHandler.promise;
+      try {
+        await ctx.requestBody.bytes();
+      } catch (error) {
+        bodyReadRejected.resolve(error);
+      }
       return { status: 200, body: { late: true } };
     }
   }
@@ -336,6 +342,9 @@ async function cancelDuringHandler(iteration: any) {
     request.destroy();
     await aborted.promise;
     releaseHandler.resolve();
+    const bodyReadError = await bodyReadRejected.promise;
+    assert.ok(bodyReadError instanceof DOMException);
+    assert.equal(bodyReadError.name, 'AbortError');
     await closed;
     await application.close();
     assert.deepEqual(errors, [], `handler cancellation, iteration=${iteration}`);

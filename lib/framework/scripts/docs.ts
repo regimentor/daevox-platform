@@ -57,6 +57,18 @@ function stripRenderedAccessTags(value: any, visited = new WeakSet<object>()): v
   for (const child of Object.values(value)) stripRenderedAccessTags(child, visited);
 }
 
+function normalizeUnsupportedTypes(value: any, visited = new WeakSet<object>()): void {
+  if (value === null || typeof value !== 'object' || visited.has(value)) return;
+  visited.add(value);
+  if (value.type === 'TemplateLiteralType') {
+    for (const key of Object.keys(value)) delete value[key];
+    value.type = 'NameExpression';
+    value.name = 'string';
+    return;
+  }
+  for (const child of Object.values(value)) normalizeUnsupportedTypes(child, visited);
+}
+
 function publicInterface(comment: any, source: string): any {
   for (const scope of Object.keys(comment.members ?? {})) {
     comment.members[scope] = comment.members[scope]
@@ -70,6 +82,7 @@ function publicInterface(comment: any, source: string): any {
       .map((member: any) => publicInterface(member, source));
   }
   stripRenderedAccessTags(comment);
+  normalizeUnsupportedTypes(comment);
   return comment;
 }
 

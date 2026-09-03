@@ -15,7 +15,7 @@ export class AuthController extends HttpControllerBase {
   ] as const;
 
   async login(_appState: AppState, ctx: HttpRequestContext<{ login: string }>) {
-    const { body } = ctx;
+    const body = await ctx.requestBody.json();
     if (!body) {
       throw new HttpError(400, { body: 'No body' });
     }

@@ -62,9 +62,14 @@ node example.ts
 - Новый экземпляр HTTP-контроллера создаётся только после успешного сопоставления HTTP-маршрута и
   только если middleware-цепочка дошла до HTTP-обработчика.
 - `HttpRequestContext` не раскрывает `IncomingMessage`, `ServerResponse` или socket.
+- `ctx.requestBody` предоставляет однократные асинхронные `json()`, `text()`, `bytes()` и
+  `formData()`; JSON generic распространяется из `HttpRequestContext<JsonBody, State>`.
+- Aggregate body limit применяется до middleware, а выбор и разбор representation выполняются
+  лениво внутри общей middleware/handler цепочки.
+- Формы используют нативные in-memory `FormData`/`File`; `File.name` остаётся недоверенным вводом.
 - Результат handler или short-circuit проходит единственную transport-нормализацию `HttpResponse`.
-- `HttpError` является ожидаемым отказом; прочие ошибки наблюдаются через `http.onError` и дают
-  безопасный `500`.
+- `HttpError` и `HttpRequestBodyError` являются ожидаемыми отказами; прочие ошибки наблюдаются через
+  `http.onError` и дают безопасный `500`.
 
 ## Авторитетные решения
 

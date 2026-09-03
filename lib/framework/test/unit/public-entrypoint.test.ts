@@ -109,6 +109,7 @@ test('the package entrypoint exposes only the supported runtime interface', () =
     'EventSenderClosedError',
     'HttpControllerBase',
     'HttpError',
+    'HttpRequestBodyError',
     'HttpRouteConflictError',
     'InvalidEventListenerError',
     'InvalidEventOptionsError',

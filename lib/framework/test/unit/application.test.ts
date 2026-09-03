@@ -383,6 +383,19 @@ test('Application строго проверяет вложенную конфи�
   }
 });
 
+test('bodyLimit принимает строгие SI и IEC size-строки', () => {
+  assert.doesNotThrow(
+    () => new Application({ appState: TestAppState, http: { bodyLimit: ' 1KiB ' } } as any),
+  );
+
+  for (const bodyLimit of ['1.5KB', '1e3B', '-1B', '1 KB', '1XB', '9007199254740991GiB']) {
+    assert.throws(
+      () => new Application({ appState: TestAppState, http: { bodyLimit } } as any),
+      InvalidHttpOptionsError,
+    );
+  }
+});
+
 test('HTTP-контроллер и HTTP-маршрут строго и атомарно проверяют middleware', () => {
   const invalidController = controller();
   (invalidController as any).middleware = [null];

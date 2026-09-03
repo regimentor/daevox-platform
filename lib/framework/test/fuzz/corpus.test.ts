@@ -25,6 +25,13 @@ test('fuzzer обнаруживает нарушение HTTP body limit', async
   );
 });
 
+test('fuzzer обнаруживает пропущенную проверку multipart boundary', async () => {
+  await assert.rejects(
+    runFuzz({ injection: 'http-multipart-boundary', persistFailures: false }),
+    /name=http-multipart-missing-boundary: unexpected HTTP status 204/,
+  );
+});
+
 test('сохранённый сбой точно воспроизводится без повторного задания параметров', async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), 'daevox-fuzz-replay-'));
   try {
