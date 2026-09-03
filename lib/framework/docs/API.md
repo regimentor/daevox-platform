@@ -22,7 +22,7 @@ Errors by operation and observable effect: [error map](interface/errors.md). / �
 
 ### [HTTP](interface/http.md)
 
-[`HttpRouteContext`](api/Application.md#httproutecontext), [`HttpRequestContext`](api/Application.md#httprequestcontext), [`HttpResponse`](api/Application.md#httpresponse), [`HttpMiddleware`](api/Application.md#httpmiddleware), [`HttpHandler`](api/Application.md#httphandler), [`HttpRouteDeclaration`](api/Application.md#httproutedeclaration), [`HttpControllerClass`](api/Application.md#httpcontrollerclass), [`HttpOptions`](api/Application.md#httpoptions), [`InvalidHttpControllerError`](api/errors.md#invalidhttpcontrollererror), [`InvalidHttpRouteError`](api/errors.md#invalidhttprouteerror), [`DuplicateHttpControllerError`](api/errors.md#duplicatehttpcontrollererror), [`HttpRouteConflictError`](api/errors.md#httprouteconflicterror), [`InvalidHttpPathEncodingError`](api/errors.md#invalidhttppathencodingerror), [`InvalidHttpOptionsError`](api/errors.md#invalidhttpoptionserror), [`HttpErrorResponse`](api/errors.md#httperrorresponse), [`HttpError`](api/errors.md#httperror), [`HttpControllerOptions`](api/HttpControllerBase.md#httpcontrolleroptions), [`HttpControllerBase`](api/HttpControllerBase.md#httpcontrollerbase)
+[`HttpRouteContext`](api/Application.md#httproutecontext), [`HttpRequestContext`](api/Application.md#httprequestcontext), [`HttpResponse`](api/Application.md#httpresponse), [`HttpMiddleware`](api/Application.md#httpmiddleware), [`HttpHandler`](api/Application.md#httphandler), [`HttpRouteDeclaration`](api/Application.md#httproutedeclaration), [`HttpControllerClass`](api/Application.md#httpcontrollerclass), [`HttpOptions`](api/Application.md#httpoptions), [`InvalidHttpControllerError`](api/errors.md#invalidhttpcontrollererror), [`InvalidHttpRouteError`](api/errors.md#invalidhttprouteerror), [`DuplicateHttpControllerError`](api/errors.md#duplicatehttpcontrollererror), [`HttpRouteConflictError`](api/errors.md#httprouteconflicterror), [`InvalidHttpPathEncodingError`](api/errors.md#invalidhttppathencodingerror), [`InvalidHttpOptionsError`](api/errors.md#invalidhttpoptionserror), [`HttpRequestBodyErrorCode`](api/errors.md#httprequestbodyerrorcode), [`HttpRequestBodyError`](api/errors.md#httprequestbodyerror), [`HttpErrorResponse`](api/errors.md#httperrorresponse), [`HttpError`](api/errors.md#httperror), [`HttpControllerOptions`](api/HttpControllerBase.md#httpcontrolleroptions), [`HttpControllerBase`](api/HttpControllerBase.md#httpcontrollerbase), [`HttpRequestBodyReader`](api/HttpRequestBodyReader.md#httprequestbodyreader)
 
 ### [WebSocket](interface/websocket.md)
 
@@ -38,17 +38,18 @@ Errors by operation and observable effect: [error map](interface/errors.md). / �
 
 ### [Middleware](interface/middleware.md)
 
-[`AppStateInstance`](api/Application.md#appstateinstance), [`AppState`](api/Application.md#appstate), [`MiddlewareExecutionError`](api/errors.md#middlewareexecutionerror)
+[`ByteSize`](api/Application.md#bytesize), [`AppStateInstance`](api/Application.md#appstateinstance), [`AppState`](api/Application.md#appstate), [`MiddlewareExecutionError`](api/errors.md#middlewareexecutionerror)
 
 ## Source modules / Исходные модули
 
-- [Application](api/Application.md) — 20 public entities / публичных сущностей
+- [Application](api/Application.md) — 21 public entities / публичных сущностей
 - [capabilities](api/capabilities.md) — 3 public entities / публичных сущностей
-- [errors](api/errors.md) — 37 public entities / публичных сущностей
+- [errors](api/errors.md) — 39 public entities / публичных сущностей
 - [EventListenerBase](api/EventListenerBase.md) — 4 public entities / публичных сущностей
 - [EventListenerRegistry](api/EventListenerRegistry.md) — 3 public entities / публичных сущностей
 - [EventSender](api/EventSender.md) — 1 public entities / публичных сущностей
 - [HttpControllerBase](api/HttpControllerBase.md) — 2 public entities / публичных сущностей
+- [HttpRequestBodyReader](api/HttpRequestBodyReader.md) — 1 public entities / публичных сущностей
 - [Job](api/Job.md) — 4 public entities / публичных сущностей
 - [JobRunner](api/JobRunner.md) — 2 public entities / публичных сущностей
 - [WebSocketControllerBase](api/WebSocketControllerBase.md) — 2 public entities / публичных сущностей

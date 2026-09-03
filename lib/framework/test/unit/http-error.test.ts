@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { HttpError } from '../../src/errors.ts';
+import { HttpError, HttpRequestBodyError } from '../../src/errors.ts';
 
 test('HttpError хранит валидный публичный HTTP-ответ и cause', () => {
   const cause = new Error('source');
@@ -27,4 +27,15 @@ test('HttpError синхронно отклоняет неверный конт�
   ]) {
     assert.throws(create, TypeError);
   }
+});
+
+test('HttpRequestBodyError связывает публичный code со status и cause', () => {
+  const cause = new Error('parser detail');
+  const malformed = new HttpRequestBodyError('MALFORMED_BODY', { cause });
+  const unsupported = new HttpRequestBodyError('UNSUPPORTED_MEDIA_TYPE');
+
+  assert.equal(malformed.status, 400);
+  assert.equal(malformed.cause, cause);
+  assert.equal(unsupported.status, 415);
+  assert.throws(() => new HttpRequestBodyError('OTHER' as any), TypeError);
 });

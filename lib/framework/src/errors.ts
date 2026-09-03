@@ -54,6 +54,38 @@ export class InvalidHttpPathEncodingError extends URIError {}
  */
 export class InvalidHttpOptionsError extends TypeError {}
 
+/** Machine-readable HTTP request-body failure. / Машиночитаемый отказ тела HTTP-запроса. @public */
+export type HttpRequestBodyErrorCode = 'MALFORMED_BODY' | 'UNSUPPORTED_MEDIA_TYPE';
+
+/**
+ * Expected failure while selecting or parsing an HTTP request-body representation.
+ * Ожидаемый отказ при выборе или разборе представления тела HTTP-запроса.
+ * @public
+ */
+export class HttpRequestBodyError extends Error {
+  /** Machine-readable failure code. / Машиночитаемый код отказа. @public */
+  declare readonly code: HttpRequestBodyErrorCode;
+
+  /** Client-visible HTTP status. / Видимый клиенту HTTP-статус. @public */
+  declare readonly status: 400 | 415;
+
+  /**
+   * Creates an expected request-body failure.
+   * Создаёт ожидаемый отказ тела запроса.
+   * @param code Machine-readable failure code. / Машиночитаемый код отказа.
+   * @param [options] Standard error options. / Стандартные параметры ошибки.
+   * @public
+   */
+  constructor(code: HttpRequestBodyErrorCode, options?: ErrorOptions) {
+    if (code !== 'MALFORMED_BODY' && code !== 'UNSUPPORTED_MEDIA_TYPE') {
+      throw new TypeError('HttpRequestBodyError code is invalid');
+    }
+    super(code, options);
+    this.code = code;
+    this.status = code === 'MALFORMED_BODY' ? 400 : 415;
+  }
+}
+
 /**
 
  * Invalid WebSocket-controller declaration. / Некорректное объявление WebSocket-контроллера.

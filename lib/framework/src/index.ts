@@ -17,6 +17,7 @@ export {
   EventQueueFullError,
   EventSenderClosedError,
   HttpError,
+  HttpRequestBodyError,
   HttpRouteConflictError,
   InvalidEventListenerError,
   InvalidEventOptionsError,
@@ -48,6 +49,7 @@ export type {
   ApplicationOptions,
   AppState,
   AppStateInstance,
+  ByteSize,
   EventOptions,
   HttpControllerClass,
   HttpHandler,
@@ -96,6 +98,8 @@ export type {
 } from './capabilities.ts';
 export type {
   HttpErrorResponse,
+  HttpRequestBodyErrorCode,
   WebSocketProtocolErrorCode,
   WebSocketProtocolErrorOptions,
 } from './errors.ts';
+export type { HttpRequestBodyReader } from './HttpRequestBodyReader.ts';

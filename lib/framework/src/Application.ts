@@ -24,6 +24,7 @@ import {
   InvalidHttpPathEncodingError,
   InvalidHttpRouteError,
   HttpError,
+  HttpRequestBodyError,
   DuplicateWebSocketControllerError,
   InvalidEventOptionsError,
   InvalidWebSocketOptionsError,
@@ -31,6 +32,11 @@ import {
 import { decodePathSegments, hasExactlyOwnKeys, isHttpToken } from './httpRoute.ts';
 import { composeMiddleware, snapshotDeclaredMiddleware, snapshotMiddleware } from './middleware.ts';
 import type { ApplicationEventAddress } from './EventSender.ts';
+import {
+  createHttpRequestBodyReader,
+  releaseHttpRequestBodyReader,
+} from './HttpRequestBodyReader.ts';
+import type { HttpRequestBodyReader } from './HttpRequestBodyReader.ts';
 
 /** Public metadata of a matched HTTP route. / Метаданные найденного HTTP-маршрута. @public */
 export interface HttpRouteContext {
@@ -40,17 +46,29 @@ export interface HttpRouteContext {
 }
 
 /** Normalized HTTP-handler input. / Нормализованный контекст HTTP-обработчика. @public */
-export interface HttpRequestContext<Body = any, State extends object = Record<string, unknown>> {
+export interface HttpRequestContext<
+  JsonBody = unknown,
+  State extends object = Record<string, unknown>,
+> {
   method: string;
   path: string;
   params: Record<string, string>;
   query: URLSearchParams;
   headers: Headers;
-  body?: Body;
+  readonly requestBody: HttpRequestBodyReader<JsonBody>;
   signal: AbortSignal;
   state: State;
   route: HttpRouteContext;
 }
+
+/** Case-insensitive spelling of an ASCII unit. / Регистронезависимое написание ASCII-единицы. @private */
+type CaseInsensitive<Value extends string> = Value extends `${infer Head}${infer Tail}`
+  ? `${Lowercase<Head> | Uppercase<Head>}${CaseInsensitive<Tail>}`
+  : Value;
+
+/** Human-readable non-negative byte count. / Человекочитаемое неотрицательное число байтов. @public */
+export type ByteSize =
+  `${number}${CaseInsensitive<'B' | 'KB' | 'MB' | 'GB' | 'KiB' | 'MiB' | 'GiB'>}`;
 
 /** Application-state instance lifecycle contract. / Контракт lifecycle экземпляра состояния приложения. @public */
 export type AppStateInstance = object & {
@@ -70,16 +88,24 @@ export interface HttpResponse<Body = unknown> {
 }
 
 /** HTTP middleware around a resolved handler. / HTTP middleware вокруг обработчика. @public */
-export type HttpMiddleware<TAppState extends object = AppStateInstance> = (
+export type HttpMiddleware<
+  TAppState extends object = AppStateInstance,
+  JsonBody = unknown,
+  State extends object = Record<string, unknown>,
+> = (
   appState: TAppState,
-  context: HttpRequestContext,
+  context: HttpRequestContext<JsonBody, State>,
   next: () => Promise<HttpResponse>,
 ) => HttpResponse | Promise<HttpResponse>;
 
 /** HTTP-handler method. / Метод HTTP-обработчика. @public */
-export type HttpHandler<TAppState extends object = AppStateInstance> = (
+export type HttpHandler<
+  TAppState extends object = AppStateInstance,
+  JsonBody = unknown,
+  State extends object = Record<string, unknown>,
+> = (
   appState: TAppState,
-  context: HttpRequestContext,
+  context: HttpRequestContext<JsonBody, State>,
 ) => HttpResponse | Promise<HttpResponse>;
 
 /** Declarative HTTP route. / Декларативный HTTP-маршрут. @public */
@@ -88,6 +114,7 @@ export interface HttpRouteDeclaration<TAppState extends object = AppStateInstanc
   path: string;
   handler: string;
   middleware?: readonly HttpMiddleware<TAppState>[];
+  bodyLimit?: number | ByteSize;
 }
 
 /** HTTP-controller class accepted for registration. / Класс HTTP-контроллера для регистрации. @public */
@@ -107,7 +134,7 @@ type InvalidHttpHandlerDeclaration<
     ? string extends THandler
       ? TRoute
       : THandler extends keyof InstanceType<TController>
-        ? InstanceType<TController>[THandler] extends HttpHandler<TAppState>
+        ? InstanceType<TController>[THandler] extends HttpHandler<TAppState, any, any>
           ? never
           : TRoute
         : TRoute
@@ -124,7 +151,7 @@ type CheckedHttpController<
 
 /** HTTP transport configuration. / Конфигурация HTTP-транспорта. @public */
 export interface HttpOptions<TAppState extends object = AppStateInstance> {
-  bodyLimit?: number;
+  bodyLimit?: number | ByteSize;
   shutdownTimeout?: number;
   middleware?: HttpMiddleware<TAppState>[];
   onError?: (
@@ -326,16 +353,15 @@ const DECLARATION_KEYS = ['handler', 'method', 'path'];
  * @private
  */
 const MIDDLEWARE_DECLARATION_KEYS = ['handler', 'method', 'middleware', 'path'];
+/** Route declaration fields with an aggregate body limit. / Поля маршрута с aggregate body limit. @private */
+const BODY_LIMIT_DECLARATION_KEYS = ['bodyLimit', 'handler', 'method', 'path'];
+/** Route declaration fields with middleware and a body limit. / Поля маршрута с middleware и body limit. @private */
+const COMPLETE_DECLARATION_KEYS = ['bodyLimit', 'handler', 'method', 'middleware', 'path'];
 /**
  * Supported HTTP configuration keys. / Поддерживаемые ключи конфигурации HTTP.
  * @private
  */
 const HTTP_OPTION_KEYS = new Set(['bodyLimit', 'middleware', 'shutdownTimeout', 'onError']);
-/**
- * Strict decoder for UTF-8 HTTP request bodies. / Строгий декодер UTF-8 для тел HTTP-запросов.
- * @private
- */
-const UTF8_DECODER = new TextDecoder('utf-8', { fatal: true });
 /**
  * Supported WebSocket configuration keys. / Поддерживаемые ключи конфигурации WebSocket.
  * @private
@@ -426,6 +452,38 @@ function invalidHttpOptions(message: any) {
   throw new InvalidHttpOptionsError(message);
 }
 
+/** Byte multipliers accepted by the public size grammar. / Множители публичной грамматики размеров. @private */
+const BYTE_SIZE_MULTIPLIERS: Readonly<Record<string, number>> = Object.freeze({
+  b: 1,
+  kb: 1_000,
+  mb: 1_000_000,
+  gb: 1_000_000_000,
+  kib: 1_024,
+  mib: 1_048_576,
+  gib: 1_073_741_824,
+});
+
+/**
+ * Normalizes a numeric or human-readable aggregate body limit.
+ * Нормализует числовой или человекочитаемый aggregate body limit.
+ * @param value Candidate limit. / Проверяемый предел.
+ * @returns Integer byte count. / Целое число байтов.
+ * @throws {TypeError} When the value violates the runtime grammar. / При нарушении runtime-грамматики.
+ * @private
+ */
+function normalizeBodyLimit(value: unknown): number {
+  if (typeof value === 'number') {
+    if (Number.isSafeInteger(value) && value >= 0) return value;
+    throw new TypeError('bodyLimit is invalid');
+  }
+  if (typeof value !== 'string') throw new TypeError('bodyLimit is invalid');
+  const match = /^(\d+)(b|kb|mb|gb|kib|mib|gib)$/i.exec(value.trim());
+  if (!match) throw new TypeError('bodyLimit is invalid');
+  const result = Number(match[1]) * BYTE_SIZE_MULTIPLIERS[match[2].toLowerCase()];
+  if (!Number.isSafeInteger(result)) throw new TypeError('bodyLimit is invalid');
+  return result;
+}
+
 /**
  * Validates and fills HTTP configuration defaults.
  * Проверяет конфигурацию HTTP и заполняет значения по умолчанию.
@@ -447,14 +505,18 @@ function normalizeHttpOptions<TAppState extends object>(
   ) {
     invalidHttpOptions('http configuration contains an unknown field');
   }
-  const bodyLimit = candidate.bodyLimit ?? 1024 * 1024;
+  let bodyLimit = 1024 * 1024;
+  try {
+    bodyLimit = normalizeBodyLimit(candidate.bodyLimit ?? 1024 * 1024);
+  } catch {
+    invalidHttpOptions('bodyLimit is invalid');
+  }
   const shutdownTimeout = candidate.shutdownTimeout ?? 30_000;
   const onError = candidate.onError;
   const middleware = snapshotMiddleware<TAppState, HttpRequestContext, HttpResponse>(
     candidate.middleware,
     (message: any) => new InvalidHttpOptionsError(message),
   );
-  if (!Number.isInteger(bodyLimit) || bodyLimit < 0) invalidHttpOptions('bodyLimit is invalid');
   if (
     typeof shutdownTimeout !== 'number' ||
     !Number.isFinite(shutdownTimeout) ||
@@ -707,12 +769,14 @@ function normalizeRoute<TAppState extends object>(
     typeof declaration !== 'object' ||
     Array.isArray(declaration) ||
     (!hasExactlyOwnKeys(declaration, DECLARATION_KEYS) &&
-      !hasExactlyOwnKeys(declaration, MIDDLEWARE_DECLARATION_KEYS))
+      !hasExactlyOwnKeys(declaration, MIDDLEWARE_DECLARATION_KEYS) &&
+      !hasExactlyOwnKeys(declaration, BODY_LIMIT_DECLARATION_KEYS) &&
+      !hasExactlyOwnKeys(declaration, COMPLETE_DECLARATION_KEYS))
   ) {
     throw routeError('HTTP route declaration has invalid fields');
   }
 
-  const { handler, method, path } = declaration;
+  const { bodyLimit, handler, method, path } = declaration;
   if (
     !isHttpToken(method) ||
     typeof path !== 'string' ||
@@ -721,6 +785,14 @@ function normalizeRoute<TAppState extends object>(
     handler === ''
   ) {
     throw routeError('HTTP route declaration fields must be valid non-empty strings');
+  }
+  let normalizedBodyLimit: number | undefined;
+  if (bodyLimit !== undefined) {
+    try {
+      normalizedBodyLimit = normalizeBodyLimit(bodyLimit);
+    } catch (error) {
+      throw routeError('HTTP route bodyLimit is invalid', error);
+    }
   }
 
   const handlerDescriptor = Object.getOwnPropertyDescriptor(HttpController.prototype, handler);
@@ -744,6 +816,7 @@ function normalizeRoute<TAppState extends object>(
       controller: HttpController,
     }),
     middleware,
+    bodyLimit: normalizedBodyLimit,
   };
 }
 
@@ -778,6 +851,8 @@ export class Application<TAppState extends object = AppStateInstance> {
    * @private
    */
   #httpRouteMiddleware = new WeakMap<NormalizedHttpRoute, readonly HttpMiddleware<TAppState>[]>();
+  /** Effective route body-limit overrides. / Переопределения body limit HTTP-маршрутов. @private */
+  #httpRouteBodyLimits = new WeakMap<NormalizedHttpRoute, number>();
   /**
    * Application-owned job runner. / Принадлежащий приложению исполнитель задач.
    * @private
@@ -1054,6 +1129,9 @@ export class Application<TAppState extends object = AppStateInstance> {
     this.#httpControllerMiddleware.set(HttpController, middleware);
     for (const metadata of normalizedMetadata) {
       this.#httpRouteMiddleware.set(metadata.route, metadata.middleware);
+      if (metadata.bodyLimit !== undefined) {
+        this.#httpRouteBodyLimits.set(metadata.route, metadata.bodyLimit);
+      }
     }
     this.#httpControllers.add(HttpController);
   }
@@ -1191,33 +1269,29 @@ export class Application<TAppState extends object = AppStateInstance> {
     });
     const chunks: any[] = [];
     let byteLength = 0;
-    for await (const chunk of request) {
+    const bodyLimit = this.#httpRouteBodyLimits.get(match.route) ?? this.#httpOptions.bodyLimit;
+    for await (const chunk of request.iterator({ destroyOnReturn: false })) {
       byteLength += chunk.byteLength;
-      if (byteLength <= this.#httpOptions.bodyLimit) chunks.push(chunk);
-    }
-    if (byteLength > this.#httpOptions.bodyLimit) {
-      throw new InfrastructureHttpError(413, 'Payload Too Large');
+      if (byteLength > bodyLimit) {
+        request.pause();
+        response.shouldKeepAlive = false;
+        throw new InfrastructureHttpError(413, 'Payload Too Large');
+      }
+      chunks.push(chunk);
     }
     const bytes = Buffer.concat(chunks);
-    let body: any;
-    if (bytes.byteLength > 0) {
-      const mediaType = request.headers['content-type'];
-      if (!this.#isJsonMediaType(mediaType)) {
-        throw new InfrastructureHttpError(415, 'Unsupported Media Type');
-      }
-      try {
-        body = JSON.parse(UTF8_DECODER.decode(bytes));
-      } catch {
-        throw new InfrastructureHttpError(400, 'Bad Request');
-      }
-    }
+    const requestBody = createHttpRequestBodyReader(
+      bytes,
+      request.headers['content-type'],
+      abortController.signal,
+    );
     const ctx = Object.freeze({
       method: request.method.toUpperCase(),
       path: url.pathname,
       params: match.params,
       query: new URLSearchParams(url.searchParams),
       headers: new Headers(request.headers),
-      body,
+      requestBody,
       signal: abortController.signal,
       state: Object.create(null),
       route: Object.freeze({
@@ -1271,8 +1345,15 @@ export class Application<TAppState extends object = AppStateInstance> {
         });
         return;
       }
+      if (error instanceof HttpRequestBodyError) {
+        const message = error.status === 400 ? 'Bad Request' : 'Unsupported Media Type';
+        this.#writeJson(response, error.status, { error: message });
+        return;
+      }
       this.#reportUnexpected(error, ctx);
       this.#writeJson(response, 500, { error: 'Internal Server Error' });
+    } finally {
+      releaseHttpRequestBodyReader(requestBody);
     }
   }
 
@@ -1328,30 +1409,6 @@ export class Application<TAppState extends object = AppStateInstance> {
     const suppressBody =
       requestedMethod === 'HEAD' || result.status === 204 || result.status === 304;
     response.end(suppressBody ? undefined : serialized);
-  }
-
-  /**
-
-   * Checks whether a Content-Type represents UTF-8 JSON. / Проверяет, является ли Content-Type JSON в UTF-8.
-
-   *
-   * @param value Header value. / Значение заголовка.
-
-   * @returns Match result. / Результат проверки.
-
-   * @private
-
-   */
-  #isJsonMediaType(value: any) {
-    if (typeof value !== 'string') return false;
-    const [type, ...parameters] = value.split(';').map((part: any) => part.trim().toLowerCase());
-    if (type !== 'application/json' && !type.endsWith('+json')) return false;
-    for (const parameter of parameters) {
-      if (parameter.startsWith('charset=') && parameter.slice(8).replaceAll('"', '') !== 'utf-8') {
-        return false;
-      }
-    }
-    return true;
   }
 
   /**

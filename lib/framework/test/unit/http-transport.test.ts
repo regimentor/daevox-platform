@@ -4,11 +4,12 @@ class TestAppState {
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import http from 'node:http';
+import net from 'node:net';
 import test from 'node:test';
 
 import { Application } from '../../src/Application.ts';
 import { HttpControllerBase } from '../../src/HttpControllerBase.ts';
-import { HttpError, MiddlewareExecutionError } from '../../src/errors.ts';
+import { HttpError, HttpRequestBodyError, MiddlewareExecutionError } from '../../src/errors.ts';
 import { JobsController } from '../../examples/jobs-http/JobsController.ts';
 
 function request(address: any, options: any = {}) {
@@ -60,12 +61,16 @@ test('HTTP transport сопоставляет HTTP-маршрут и перед�
   class UsersController extends HttpControllerBase {
     static prefix = '/users';
     static routes = [{ method: 'POST', path: '/:id', handler: 'update' }] as const;
-    update(_appState: any, ctx: any) {
+    async update(_appState: any, ctx: any) {
       seenContext = ctx;
       return {
         status: 200,
         headers: new Headers({ 'x-handler': 'update' }),
-        body: { id: ctx.params.id, values: ctx.query.getAll('value'), received: ctx.body },
+        body: {
+          id: ctx.params.id,
+          values: ctx.query.getAll('value'),
+          received: await ctx.requestBody.json(),
+        },
       };
     }
   }
@@ -93,10 +98,468 @@ test('HTTP transport сопоставляет HTTP-маршрут и перед�
     assert.ok(seenContext.headers instanceof Headers);
     assert.equal(seenContext.headers.get('x-input'), 'yes');
     assert.ok(seenContext.signal instanceof AbortSignal);
+    assert.equal(seenContext.requestBody.used, true);
+    assert.equal('body' in seenContext, false);
     assert.equal('request' in seenContext, false);
     assert.equal('response' in seenContext, false);
     assert.equal('socket' in seenContext, false);
   } finally {
+    await app.close();
+  }
+});
+
+test('HTTP-обработчик читает JSON через HttpRequestBodyReader', async () => {
+  class JsonController extends HttpControllerBase {
+    static prefix = '/json-reader';
+    static routes = [{ method: 'POST', path: '/', handler: 'post' }] as const;
+    async post(_appState: any, ctx: any) {
+      return { status: 200, body: await ctx.requestBody.json() };
+    }
+  }
+  const app = new Application({ appState: TestAppState });
+  app.registerHttpController(JsonController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const response = await request(address, {
+      method: 'POST',
+      path: '/json-reader',
+      headers: { 'content-type': 'application/json' },
+      body: '{"active":true}',
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.body, '{"active":true}');
+  } finally {
+    await app.close();
+  }
+});
+
+test('HttpRequestBodyReader потребляет тело ровно один раз', async () => {
+  class OneShotController extends HttpControllerBase {
+    static prefix = '/one-shot-reader';
+    static routes = [{ method: 'POST', path: '/', handler: 'post' }] as const;
+    async post(_appState: any, ctx: any) {
+      assert.equal(ctx.requestBody.used, false);
+      const first = ctx.requestBody.json();
+      assert.equal(ctx.requestBody.used, true);
+      const second = ctx.requestBody.json();
+      await assert.rejects(second, TypeError);
+      return { status: 200, body: await first };
+    }
+  }
+  const app = new Application({ appState: TestAppState });
+  app.registerHttpController(OneShotController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const response = await request(address, {
+      method: 'POST',
+      path: '/one-shot-reader',
+      headers: { 'content-type': 'application/json' },
+      body: '{"value":1}',
+    });
+    assert.equal(response.status, 200);
+    assert.equal(response.body, '{"value":1}');
+  } finally {
+    await app.close();
+  }
+});
+
+test('ошибки JSON-представления становятся безопасными клиентскими ответами', async () => {
+  const observed: unknown[] = [];
+  class JsonErrorController extends HttpControllerBase {
+    static prefix = '/json-errors';
+    static routes = [{ method: 'POST', path: '/', handler: 'post' }] as const;
+    async post(_appState: any, ctx: any) {
+      return { status: 200, body: await ctx.requestBody.json() };
+    }
+  }
+  const app = new Application({
+    appState: TestAppState,
+    http: { onError: (_appState, error) => observed.push(error) },
+  });
+  app.registerHttpController(JsonErrorController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const malformed = await request(address, {
+      method: 'POST',
+      path: '/json-errors',
+      headers: { 'content-type': 'application/json' },
+      body: '{',
+    });
+    const unsupported = await request(address, {
+      method: 'POST',
+      path: '/json-errors',
+      headers: { 'content-type': 'text/plain' },
+      body: '{}',
+    });
+
+    assert.deepEqual(
+      [malformed, unsupported].map(({ status, body }) => ({ status, body })),
+      [
+        { status: 400, body: '{"error":"Bad Request"}' },
+        { status: 415, body: '{"error":"Unsupported Media Type"}' },
+      ],
+    );
+    assert.deepEqual(observed, []);
+  } finally {
+    await app.close();
+  }
+});
+
+test('HTTP middleware перехватывает публичный HttpRequestBodyError', async () => {
+  class CatchableBodyController extends HttpControllerBase {
+    static prefix = '/catch-body-error';
+    static routes = [{ method: 'POST', path: '/', handler: 'post' }] as const;
+    async post(_appState: any, ctx: any) {
+      return { status: 200, body: await ctx.requestBody.json() };
+    }
+  }
+  const app = new Application({
+    appState: TestAppState,
+    http: {
+      middleware: [
+        async (_appState, _ctx, next) => {
+          try {
+            return await next();
+          } catch (error) {
+            assert.ok(error instanceof HttpRequestBodyError);
+            assert.equal(error.code, 'MALFORMED_BODY');
+            assert.equal(error.status, 400);
+            assert.ok(error.cause instanceof Error);
+            return { status: 422, body: { error: 'Custom body response' } };
+          }
+        },
+      ],
+    },
+  });
+  app.registerHttpController(CatchableBodyController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const response = await request(address, {
+      method: 'POST',
+      path: '/catch-body-error',
+      headers: { 'content-type': 'application/json' },
+      body: '{',
+    });
+    assert.equal(response.status, 422);
+    assert.equal(response.body, '{"error":"Custom body response"}');
+  } finally {
+    await app.close();
+  }
+});
+
+test('json() применяет строгие правила media type и charset', async () => {
+  class JsonMediaController extends HttpControllerBase {
+    static prefix = '/json-media';
+    static routes = [{ method: 'POST', path: '/', handler: 'post' }] as const;
+    async post(_appState: any, ctx: any) {
+      return { status: 200, body: await ctx.requestBody.json() };
+    }
+  }
+  const app = new Application({ appState: TestAppState });
+  app.registerHttpController(JsonMediaController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const valid = await request(address, {
+      method: 'POST',
+      path: '/json-media',
+      headers: {
+        'content-type': 'application/problem+json; charset="UTF-8"; version=1; version=2',
+      },
+      body: 'true',
+    });
+    const charset = await request(address, {
+      method: 'POST',
+      path: '/json-media',
+      headers: { 'content-type': 'application/json; charset=utf-16' },
+      body: '{}',
+    });
+    const conflictingCharset = await request(address, {
+      method: 'POST',
+      path: '/json-media',
+      headers: { 'content-type': 'application/json; charset=utf-8; charset=utf-16' },
+      body: '{}',
+    });
+    const malformed = await request(address, {
+      method: 'POST',
+      path: '/json-media',
+      headers: { 'content-type': 'application/json; charset' },
+      body: '{}',
+    });
+    assert.deepEqual(
+      [valid, charset, conflictingCharset, malformed].map(({ status, body }) => ({ status, body })),
+      [
+        { status: 200, body: 'true' },
+        { status: 415, body: '{"error":"Unsupported Media Type"}' },
+        { status: 400, body: '{"error":"Bad Request"}' },
+        { status: 400, body: '{"error":"Bad Request"}' },
+      ],
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test('text() читает любое тело как UTF-8 с replacement decoding', async () => {
+  class TextController extends HttpControllerBase {
+    static prefix = '/text-reader';
+    static routes = [{ method: 'POST', path: '/', handler: 'post' }] as const;
+    async post(_appState: any, ctx: any) {
+      return { status: 200, body: await ctx.requestBody.text() };
+    }
+  }
+  const app = new Application({ appState: TestAppState });
+  app.registerHttpController(TextController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const decoded = await request(address, {
+      method: 'POST',
+      path: '/text-reader',
+      headers: { 'content-type': 'application/octet-stream' },
+      body: Buffer.from([0x61, 0xff, 0x62]),
+    });
+    const empty = await request(address, { method: 'POST', path: '/text-reader' });
+    const charset = await request(address, {
+      method: 'POST',
+      path: '/text-reader',
+      headers: { 'content-type': 'text/plain; charset=windows-1251' },
+      body: 'text',
+    });
+    assert.deepEqual(
+      [decoded, empty, charset].map(({ status, body }) => ({ status, body })),
+      [
+        { status: 200, body: 'a�b' },
+        { status: 200, body: '' },
+        { status: 415, body: '{"error":"Unsupported Media Type"}' },
+      ],
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test('bytes() возвращает независимый Buffer, живущий после HTTP-запроса', async () => {
+  let retained: Buffer | undefined;
+  class BytesController extends HttpControllerBase {
+    static prefix = '/bytes-reader';
+    static routes = [{ method: 'POST', path: '/', handler: 'post' }] as const;
+    async post(_appState: any, ctx: any) {
+      retained = await ctx.requestBody.bytes();
+      return { status: 204 };
+    }
+  }
+  const app = new Application({ appState: TestAppState });
+  app.registerHttpController(BytesController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const response = await request(address, {
+      method: 'POST',
+      path: '/bytes-reader',
+      headers: { 'content-type': 'unknown/representation' },
+      body: Buffer.from([0, 255, 1]),
+    });
+    assert.equal(response.status, 204);
+    assert.ok(Buffer.isBuffer(retained));
+    assert.deepEqual(retained, Buffer.from([0, 255, 1]));
+    retained[0] = 42;
+    assert.deepEqual(retained, Buffer.from([42, 255, 1]));
+  } finally {
+    await app.close();
+  }
+});
+
+test('formData() читает URL-encoded поля с нативной tolerant-семантикой', async () => {
+  class FormController extends HttpControllerBase {
+    static prefix = '/urlencoded-reader';
+    static routes = [{ method: 'POST', path: '/', handler: 'post' }] as const;
+    async post(_appState: any, ctx: any) {
+      const form = await ctx.requestBody.formData();
+      return { status: 200, body: [...form.entries()] };
+    }
+  }
+  const app = new Application({ appState: TestAppState });
+  app.registerHttpController(FormController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const response = await request(address, {
+      method: 'POST',
+      path: '/urlencoded-reader',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: 'tag=first&broken=%ZZ&tag=second',
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(JSON.parse(response.body), [
+      ['tag', 'first'],
+      ['broken', '%ZZ'],
+      ['tag', 'second'],
+    ]);
+  } finally {
+    await app.close();
+  }
+});
+
+test('formData() сохраняет multipart files и строго проверяет media parameters', async () => {
+  class MultipartController extends HttpControllerBase {
+    static prefix = '/multipart-reader';
+    static routes = [{ method: 'POST', path: '/', handler: 'post' }] as const;
+    async post(_appState: any, ctx: any) {
+      const form = await ctx.requestBody.formData();
+      const file = form.get('upload');
+      return {
+        status: 200,
+        body:
+          file instanceof File
+            ? {
+                title: form.getAll('title'),
+                file: { name: file.name, type: file.type, size: file.size },
+              }
+            : { entries: [...form.entries()] },
+      };
+    }
+  }
+  const app = new Application({ appState: TestAppState });
+  app.registerHttpController(MultipartController);
+  const address = await app.listen({ port: 0 });
+  const boundary = 'daevox-boundary';
+  const multipart = [
+    `--${boundary}\r\nContent-Disposition: form-data; name="title"\r\n\r\nfirst\r\n`,
+    `--${boundary}\r\nContent-Disposition: form-data; name="title"\r\n\r\nsecond\r\n`,
+    `--${boundary}\r\nContent-Disposition: form-data; name="upload"; filename="../raw.bin"\r\nContent-Type: application/octet-stream\r\n\r\nabc\r\n`,
+    `--${boundary}--\r\n`,
+  ].join('');
+
+  try {
+    const valid = await request(address, {
+      method: 'POST',
+      path: '/multipart-reader',
+      headers: { 'content-type': `multipart/form-data; boundary=${boundary}` },
+      body: multipart,
+    });
+    const charset = await request(address, {
+      method: 'POST',
+      path: '/multipart-reader',
+      headers: { 'content-type': 'application/x-www-form-urlencoded; charset=latin1' },
+      body: 'value=one',
+    });
+    const missingBoundary = await request(address, {
+      method: 'POST',
+      path: '/multipart-reader',
+      headers: { 'content-type': 'multipart/form-data' },
+      body: multipart,
+    });
+    const conflictingBoundary = await request(address, {
+      method: 'POST',
+      path: '/multipart-reader',
+      headers: {
+        'content-type': `multipart/form-data; boundary=${boundary}; boundary=other-boundary`,
+      },
+      body: multipart,
+    });
+    assert.equal(valid.status, 200);
+    assert.deepEqual(JSON.parse(valid.body), {
+      title: ['first', 'second'],
+      file: { name: '../raw.bin', type: 'application/octet-stream', size: 3 },
+    });
+    assert.equal(charset.status, 415);
+    assert.equal(missingBoundary.status, 400);
+    assert.equal(conflictingBoundary.status, 400);
+  } finally {
+    await app.close();
+  }
+});
+
+test('bodyLimit HTTP-маршрута переопределяет глобальный aggregate limit', async () => {
+  class LimitedController extends HttpControllerBase {
+    static prefix = '/route-limit';
+    static routes = [
+      { method: 'POST', path: '/larger', handler: 'post', bodyLimit: 8 },
+      { method: 'POST', path: '/zero', handler: 'post', bodyLimit: 0 },
+    ] as const;
+    async post(_appState: any, ctx: any) {
+      return { status: 200, body: await ctx.requestBody.text() };
+    }
+  }
+  const app = new Application({ appState: TestAppState, http: { bodyLimit: 4 } });
+  app.registerHttpController(LimitedController);
+  const address = await app.listen({ port: 0 });
+
+  try {
+    const larger = await request(address, {
+      method: 'POST',
+      path: '/route-limit/larger',
+      body: '12345678',
+    });
+    const zero = await request(address, {
+      method: 'POST',
+      path: '/route-limit/zero',
+      body: '1',
+    });
+    assert.deepEqual(
+      [larger, zero].map(({ status, body }) => ({ status, body })),
+      [
+        { status: 200, body: '12345678' },
+        { status: 413, body: '{"error":"Payload Too Large"}' },
+      ],
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test('bodyLimit не ждёт завершения oversized chunked HTTP-запроса', async () => {
+  class LimitedController extends HttpControllerBase {
+    static prefix = '/chunked-limit';
+    static routes = [{ method: 'POST', path: '/', handler: 'post' }] as const;
+    post(): never {
+      throw new Error('HTTP handler must not receive an oversized body');
+    }
+  }
+  const app = new Application({ appState: TestAppState, http: { bodyLimit: 8 } });
+  app.registerHttpController(LimitedController);
+  const address = await app.listen({ port: 0 });
+  const socket = net.connect(address.port, address.address);
+
+  try {
+    const response = await new Promise<string>((resolve, reject) => {
+      let received = '';
+      const timeout = setTimeout(
+        () => reject(new Error('Timed out waiting for an early body-limit response')),
+        500,
+      );
+      socket.setEncoding('utf8');
+      socket.on('data', (chunk) => {
+        received += chunk;
+      });
+      socket.once('close', () => {
+        clearTimeout(timeout);
+        if (received.includes('{"error":"Payload Too Large"}')) resolve(received);
+        else reject(new Error('Connection closed without a body-limit response'));
+      });
+      socket.once('error', (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+      socket.write(
+        'POST /chunked-limit HTTP/1.1\r\n' +
+          'Host: localhost\r\n' +
+          'Transfer-Encoding: chunked\r\n' +
+          '\r\n' +
+          '9\r\n' +
+          '123456789\r\n',
+      );
+    });
+
+    assert.match(response, /^HTTP\/1\.1 413 Payload Too Large\r\n/);
+  } finally {
+    socket.destroy();
     await app.close();
   }
 });
@@ -205,12 +668,13 @@ test('HTTP middleware short-circuit не создаёт HTTP-контролле�
   }
 });
 
-test('HTTP middleware не выполняются для инфраструктурных ошибок до маршрутизации', async () => {
+test('HTTP middleware не выполняются до маршрутизации и aggregate body limit', async () => {
   let calls = 0;
   class InputController extends HttpControllerBase {
     static prefix = '/input';
     static routes = [{ method: 'POST', path: '/', handler: 'post' }] as const;
-    post() {
+    async post(_appState: any, ctx: any) {
+      await ctx.requestBody.json();
       return { status: 204 };
     }
   }
@@ -250,7 +714,7 @@ test('HTTP middleware не выполняются для инфраструкт�
       responses.map((response: any) => response.status),
       [404, 405, 400, 413],
     );
-    assert.equal(calls, 0);
+    assert.equal(calls, 1);
   } finally {
     await app.close();
   }
@@ -403,12 +867,12 @@ test('HTTP transport детерминированно обрабатывает H
   }
 });
 
-test('HTTP transport ограничивает и разбирает только UTF-8 JSON-тело', async () => {
+test('json() ограничивает и лениво разбирает только UTF-8 JSON-тело', async () => {
   class BodyController extends HttpControllerBase {
     static prefix = '/body';
     static routes = [{ method: 'PUT', path: '/', handler: 'put' }] as const;
-    put(_appState: any, ctx: any) {
-      return { status: 200, body: ctx.body };
+    async put(_appState: any, ctx: any) {
+      return { status: 200, body: await ctx.requestBody.json() };
     }
   }
   const app = new Application({ appState: TestAppState, http: { bodyLimit: 8 } });
@@ -444,9 +908,13 @@ test('HTTP transport ограничивает и разбирает только
       body: '{"a":123}',
     });
     assert.equal(tooLarge.status, 413);
-    const empty = await request(address, { method: 'PUT', path: '/body' });
-    assert.equal(empty.status, 200);
-    assert.equal(empty.body, '');
+    const empty = await request(address, {
+      method: 'PUT',
+      path: '/body',
+      headers: { 'content-type': 'application/json' },
+    });
+    assert.equal(empty.status, 400);
+    assert.equal(empty.body, '{"error":"Bad Request"}');
   } finally {
     await app.close();
   }
@@ -509,6 +977,7 @@ test('Application.close по timeout отменяет оставшийся HTTP-
     started = resolve;
   });
   let wasAborted = false;
+  let bodyReadError: unknown;
   class SlowController extends HttpControllerBase {
     static prefix = '/slow';
     static routes = [{ method: 'GET', path: '/', handler: 'get' }] as const;
@@ -517,8 +986,14 @@ test('Application.close по timeout отменяет оставшийся HTTP-
       return new Promise<any>((resolve: any) => {
         ctx.signal.addEventListener(
           'abort',
-          () => {
+          async () => {
             wasAborted = true;
+            try {
+              await ctx.requestBody.bytes();
+            } catch (error) {
+              bodyReadError = error;
+            }
+            assert.equal(ctx.requestBody.used, true);
             resolve({ status: 200, body: { late: true } });
           },
           { once: true },
@@ -536,6 +1011,8 @@ test('Application.close по timeout отменяет оставшийся HTTP-
   await pendingRequest;
 
   assert.equal(wasAborted, true);
+  assert.ok(bodyReadError instanceof DOMException);
+  assert.equal(bodyReadError.name, 'AbortError');
 });
 
 test('сброс соединения при чтении HTTP-запроса уничтожает HTTP-ответ', async (t: any) => {
@@ -576,6 +1053,7 @@ test('сброс соединения при чтении HTTP-запроса у
       throw error;
     },
   });
+  incomingRequest.iterator = () => incomingRequest;
   let markDestroyed: any;
   const destroyed = new Promise<any>((resolve: any) => {
     markDestroyed = resolve;

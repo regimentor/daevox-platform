@@ -6,7 +6,11 @@ import { HttpControllerBase } from '../../src/HttpControllerBase.ts';
 import type {
   ApplicationEventContext,
   ApplicationEventHandler,
+  ByteSize,
   EventListenerClass,
+  HttpHandler,
+  HttpRequestBodyErrorCode,
+  HttpRequestBodyReader,
 } from '../../src/index.ts';
 import type {
   AppStateInstance,
@@ -43,6 +47,54 @@ const concreteMiddleware: HttpMiddleware<ConcreteAppState> = (appState, _context
 
 void (undefined as unknown as ApplicationKeepsConcreteState);
 void concreteMiddleware;
+
+interface CreateUserBody {
+  readonly name: string;
+}
+
+interface CreateUserState {
+  subject?: string;
+}
+
+const typedBodyContext = undefined as unknown as HttpRequestContext<
+  CreateUserBody,
+  CreateUserState
+>;
+type JsonBodyPropagates = Expect<
+  Equal<ReturnType<typeof typedBodyContext.requestBody.json>, Promise<CreateUserBody>>
+>;
+function verifyTypedBodyContext() {
+  typedBodyContext.state.subject = 'subject';
+  // @ts-expect-error JSON type is fixed on HttpRequestContext
+  typedBodyContext.requestBody.json<string>();
+  // @ts-expect-error the eager compatibility property was removed
+  void typedBodyContext.body;
+}
+void verifyTypedBodyContext;
+void (undefined as unknown as JsonBodyPropagates);
+
+const typedHttpHandler: HttpHandler<ConcreteAppState, CreateUserBody, CreateUserState> = async (
+  appState,
+  context,
+) => ({
+  status: 200,
+  body: { subject: appState.getSubject(), input: await context.requestBody.json() },
+});
+void typedHttpHandler;
+
+const bodyReader = undefined as unknown as HttpRequestBodyReader<CreateUserBody>;
+const bodyErrorCode = undefined as unknown as HttpRequestBodyErrorCode;
+void bodyReader;
+void bodyErrorCode;
+
+const validByteSizes = ['0B', '1kb', '2MiB', '3GIB'] as const satisfies readonly ByteSize[];
+// @ts-expect-error ByteSize requires a unit
+const missingByteSizeUnit: ByteSize = '100';
+// @ts-expect-error ByteSize rejects unknown units
+const unknownByteSizeUnit: ByteSize = '1XB';
+void validByteSizes;
+void missingByteSizeUnit;
+void unknownByteSizeUnit;
 
 class TypedHttpController extends HttpControllerBase {
   static prefix = '/typed-state';

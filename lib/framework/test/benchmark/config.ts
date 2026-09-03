@@ -8,6 +8,8 @@ export const REGRESSION_THRESHOLDS = Object.freeze({
 
 const PROFILES = Object.freeze({
   'http-json': Object.freeze({ concurrency: 8, messageBytes: 128 }),
+  'http-text': Object.freeze({ concurrency: 8, messageBytes: 128 }),
+  'http-multipart': Object.freeze({ concurrency: 4, messageBytes: 128 }),
   'http-body-limit': Object.freeze({ concurrency: 4, messageBytes: 65_520 }),
   websocket: Object.freeze({ concurrency: 8, messageBytes: 256 }),
   job: Object.freeze({ concurrency: 8, cpuIterations: 25_000, poolSize: 2 }),

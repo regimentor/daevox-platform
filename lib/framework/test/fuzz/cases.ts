@@ -96,6 +96,19 @@ function request(body: any, headers: any = '') {
   ]);
 }
 
+function bodyRequest(requestPath: string, body: Buffer, contentType: string) {
+  return Buffer.concat([
+    Buffer.from(
+      `POST ${requestPath} HTTP/1.1\r\nHost: localhost\r\nContent-Type: ${contentType}\r\nContent-Length: ${body.byteLength}\r\n\r\n`,
+    ),
+    body,
+  ]);
+}
+
+function formRequest(body: Buffer, contentType: string) {
+  return bodyRequest('/fuzz/form', body, contentType);
+}
+
 function jsonBody(length: any) {
   const prefix = Buffer.from('{"value":"');
   const suffix = Buffer.from('"}');
@@ -120,6 +133,11 @@ export function fixedCorpus(bodyLimit: any = 256) {
   const exactBody = jsonBody(bodyLimit);
   const overBody = jsonBody(bodyLimit + 1);
   const invalidHttpUtf8 = Buffer.from('{"value":"\xff"}', 'latin1');
+  const tolerantUrlEncoded = Buffer.from('value=%ZZ&value=two');
+  const multipartBoundary = 'fuzz-boundary';
+  const validMultipart = Buffer.from(
+    `--${multipartBoundary}\r\nContent-Disposition: form-data; name="value"\r\n\r\none\r\n--${multipartBoundary}--\r\n`,
+  );
 
   return [
     ws('ws-fragmented-with-control', fragmented, { textMessages: 1, pongPayloads: ['between'] }),
@@ -233,6 +251,29 @@ export function fixedCorpus(bodyLimit: any = 256) {
     ),
     http('http-body-limit-exact-slow', request(exactBody), { statuses: [200] }, { chunkSize: 17 }),
     http('http-body-limit-over-slow', request(overBody), { statuses: [413] }, { chunkSize: 17 }),
+    http(
+      'http-multipart-missing-boundary',
+      'POST /fuzz/form HTTP/1.1\r\nHost: localhost\r\nContent-Type: multipart/form-data\r\nContent-Length: 8\r\n\r\n--fuzz--',
+      { statuses: [400] },
+      { chunkSize: 3 },
+    ),
+    http(
+      'http-urlencoded-tolerant-percent',
+      formRequest(tolerantUrlEncoded, 'application/x-www-form-urlencoded'),
+      { statuses: [204] },
+      { chunkSize: 2 },
+    ),
+    http(
+      'http-multipart-fragmented',
+      formRequest(validMultipart, `multipart/form-data; boundary=${multipartBoundary}`),
+      { statuses: [204] },
+      { chunkSize: 5 },
+    ),
+    http(
+      'http-json-unsupported-charset',
+      bodyRequest('/fuzz/echo', Buffer.from('{}'), 'application/json; charset=latin1'),
+      { statuses: [415] },
+    ),
   ];
 }
 

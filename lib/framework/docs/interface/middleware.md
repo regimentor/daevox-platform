@@ -59,8 +59,11 @@ npm run example:middleware-auth:test
 - HTTP- и WebSocket-массивы независимы, проверяются и копируются при конфигурации или регистрации.
 - Generic middleware получает конкретный AppState, выведенный `Application`; middleware с default
   `AppStateInstance` остаётся применимо к конкретному прикладному состоянию.
-- Middleware запускается только после успешной transport-маршрутизации; инфраструктурные ошибки до
-  seam через него не проходят.
+- HTTP middleware запускается после успешной transport-маршрутизации и ограниченного буферизования,
+  но до ленивого representation parsing. Превышение body limit через seam не проходит; ожидаемый
+  `HttpRequestBodyError` может быть перехвачен middleware.
+- HTTP middleware и handler разделяют один `ctx.requestBody`; прочитанное представление передаётся
+  следующему слою явно через `ctx.state`.
 - HTTP `ctx.state` живёт один запрос; WebSocket `ctx.state` — одну сессию от `onConnect` до
   `onDisconnect`.
 - HTTP unexpected error становится `500`; WebSocket unexpected error становится `HANDLER_ERROR` и

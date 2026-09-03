@@ -12,6 +12,12 @@ Public metadata of a matched HTTP route. / Метаданные найденно
 
 Normalized HTTP-handler input. / Нормализованный контекст HTTP-обработчика.
 
+## ByteSize
+
+Human-readable non-negative byte count. / Человекочитаемое неотрицательное число байтов.
+
+Type: [string][1]
+
 ## AppStateInstance
 
 Application-state instance lifecycle contract. / Контракт lifecycle экземпляра состояния приложения.
@@ -32,13 +38,13 @@ Explicit HTTP-handler result. / Явный результат HTTP-обрабо�
 
 HTTP middleware around a resolved handler. / HTTP middleware вокруг обработчика.
 
-Type: function (appState: TAppState, context: [HttpRequestContext][1], next: function (): [Promise][2]<[HttpResponse][3]>): ([HttpResponse][3] | [Promise][2]<[HttpResponse][3]>)
+Type: function (appState: TAppState, context: [HttpRequestContext][2]\<JsonBody, State>, next: function (): [Promise][3]<[HttpResponse][4]>): ([HttpResponse][4] | [Promise][3]<[HttpResponse][4]>)
 
 ## HttpHandler
 
 HTTP-handler method. / Метод HTTP-обработчика.
 
-Type: function (appState: TAppState, context: [HttpRequestContext][1]): ([HttpResponse][3] | [Promise][2]<[HttpResponse][3]>)
+Type: function (appState: TAppState, context: [HttpRequestContext][2]\<JsonBody, State>): ([HttpResponse][4] | [Promise][3]<[HttpResponse][4]>)
 
 ## HttpRouteDeclaration
 
@@ -48,12 +54,12 @@ Declarative HTTP route. / Декларативный HTTP-маршрут.
 
 HTTP-controller class accepted for registration. / Класс HTTP-контроллера для регистрации.
 
-Type: {: HttpControllerBase, prefix: [string][4], routes: any, middleware: any?}
+Type: {: HttpControllerBase, prefix: [string][1], routes: any, middleware: any?}
 
 ### Properties
 
 - `` **any**&#x20;
-- `prefix` **[string][4]**&#x20;
+- `prefix` **[string][1]**&#x20;
 - `routes` **any**&#x20;
 - `middleware` **any?**&#x20;
 
@@ -79,13 +85,13 @@ WebSocket message-handler context. / Контекст обработчика Web
 
 WebSocket message middleware. / Middleware WebSocket-сообщения.
 
-Type: function (appState: TAppState, context: [WebSocketHandlerContext][5], next: function (): [Promise][2]\<any>): (any | [Promise][2]\<any>)
+Type: function (appState: TAppState, context: [WebSocketHandlerContext][5], next: function (): [Promise][3]\<any>): (any | [Promise][3]\<any>)
 
 ## WebSocketHandler
 
 WebSocket event-handler method. / Метод обработчика WebSocket-события.
 
-Type: function (appState: TAppState, context: [WebSocketHandlerContext][5]): ([object][6] | void | [Promise][2]<([object][6] | void)>)
+Type: function (appState: TAppState, context: [WebSocketHandlerContext][5]): ([object][6] | void | [Promise][3]<([object][6] | void)>)
 
 ## WebSocketOptions
 
@@ -205,7 +211,7 @@ Starts the shared HTTP/WebSocket transport exactly once.
 - Throws **[ApplicationStateError](./errors.md#applicationstateerror)** When the application has already started or closed. / Если
   приложение уже запускалось или закрыто.
 
-Returns **[Promise][2]\<AddressInfo>** Bound address. / Фактический
+Returns **[Promise][3]\<AddressInfo>** Bound address. / Фактический
 адрес.
 
 ### close
@@ -217,10 +223,10 @@ Repeated calls return the same operation.
 
 Returns **any** Application shutdown. / Завершение приложения.
 
-[1]: #httprequestcontext
-[2]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise
-[3]: #httpresponse
-[4]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
+[1]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
+[2]: #httprequestcontext
+[3]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Promise
+[4]: #httpresponse
 [5]: #websockethandlercontext
 [6]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object
 [7]: ./WebSocketControllerBase.md#websocketcontrollerbase
@@ -242,17 +248,27 @@ export interface HttpRouteContext {
 ### `HttpRequestContext`
 
 ```ts
-export interface HttpRequestContext<Body = any, State extends object = Record<string, unknown>> {
+export interface HttpRequestContext<
+  JsonBody = unknown,
+  State extends object = Record<string, unknown>,
+> {
   method: string;
   path: string;
   params: Record<string, string>;
   query: URLSearchParams;
   headers: Headers;
-  body?: Body;
+  readonly requestBody: HttpRequestBodyReader<JsonBody>;
   signal: AbortSignal;
   state: State;
   route: HttpRouteContext;
 }
+```
+
+### `ByteSize`
+
+```ts
+export type ByteSize =
+  `${number}${CaseInsensitive<'B' | 'KB' | 'MB' | 'GB' | 'KiB' | 'MiB' | 'GiB'>}`;
 ```
 
 ### `AppStateInstance`
@@ -284,9 +300,13 @@ export interface HttpResponse<Body = unknown> {
 ### `HttpMiddleware`
 
 ```ts
-export type HttpMiddleware<TAppState extends object = AppStateInstance> = (
+export type HttpMiddleware<
+  TAppState extends object = AppStateInstance,
+  JsonBody = unknown,
+  State extends object = Record<string, unknown>,
+> = (
   appState: TAppState,
-  context: HttpRequestContext,
+  context: HttpRequestContext<JsonBody, State>,
   next: () => Promise<HttpResponse>,
 ) => HttpResponse | Promise<HttpResponse>;
 ```
@@ -294,9 +314,13 @@ export type HttpMiddleware<TAppState extends object = AppStateInstance> = (
 ### `HttpHandler`
 
 ```ts
-export type HttpHandler<TAppState extends object = AppStateInstance> = (
+export type HttpHandler<
+  TAppState extends object = AppStateInstance,
+  JsonBody = unknown,
+  State extends object = Record<string, unknown>,
+> = (
   appState: TAppState,
-  context: HttpRequestContext,
+  context: HttpRequestContext<JsonBody, State>,
 ) => HttpResponse | Promise<HttpResponse>;
 ```
 
@@ -308,6 +332,7 @@ export interface HttpRouteDeclaration<TAppState extends object = AppStateInstanc
   path: string;
   handler: string;
   middleware?: readonly HttpMiddleware<TAppState>[];
+  bodyLimit?: number | ByteSize;
 }
 ```
 
@@ -326,7 +351,7 @@ export type HttpControllerClass<TAppState extends object = AppStateInstance> = {
 
 ```ts
 export interface HttpOptions<TAppState extends object = AppStateInstance> {
-  bodyLimit?: number;
+  bodyLimit?: number | ByteSize;
   shutdownTimeout?: number;
   middleware?: HttpMiddleware<TAppState>[];
   onError?: (

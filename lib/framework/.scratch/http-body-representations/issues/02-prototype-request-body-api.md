@@ -25,10 +25,7 @@ interface HttpRequestBodyReader<JsonBody = unknown> {
   formData(): Promise<FormData>;
 }
 
-interface HttpRequestContext<
-  JsonBody = unknown,
-  State extends object = Record<string, unknown>,
-> {
+interface HttpRequestContext<JsonBody = unknown, State extends object = Record<string, unknown>> {
   readonly requestBody: HttpRequestBodyReader<JsonBody>;
 }
 ```

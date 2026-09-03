@@ -40,6 +40,36 @@ Invalid percent-encoding in a requested HTTP path. / Некорректное pe
 
 Invalid HTTP configuration. / Некорректная конфигурация HTTP.
 
+## HttpRequestBodyErrorCode
+
+Machine-readable HTTP request-body failure. / Машиночитаемый отказ тела HTTP-запроса.
+
+Type: (`"MALFORMED_BODY"` | `"UNSUPPORTED_MEDIA_TYPE"`)
+
+## HttpRequestBodyError
+
+**Extends Error**
+
+Expected failure while selecting or parsing an HTTP request-body representation.
+Ожидаемый отказ при выборе или разборе представления тела HTTP-запроса.
+
+### Parameters
+
+- `code` **[HttpRequestBodyErrorCode][1]** Machine-readable failure code. / Машиночитаемый код отказа.
+- `options` **ErrorOptions?** Standard error options. / Стандартные параметры ошибки.
+
+### code
+
+Machine-readable failure code. / Машиночитаемый код отказа.
+
+Type: [HttpRequestBodyErrorCode][1]
+
+### status
+
+Client-visible HTTP status. / Видимый клиенту HTTP-статус.
+
+Type: (`400` | `415`)
+
 ## InvalidWebSocketControllerError
 
 **Extends TypeError**
@@ -166,7 +196,7 @@ Expected application failure of a WebSocket event.
 
 Machine-readable application error code. / Машиночитаемый код прикладной ошибки.
 
-Type: [string][1]
+Type: [string][2]
 
 ### code
 
@@ -182,8 +212,8 @@ Stable error reported for a `daevox.v1` protocol violation.
 
 ### Parameters
 
-- `code` **[WebSocketProtocolErrorCode][2]** Machine-readable protocol code. / Машиночитаемый код.
-- `options` **[WebSocketProtocolErrorOptions][3]** Error address and severity. / Адрес и
+- `code` **[WebSocketProtocolErrorCode][3]** Machine-readable protocol code. / Машиночитаемый код.
+- `options` **[WebSocketProtocolErrorOptions][4]** Error address and severity. / Адрес и
   критичность ошибки. (optional, default `{}`)
 
   - `options.fatal` (optional, default `false`)
@@ -194,25 +224,25 @@ Stable error reported for a `daevox.v1` protocol violation.
 
 Machine-readable protocol code. / Машиночитаемый код протокола.
 
-Type: [WebSocketProtocolErrorCode][2]
+Type: [WebSocketProtocolErrorCode][3]
 
 ### fatal
 
 Whether the connection must close. / Требуется ли закрыть соединение.
 
-Type: [boolean][4]
+Type: [boolean][5]
 
 ### controller
 
 Optional controller address. / Необязательный адрес контроллера.
 
-Type: ([string][1] | [undefined][5])
+Type: ([string][2] | [undefined][6])
 
 ### event
 
 Optional event address. / Необязательный адрес события.
 
-Type: ([string][1] | [undefined][5])
+Type: ([string][2] | [undefined][6])
 
 ## ApplicationStateError
 
@@ -241,13 +271,13 @@ Expected HTTP failure returned by an HTTP handler.
 
 HTTP response status. / Статус HTTP-ответа.
 
-Type: [number][6]
+Type: [number][7]
 
 ### headers
 
 Optional response headers. / Необязательные заголовки ответа.
 
-Type: ([Headers][7] | [undefined][5])
+Type: ([Headers][8] | [undefined][6])
 
 ### body
 
@@ -259,8 +289,8 @@ Type: any
 
 #### Parameters
 
-- `status` **[number][6]** HTTP status from 400 through 599. / HTTP-статус от 400 до 599.
-- `response` **[HttpErrorResponse][8]?** Client response details. / Данные ответа клиенту.
+- `status` **[number][7]** HTTP status from 400 through 599. / HTTP-статус от 400 до 599.
+- `response` **[HttpErrorResponse][9]?** Client response details. / Данные ответа клиенту.
 - `options` **ErrorOptions?** Standard error options. / Стандартные параметры ошибки.
 
 ## InvalidJobError
@@ -317,16 +347,23 @@ Worker terminated before completing its task. / Worker завершился до
 
 Application-owned job runner is closed. / Принадлежащий приложению исполнитель задач закрыт.
 
-[1]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
-[2]: #websocketprotocolerrorcode
-[3]: #websocketprotocolerroroptions
-[4]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Boolean
-[5]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/undefined
-[6]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Number
-[7]: https://developer.mozilla.org/docs/Web/HTML/Element/header
-[8]: #httperrorresponse
+[1]: #httprequestbodyerrorcode
+[2]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/String
+[3]: #websocketprotocolerrorcode
+[4]: #websocketprotocolerroroptions
+[5]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Boolean
+[6]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/undefined
+[7]: https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Number
+[8]: https://developer.mozilla.org/docs/Web/HTML/Element/header
+[9]: #httperrorresponse
 
 ## TypeScript declarations / TypeScript-декларации
+
+### `HttpRequestBodyErrorCode`
+
+```ts
+export type HttpRequestBodyErrorCode = 'MALFORMED_BODY' | 'UNSUPPORTED_MEDIA_TYPE';
+```
 
 ### `WebSocketProtocolErrorCode`
 

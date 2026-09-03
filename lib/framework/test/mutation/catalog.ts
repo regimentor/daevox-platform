@@ -1,5 +1,33 @@
 export const modules = [
   {
+    id: 'http-request-body-reader',
+    label: 'HTTP request-body representations',
+    source: 'src/HttpRequestBodyReader.ts',
+    related: ['test/unit/http-transport.test.ts'],
+    tests: ['test/unit/http-transport.test.ts'],
+    mutants: [
+      {
+        id: 'one-shot-consumption',
+        description: 'leave the reader reusable after claiming it',
+        find: 'this.#used = true;',
+        replace: 'this.#used = false;',
+      },
+      {
+        id: 'json-charset',
+        description: 'reject the supported JSON charset',
+        find: "if (contentType?.charset !== undefined && contentType.charset !== 'utf-8') {\n        throw new HttpRequestBodyError('UNSUPPORTED_MEDIA_TYPE');\n      }\n      try {\n        return JSON.parse",
+        replace:
+          "if (contentType?.charset !== undefined && contentType.charset === 'utf-8') {\n        throw new HttpRequestBodyError('UNSUPPORTED_MEDIA_TYPE');\n      }\n      try {\n        return JSON.parse",
+      },
+      {
+        id: 'multipart-boundary',
+        description: 'reject multipart with a valid boundary',
+        find: "mediaType === 'multipart/form-data' && !contentType?.boundary",
+        replace: "mediaType === 'multipart/form-data' && contentType?.boundary !== undefined",
+      },
+    ],
+  },
+  {
     id: 'http-response',
     label: 'HTTP response normalization',
     source: 'src/Application.ts',
