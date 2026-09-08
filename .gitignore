@@ -13,3 +13,6 @@ lib/framework/test/mutation/results/
 
 .env
 *.sqlite
+
+lib/tdlib/build/native/
+lib/tdlib/build/tdlib-artifact.json
