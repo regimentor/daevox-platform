@@ -172,3 +172,49 @@ test('readiness and close waiting can be cancelled independently', async () => {
   transport.closeResponse!();
   await client.close();
 });
+
+test('close after fatal waits for transport release, including reentrant error observers', async () => {
+  let handlers!: TransportClientHandlers;
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let destroys = 0;
+  const transport: TdlibTransport = {
+    async start(_id, _path, _timeout, callbacks) {
+      handlers = callbacks;
+    },
+    send() {},
+    destroy() {
+      destroys++;
+      return released;
+    },
+  };
+  const client = new TdlibClient({ transport });
+  await client.start();
+  let closed = false;
+  client.onError(() => {
+    void client.close().then(() => {
+      closed = true;
+    });
+  });
+  handlers.onFatal(new Error('simulated failure'));
+  await waitForTurn();
+  assert.equal(closed, false);
+  release();
+  await client.close();
+  await waitForTurn();
+  assert.equal(closed, true);
+  assert.equal(destroys, 1);
+});
+
+test('close rejects if transport release cannot be confirmed', async () => {
+  class FailingReleaseTransport extends MockTransport {
+    override async destroy(): Promise<void> {
+      throw new Error('release failed');
+    }
+  }
+  const client = new TdlibClient({ transport: new FailingReleaseTransport() });
+  await client.start();
+  await assert.rejects(client.close(), { message: 'release failed' });
+});

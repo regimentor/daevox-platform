@@ -1,7 +1,6 @@
 import dotenv from 'dotenv';
 
-dotenv.config({ path: '../../.env', debug: true });
-
+dotenv.config({ path: '../../.env', quiet: true });
 
 const port = Number.parseInt(process.env.PORT ?? '3000', 10);
 
@@ -9,11 +8,9 @@ if (!Number.isInteger(port) || port < 0 || port > 65_535) {
   throw new RangeError('PORT must be an integer between 0 and 65535');
 }
 
-
-
 import { createApplication } from './application.ts';
 const application = createApplication();
-const address = await application.listen({ port, host: '0.0.0.0' });
+const address = await application.listen({ port, host: '127.0.0.1' });
 
 console.log(`Backend listening on http://${address.address}:${address.port}`);
 

@@ -1,23 +1,29 @@
 import {
   ActionIcon,
+  Anchor,
   Group,
   Text,
   useComputedColorScheme,
   useMantineColorScheme,
 } from '@mantine/core';
 
+import { useMounted } from '@mantine/hooks';
+
 import classes from './AppHeader.module.css';
 
 export function AppHeader() {
-  const colorScheme = useComputedColorScheme('light');
+  const computedColorScheme = useComputedColorScheme('light');
+  const mounted = useMounted();
+  const colorScheme = mounted ? computedColorScheme : 'light';
   const { setColorScheme } = useMantineColorScheme();
   const nextColorScheme = colorScheme === 'light' ? 'dark' : 'light';
 
   return (
     <Group className={classes.header} justify="space-between" px="md">
       <Text fw={700} size="lg">
-        Daevox agentic platform
+        Daevox
       </Text>
+      <Anchor href="/telegram">Telegram</Anchor>
       <ActionIcon
         aria-label={`Switch to ${nextColorScheme} theme`}
         onClick={() => setColorScheme(nextColorScheme)}

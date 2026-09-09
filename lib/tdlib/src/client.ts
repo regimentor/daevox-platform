@@ -144,6 +144,7 @@ export class TdlibClient {
   private state: ClientState = 'created';
   private startPromise: Promise<void> | undefined;
   private closePromise: Promise<void> | undefined;
+  private failureRelease: Promise<void> | undefined;
   private latestAuthorizationState: TdAuthorizationState | undefined;
 
   /** Creates a client. / Создаёт клиент. @public */
@@ -295,8 +296,9 @@ export class TdlibClient {
       this.rejectWaiters(new TdlibLifecycleError('TDLib client was closed'));
       return;
     }
-    if (this.state === 'failed') return;
+    if (this.state === 'failed') return this.failureRelease;
     this.state = 'closing';
+    let releaseError: Error | undefined;
     try {
       await this.invokeInternal(closeRequest);
     } catch (error) {
@@ -305,9 +307,10 @@ export class TdlibClient {
       try {
         await this.transport.destroy(this.clientId);
       } catch (error) {
-        this.emitError(error instanceof Error ? error : new Error(String(error)));
+        releaseError = error instanceof Error ? error : new Error(String(error));
+        this.emitError(releaseError);
       }
-      this.state = 'closed';
+      this.state = releaseError ? 'failed' : 'closed';
       const error = new TdlibLifecycleError('TDLib client was closed');
       for (const pending of this.pending.values()) pending.reject(error);
       this.pending.clear();
@@ -318,6 +321,7 @@ export class TdlibClient {
       }
       this.subscriptions.clear();
     }
+    if (releaseError) throw releaseError;
   }
 
   private invokeInternal(request: TdClose): Promise<TdOk> {
@@ -456,8 +460,10 @@ export class TdlibClient {
     for (const pending of this.pending.values()) pending.reject(error);
     this.pending.clear();
     this.rejectWaiters(error);
+    // Install the release promise before notifying observers, which may call close().
+    this.failureRelease = Promise.resolve().then(() => this.transport.destroy(this.clientId));
+    void this.failureRelease.catch(() => undefined);
     this.emitError(error);
-    void this.transport.destroy(this.clientId).catch(() => undefined);
   }
 
   private emitError(error: TdlibSubscriptionError | Error): void {

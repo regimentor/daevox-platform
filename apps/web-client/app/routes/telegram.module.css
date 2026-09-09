@@ -1,0 +1,31 @@
+.panel {
+  min-height: 280px;
+}
+.qrRow {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 25px;
+  align-items: center;
+}
+.qrWaiting {
+  width: 180px;
+  height: 180px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+.instructions {
+  padding-left: 20px;
+}
+.instructions li + li {
+  margin-top: 8px;
+}
+@media (max-width: 580px) {
+  .qrRow {
+    grid-template-columns: 1fr;
+  }
+  .qrRow > svg,
+  .qrWaiting {
+    margin: auto;
+  }
+}

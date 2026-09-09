@@ -12,6 +12,8 @@ lib/framework/test/fuzz/failures/
 lib/framework/test/mutation/results/
 
 .env
+.env.*
+!.env.example
 *.sqlite
 
 lib/tdlib/build/native/

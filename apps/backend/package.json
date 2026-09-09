@@ -4,18 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/main.ts",
-    "start": "node src/main.ts",
+    "dev": "node --experimental-ffi --watch src/main.ts",
+    "start": "node --experimental-ffi src/main.ts",
     "test": "node --test test/*.test.ts",
     "typecheck": "tsc -p tsconfig.json",
     "verify": "npm run typecheck && npm test"
   },
   "dependencies": {
     "@daevox/framework": "0.0.1",
-    "dotenv": "^17.4.2",
-    "drizzle-orm": "^1.0.0-rc.4",
-    "jose": "^6.2.10",
-    "openai": "^7.8.0"
+    "@daevox/tdlib": "0.0.0",
+    "@daevox/telegram-contract": "0.0.0",
+    "dotenv": "^17.4.2"
   },
   "engines": {
     "node": ">= 26",

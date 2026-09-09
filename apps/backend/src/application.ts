@@ -1,20 +1,21 @@
 import { Application } from '@daevox/framework';
 import { AppState } from './app-state.ts';
 import { HealthcheckController } from './http-controllers/healthcheck.controller.ts';
-import { AuthController } from './http-controllers/auth.controller.ts';
-import { DialogsController } from './http-controllers/dialogs.controller.ts';
+import { TelegramController } from './http-controllers/telegram.controller.ts';
+import { localMiddleware } from './middlewares/local.middleware.ts';
 
-export function createApplication() {
+export function createApplication(appState: new () => AppState = AppState) {
   const application = new Application({
-    appState: AppState,
+    appState,
     http: {
-      onError(_appState, e) {
-        console.error(e);
+      bodyLimit: '16KiB',
+      middleware: [localMiddleware],
+      onError() {
+        console.error('Backend HTTP request failed');
       },
     },
   });
   application.registerHttpController(HealthcheckController);
-  application.registerHttpController(AuthController);
-  application.registerHttpController(DialogsController);
+  application.registerHttpController(TelegramController);
   return application;
 }
