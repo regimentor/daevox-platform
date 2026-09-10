@@ -1,0 +1,51 @@
+.history {
+  flex: 1;
+  min-height: 0;
+  padding: 14px 24px;
+  overflow: hidden;
+  background: #0e1621;
+}
+.history > div:first-child {
+  flex-shrink: 0;
+}
+.messages {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 9px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 12px 0;
+}
+.bubble {
+  background: #1c2b38;
+  color: #e7edf4;
+  border-radius: 14px 14px 14px 4px;
+  max-width: min(85%, 560px);
+  align-self: flex-start;
+  flex-shrink: 0;
+  padding: 12px 15px;
+  box-shadow: 0 1px 2px #0003;
+}
+.bubble[data-outgoing='true'] {
+  align-self: flex-end;
+  background: #2b5275;
+  border-radius: 14px 14px 4px 14px;
+}
+.bubble p:first-child {
+  color: #86b9d9;
+  margin-bottom: 5px;
+  font-size: 11px;
+}
+.bubble p {
+  font-size: 14px;
+  line-height: 1.55;
+}
+@media (max-width: 700px) {
+  .history {
+    padding: 10px 12px;
+  }
+  .bubble {
+    max-width: 92%;
+  }
+}

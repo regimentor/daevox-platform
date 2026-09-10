@@ -105,6 +105,12 @@ Addressed application-event configuration. / Конфигурация внутр
 
 Application configuration. / Конфигурация приложения.
 
+### scheduledTasks
+
+Scheduled execution options. / Параметры запланированного выполнения.
+
+Type: ScheduledTasksOptions
+
 ## ListenOptions
 
 Address on which the application listens. / Адрес прослушивания приложения.
@@ -123,6 +129,27 @@ Composes HTTP, WebSocket, and background-job capabilities and owns their lifecyc
   - `$0.http` &#x20;
   - `$0.websocket` &#x20;
   - `$0.events` &#x20;
+  - `$0.scheduledTasks` &#x20;
+
+### registerScheduledTask
+
+Register a startup task. / Регистрирует задачу до запуска.
+
+#### Parameters
+
+- `TaskClass` **ScheduledTaskClass\<NoInfer\<TAppState>>**&#x20;
+
+Returns **this**&#x20;
+
+### registerRuntimeScheduledTask
+
+Register a task after successful startup. / Регистрирует задачу после успешного запуска.
+
+#### Parameters
+
+- `TaskClass` **ScheduledTaskClass\<NoInfer\<TAppState>>**&#x20;
+
+Returns **this**&#x20;
 
 ### registerWebSocketController
 
@@ -467,6 +494,8 @@ export interface ApplicationOptions<TAppState extends object = AppStateInstance>
   http?: HttpOptions<TAppState>;
   websocket?: WebSocketOptions<TAppState>;
   events?: EventOptions;
+  /** Scheduled execution options. / Параметры запланированного выполнения. @public */
+  scheduledTasks?: ScheduledTasksOptions;
 }
 ```
 

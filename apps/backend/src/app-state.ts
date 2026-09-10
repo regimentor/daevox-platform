@@ -1,26 +1,28 @@
-import { DbClient } from '@daevox/db';
 import type { AppStateInstance } from '@daevox/framework';
+import { TelegramConnection } from './domain/telegram/connection.ts';
+import { telegramParameters } from './domain/telegram/config.ts';
+import { SecretaryService } from './domain/secretary/service.ts';
 
 export class AppState implements AppStateInstance {
-  #db?: DbClient;
+  readonly telegram: TelegramConnection;
+  readonly webClientOrigin: string;
+  readonly secretary: SecretaryService;
 
-  #config = {
-    DB_URL: process.env.DB_FILE_NAME ?? '',
-    JWT_SECRET: process.env.JWT_SECRET ?? '',
-  };
-
-  async beforeAppStart() {
-    this.#db = new DbClient(this.#config.DB_URL);
+  constructor(
+    telegram = new TelegramConnection({ parameters: telegramParameters(process.env) }),
+    webClientOrigin = process.env.WEB_CLIENT_ORIGIN ?? 'http://127.0.0.1:5173',
+    archiveUrl?: string,
+  ) {
+    this.telegram = telegram;
+    this.webClientOrigin = webClientOrigin;
+    this.secretary = new SecretaryService(this.telegram, archiveUrl);
   }
-
-  getDb() {
-    if (!this.#db) {
-      throw new Error('DbClient not initialized');
-    }
-    return this.#db.getDb();
+  onAppStart() {
+    void this.telegram.start();
+    this.secretary.start();
   }
-
-  getConfig() {
-    return this.#config;
+  async onAppClose() {
+    await this.telegram.close();
+    await this.secretary.close();
   }
 }

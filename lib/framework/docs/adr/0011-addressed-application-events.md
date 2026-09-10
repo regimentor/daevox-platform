@@ -85,7 +85,7 @@ WebSocket-конфигурация получает `shutdownTimeout` с default
 `onDisconnect`. По истечении transport timeout запечатывается `EventSender`; поздний `push()` из не завершившегося handler выбрасывает
 `EventSenderClosedError`.
 
-<!-- adr-contract:application.shutdown-order -->
+Порядок ниже дополнен фазой ScheduledTask в [ADR 0016](0016-scheduled-tasks.md).
 
 Завершение сначала прекращает новый HTTP- и WebSocket-ввод и закрывает WebSocket-сессии, затем последовательно предоставляет
 отдельные grace-бюджеты HTTP- и WebSocket-операциями, запечатывает `EventSender`, ограниченно опустошает mailboxes и только после

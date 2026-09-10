@@ -1,15 +1,14 @@
-import 'dotenv/config';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'drizzle-kit';
-import dotenv from 'dotenv';
+import { databaseUrl } from './src/config.ts';
 
-dotenv.config({ path: '../../.env' });
-
-
+const url = databaseUrl();
+mkdirSync(dirname(fileURLToPath(url)), { recursive: true });
 export default defineConfig({
-  out: './drizzle',
-  schema: './src/db/schema.ts',
   dialect: 'sqlite',
-  dbCredentials: {
-    url: process.env.DB_FILE_NAME!,
-  },
+  schema: fileURLToPath(new URL('./src/schema.ts', import.meta.url)),
+  // node:sqlite expects a filesystem path; DATABASE_URL remains a file:// URL.
+  dbCredentials: { url: fileURLToPath(url) },
 });

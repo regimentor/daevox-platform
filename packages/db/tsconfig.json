@@ -5,10 +5,9 @@
     "target": "esnext",
     "module": "nodenext",
     "rewriteRelativeImportExtensions": true,
-    "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "drizzle.config.ts", "test-support.ts"]
 }

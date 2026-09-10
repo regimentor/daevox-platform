@@ -12,4 +12,11 @@ lib/framework/test/fuzz/failures/
 lib/framework/test/mutation/results/
 
 .env
+.env.*
+!.env.example
 *.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+lib/tdlib/build/native/
+lib/tdlib/build/tdlib-artifact.json

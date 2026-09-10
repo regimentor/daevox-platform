@@ -1,0 +1,253 @@
+.workspace {
+  display: grid;
+  grid-template-columns: 72px 330px minmax(0, 1fr);
+  height: calc(100dvh - 100px);
+  min-height: 480px;
+  background: #0e1621;
+  color: #edf3f8;
+  border: 1px solid #2a3b49;
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 14px;
+}
+.workspace button {
+  font: inherit;
+  cursor: pointer;
+}
+.workspace button:focus-visible,
+.workspace input:focus-visible {
+  outline: 2px solid #62b9ff;
+  outline-offset: -2px;
+}
+.rail {
+  background: #0e1721;
+  display: flex;
+  flex-direction: column;
+  padding-top: 12px;
+}
+.railButton {
+  border: 0;
+  background: transparent;
+  color: #869cab;
+  padding: 14px 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px !important;
+}
+.railButton span {
+  font-size: 25px;
+}
+.railButton[aria-pressed='true'] {
+  background: #203142;
+  color: #68baff;
+}
+.railFooter {
+  margin: auto auto 20px;
+  border: 1px solid #35566b;
+  border-radius: 12px;
+  padding: 6px 12px;
+  color: #68baff;
+}
+.sidebar {
+  background: #17232e;
+  border-right: 1px solid #0a121b;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.search {
+  padding: 14px 12px;
+}
+.search input {
+  width: 100%;
+  border: 0;
+  border-radius: 22px;
+  padding: 11px 16px;
+  background: #243340;
+  color: #eef4f9;
+  font: inherit;
+}
+.search input::placeholder {
+  color: #91a2b1;
+}
+.listHeading {
+  padding: 4px 18px 12px;
+  display: flex;
+  justify-content: space-between;
+  color: #8fa6b8;
+  font-size: 12px;
+}
+.chatList {
+  flex: 1;
+  overflow-y: auto;
+}
+.chatRow {
+  width: 100%;
+  padding: 13px 12px;
+  border: 0;
+  display: flex;
+  gap: 12px;
+  text-align: left;
+  background: transparent;
+  color: inherit;
+  align-items: center;
+}
+.chatRow:hover {
+  background: #20313f;
+}
+.chatRow[aria-pressed='true'] {
+  background: #2c5378;
+}
+.avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.rowBody {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+.rowTitle {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.preview {
+  color: #9bb0c0;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rowMeta {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  font-size: 11px;
+  color: #a0b6c9;
+}
+.observedDot {
+  color: #77c5ff;
+}
+.sidebarFooter {
+  border-top: 1px solid #263642;
+  padding: 14px;
+  font-size: 12px;
+  color: #8fa6b8;
+}
+.conversation {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.chatHeader {
+  background: #17232e;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 16px 24px;
+  min-height: 74px;
+}
+.headerTitle {
+  display: grid;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+.headerTitle strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.headerTitle small {
+  color: #8ba3b5;
+}
+.updateBar {
+  background: #1c2b38;
+  padding: 10px 24px;
+  color: #a7c0d2;
+  border-top: 1px solid #0e1923;
+}
+.updateBar p {
+  font-size: 12px;
+}
+.readOnly {
+  padding: 18px 24px;
+  background: #17232e;
+  color: #91a7b7;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.welcome {
+  margin: auto;
+  text-align: center;
+  padding: 30px;
+  color: #9bb1c2;
+}
+.welcome h2 {
+  color: #e4edf4;
+  font-size: 22px;
+}
+.welcomeIcon {
+  width: 80px;
+  height: 80px;
+  margin: auto;
+  border-radius: 50%;
+  background: #243c51;
+  color: #66b8f3;
+  font-size: 44px;
+}
+.notice,
+.empty {
+  padding: 15px;
+  color: #b5c6d3;
+}
+.back {
+  background: transparent;
+  border: 0;
+  color: #78bbee;
+  font-size: 24px !important;
+}
+@media (max-width: 1000px) {
+  .workspace {
+    grid-template-columns: 60px 270px minmax(0, 1fr);
+  }
+  .readOnly span {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  .workspace {
+    grid-template-columns: 58px minmax(0, 1fr);
+    height: calc(100dvh - 95px);
+  }
+  .conversation {
+    display: none;
+  }
+  .workspace[data-chat-open='true'] {
+    grid-template-columns: 1fr;
+  }
+  .workspace[data-chat-open='true'] .rail,
+  .workspace[data-chat-open='true'] .sidebar {
+    display: none;
+  }
+  .workspace[data-chat-open='true'] .conversation {
+    display: flex;
+  }
+  .chatHeader {
+    padding: 14px;
+  }
+}

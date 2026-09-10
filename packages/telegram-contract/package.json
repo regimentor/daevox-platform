@@ -1,0 +1,15 @@
+{
+  "name": "@daevox/telegram-contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./secretary": "./src/secretary.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test test/*.test.ts",
+    "verify": "npm run typecheck && npm test"
+  }
+}

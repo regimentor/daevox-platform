@@ -36,6 +36,10 @@ Errors by operation and observable effect: [error map](interface/errors.md). / �
 
 [`JobRunnerCapability`](api/capabilities.md#jobrunnercapability), [`InvalidJobError`](api/errors.md#invalidjoberror), [`InvalidJobOptionsError`](api/errors.md#invalidjoboptionserror), [`JobDataCloneError`](api/errors.md#jobdatacloneerror), [`JobQueueFullError`](api/errors.md#jobqueuefullerror), [`JobAbortedError`](api/errors.md#jobabortederror), [`JobTimedOutError`](api/errors.md#jobtimedouterror), [`JobExecutionError`](api/errors.md#jobexecutionerror), [`WorkerTerminatedError`](api/errors.md#workerterminatederror), [`JobRunnerClosedError`](api/errors.md#jobrunnerclosederror), [`JobContext`](api/Job.md#jobcontext), [`JobRun`](api/Job.md#jobrun), [`JobClass`](api/Job.md#jobclass), [`Job`](api/Job.md#job), [`JobRunnerConfig`](api/JobRunner.md#jobrunnerconfig), [`JobRunOptions`](api/JobRunner.md#jobrunoptions)
 
+### [ScheduledTasks](interface/scheduled-tasks.md)
+
+[`ScheduledTaskOptions`](api/ScheduledTaskBase.md#scheduledtaskoptions), [`ScheduledTaskContext`](api/ScheduledTaskBase.md#scheduledtaskcontext), [`ScheduledTaskClass`](api/ScheduledTaskBase.md#scheduledtaskclass), [`ScheduledTaskBase`](api/ScheduledTaskBase.md#scheduledtaskbase), [`ScheduledTaskErrorContext`](api/ScheduledTaskBase.md#scheduledtaskerrorcontext), [`ScheduledTasksOptions`](api/ScheduledTaskBase.md#scheduledtasksoptions), [`ScheduledTaskShutdownTimeoutError`](api/ScheduledTaskBase.md#scheduledtaskshutdowntimeouterror)
+
 ### [Middleware](interface/middleware.md)
 
 [`ByteSize`](api/Application.md#bytesize), [`AppStateInstance`](api/Application.md#appstateinstance), [`AppState`](api/Application.md#appstate), [`MiddlewareExecutionError`](api/errors.md#middlewareexecutionerror)
@@ -52,6 +56,7 @@ Errors by operation and observable effect: [error map](interface/errors.md). / �
 - [HttpRequestBodyReader](api/HttpRequestBodyReader.md) — 1 public entities / публичных сущностей
 - [Job](api/Job.md) — 4 public entities / публичных сущностей
 - [JobRunner](api/JobRunner.md) — 2 public entities / публичных сущностей
+- [ScheduledTaskBase](api/ScheduledTaskBase.md) — 7 public entities / публичных сущностей
 - [WebSocketControllerBase](api/WebSocketControllerBase.md) — 2 public entities / публичных сущностей
 - [WebSocketControllerRegistry](api/WebSocketControllerRegistry.md) — 2 public entities / публичных сущностей
 - [WebSocketSender](api/WebSocketSender.md) — 3 public entities / публичных сущностей

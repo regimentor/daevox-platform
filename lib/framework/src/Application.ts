@@ -1,4 +1,6 @@
 import nodeHttp from 'node:http';
+import { ScheduledTaskRuntime } from './ScheduledTaskRuntime.ts';
+import type { ScheduledTaskClass, ScheduledTasksOptions } from './ScheduledTaskBase.ts';
 import type { Server, ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { EventDispatcher } from './EventDispatcher.ts';
@@ -297,6 +299,8 @@ export interface ApplicationOptions<TAppState extends object = AppStateInstance>
   http?: HttpOptions<TAppState>;
   websocket?: WebSocketOptions<TAppState>;
   events?: EventOptions;
+  /** Scheduled execution options. / Параметры запланированного выполнения. @public */
+  scheduledTasks?: ScheduledTasksOptions;
 }
 
 /** Address on which the application listens. / Адрес прослушивания приложения. @public */
@@ -826,6 +830,24 @@ function normalizeRoute<TAppState extends object>(
  * @public
  */
 export class Application<TAppState extends object = AppStateInstance> {
+  /** Application schedules. / Расписания приложения. @private */
+  #scheduledTasks: ScheduledTaskRuntime<TAppState>;
+
+  /** Register a startup task. / Регистрирует задачу до запуска. @public */
+  registerScheduledTask(TaskClass: ScheduledTaskClass<NoInfer<TAppState>>): this {
+    if (this.#state !== 'new')
+      throw new ApplicationStateError('Application no longer accepts scheduled tasks');
+    this.#scheduledTasks.register(TaskClass);
+    return this;
+  }
+  /** Register a task after successful startup. / Регистрирует задачу после успешного запуска. @public */
+  registerRuntimeScheduledTask(TaskClass: ScheduledTaskClass<NoInfer<TAppState>>): this {
+    if (this.#state !== 'running' || !this.#runtimeRegistrationReady) {
+      throw new ApplicationStateError('Application is not ready for runtime scheduled tasks');
+    }
+    this.#scheduledTasks.register(TaskClass);
+    return this;
+  }
   /**
    * HTTP-route catalog. / Каталог HTTP-маршрутов.
    * @private
@@ -965,6 +987,7 @@ export class Application<TAppState extends object = AppStateInstance> {
     http,
     websocket,
     events,
+    scheduledTasks,
   }: ApplicationOptions<NoInfer<TAppState>> & { appState: AppState<TAppState> }) {
     if (typeof appState !== 'function') {
       throw new ApplicationStateError('Application options must contain an appState constructor');
@@ -978,6 +1001,15 @@ export class Application<TAppState extends object = AppStateInstance> {
     this.#webSocketSender = new WebSocketSender(
       this.#webSocketSessions,
       this.#webSocketOptions.maxPayload,
+    );
+    this.#scheduledTasks = new ScheduledTaskRuntime(
+      this.#appState,
+      {
+        jobRunner: this.#jobRunner,
+        events: this.#eventDispatcher.sender,
+        websocket: this.#webSocketSender,
+      },
+      scheduledTasks,
     );
   }
 
@@ -1202,7 +1234,10 @@ export class Application<TAppState extends object = AppStateInstance> {
           this.#state = 'running';
           Promise.resolve((this.#appState as AppStateInstance).onAppStart?.()).then(
             () => {
-              this.#runtimeRegistrationReady = true;
+              if (!this.#closePromise) {
+                this.#runtimeRegistrationReady = true;
+                this.#scheduledTasks.start();
+              }
               resolve(server.address());
             },
             (error) => {
@@ -1495,10 +1530,13 @@ export class Application<TAppState extends object = AppStateInstance> {
    */
   close() {
     if (!this.#closePromise) {
+      const closing = Promise.withResolvers<void>();
+      this.#closePromise = closing.promise;
       const stateAtClose = this.#state;
       this.#state = 'closing';
+      this.#scheduledTasks.stop();
       this.#runtimeRegistrationReady = false;
-      this.#closePromise = (async () => {
+      void (async () => {
         if (stateAtClose === 'starting') {
           try {
             await this.#listenPromise;
@@ -1534,6 +1572,7 @@ export class Application<TAppState extends object = AppStateInstance> {
           );
           await serverClosing;
         }
+        await this.#scheduledTasks.close();
         let firstError: unknown;
         try {
           await this.#eventDispatcher.close();
@@ -1552,7 +1591,7 @@ export class Application<TAppState extends object = AppStateInstance> {
         }
         this.#state = 'closed';
         if (firstError) throw firstError;
-      })();
+      })().then(closing.resolve, closing.reject);
     }
     return this.#closePromise;
   }

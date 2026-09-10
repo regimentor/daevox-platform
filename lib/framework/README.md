@@ -573,11 +573,37 @@ const application = new Application({
 });
 ```
 
+## Запланированные задачи
+
+`ScheduledTaskBase` задаёт отдельный класс работы по шестипольному cron. `run(appState, { signal })`
+возвращает Promise<void>, получает общий AppState и использует `this.jobRunner`, `this.events`,
+`this.websocket`. Новый экземпляр создаётся на каждый запуск; занятая задача пропускает следующие
+срабатывания без очереди. Локальный часовой пояс фиксируется при активации приложения.
+
+```ts
+class RefreshCache extends ScheduledTaskBase {
+  static cron = '0 */5 * * * *';
+  async run(state: MyAppState, { signal }: ScheduledTaskContext): Promise<void> {
+    await state.cache.refresh({ signal });
+  }
+}
+application.registerScheduledTask(RefreshCache);
+await application.listen({ port: 3000 });
+// После startup доступна application.registerRuntimeScheduledTask(AnotherTask).
+```
+
+Импортируйте ScheduledTaskBase и тип ScheduledTaskContext из `@daevox/framework`.
+Полный [контракт](docs/interface/scheduled-tasks.md), [типизированный runnable-пример](examples/scheduled-tasks/main.ts)
+и команда `npm run example:scheduled-tasks --workspace @daevox/framework` показывают Worker Job
+и асинхронную операцию AppState. `scheduledTasks.onError` наблюдает ошибки; общий
+`scheduledTasks.shutdownTimeout` по умолчанию 30000 мс предоставляется после transport settlement
+и до закрытия events/Job Runner. Сигналы активных run отменяются сразу при close.
+
 ## Жизненный цикл
 
 `Application.listen()` можно вызвать один раз. `Application.close()` прекращает новый HTTP- и
 WebSocket-ввод, закрывает WebSocket-сессии, затем последовательно применяет независимые бюджеты
-`http.shutdownTimeout`, `websocket.shutdownTimeout`, `events.shutdownTimeout` и
+`http.shutdownTimeout`, `websocket.shutdownTimeout`, `scheduledTasks.shutdownTimeout`, `events.shutdownTimeout` и
 `jobs.shutdownTimeout`. Transport-handler отслеживаются до settlement даже после уничтожения HTTP
 response или закрытия WebSocket-сессии. После закрытия приложение нельзя запустить повторно.
 

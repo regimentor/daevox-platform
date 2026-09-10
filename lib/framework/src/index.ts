@@ -3,6 +3,14 @@
  * Публичная runtime-точка входа. Её явные экспорты определяют поддерживаемый interface фреймворка.
  */
 export { Application } from './Application.ts';
+export { ScheduledTaskBase, ScheduledTaskShutdownTimeoutError } from './ScheduledTaskBase.ts';
+export type {
+  ScheduledTaskClass,
+  ScheduledTaskContext,
+  ScheduledTaskOptions,
+  ScheduledTaskErrorContext,
+  ScheduledTasksOptions,
+} from './ScheduledTaskBase.ts';
 export { EventListenerBase } from './EventListenerBase.ts';
 export { HttpControllerBase } from './HttpControllerBase.ts';
 export { Job } from './Job.ts';

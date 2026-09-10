@@ -1,5 +1,114 @@
 export const modules = [
   {
+    id: 'scheduled-runtime',
+    label: 'ScheduledTask execution and shutdown',
+    source: 'src/ScheduledTaskRuntime.ts',
+    related: ['test/unit/scheduled-tasks.test.ts'],
+    tests: ['test/unit/scheduled-tasks.test.ts'],
+    mutants: [
+      {
+        id: 'overlap',
+        description: 'allow overlapping runs',
+        find: 'if (entry.active) continue;',
+        replace: 'if (false) continue;',
+      },
+      {
+        id: 'promise-contract',
+        description: 'accept non-Promise run result',
+        find: 'if (!types.isPromise(operation))',
+        replace: 'if (false)',
+      },
+      {
+        id: 'early-fire',
+        description: 'execute before the cron instant',
+        find: 'if (entry.next > now) continue;',
+        replace: 'if (false) continue;',
+      },
+      {
+        id: 'late-rejection',
+        description: 'report a rejection after shutdown timeout',
+        find: "if (!entry.timedOut) this.#report(error, entry, 'run');",
+        replace: "this.#report(error, entry, 'run');",
+      },
+      {
+        id: 'abort',
+        description: 'leave active task signals uncancelled',
+        find: 'entry.abort?.abort();',
+        replace: 'void entry.abort;',
+      },
+      {
+        id: 'shutdown-budget',
+        description: 'use a shorter default grace period',
+        find: 'options.shutdownTimeout === undefined ? 30000 : options.shutdownTimeout',
+        replace: 'options.shutdownTimeout === undefined ? 1 : options.shutdownTimeout',
+      },
+    ],
+  },
+  {
+    id: 'scheduled-native-timer',
+    label: 'ScheduledTask native timer cleanup',
+    source: 'src/ScheduledTaskRuntime.ts',
+    related: ['test/e2e/scheduled-tasks.test.ts'],
+    tests: ['test/e2e/scheduled-tasks.test.ts'],
+    mutants: [
+      {
+        id: 'single-wakeup',
+        description: 'retain a second timer after registration from a running task',
+        find: '#arm(): void {\n    clearTimeout(this.#timer);',
+        replace: '#arm(): void {',
+      },
+    ],
+  },
+  {
+    id: 'scheduled-calendar',
+    label: 'ScheduledTask calendar semantics',
+    source: 'src/scheduledCron.ts',
+    related: ['test/unit/scheduled-calendar.test.ts'],
+    tests: ['test/unit/scheduled-calendar.test.ts'],
+    mutants: [
+      {
+        id: 'day-or',
+        description: 'combine restricted calendar days with AND',
+        find: 'day || weekday',
+        replace: 'day && weekday',
+      },
+      {
+        id: 'strict-future',
+        description: 'replay the activation instant',
+        find: 'Math.floor((after + offset - midnight) / 1000) + 1',
+        replace: 'Math.floor((after + offset - midnight) / 1000)',
+      },
+      {
+        id: 'local-zone',
+        description: 'ignore the process time zone',
+        find: 'const candidate = midnight + seconds * 1000 - offset;',
+        replace: 'const candidate = midnight + seconds * 1000;',
+      },
+    ],
+  },
+  {
+    id: 'scheduled-application',
+    label: 'ScheduledTask Application lifecycle',
+    source: 'src/Application.ts',
+    related: ['test/unit/scheduled-tasks.test.ts', 'test/e2e/scheduled-tasks.test.ts'],
+    tests: ['test/unit/scheduled-tasks.test.ts', 'test/e2e/scheduled-tasks.test.ts'],
+    mutants: [
+      {
+        id: 'activation-after-close',
+        description: 'reactivate schedules after close during startup',
+        find: 'if (!this.#closePromise) {\n                this.#runtimeRegistrationReady = true;',
+        replace: 'if (true) {\n                this.#runtimeRegistrationReady = true;',
+      },
+      {
+        id: 'shutdown-order',
+        description: 'close EventSender before scheduled cleanup',
+        find: 'await this.#scheduledTasks.close();',
+        replace:
+          'await this.#eventDispatcher.close();\n        await this.#scheduledTasks.close();',
+      },
+    ],
+  },
+  {
     id: 'http-request-body-reader',
     label: 'HTTP request-body representations',
     source: 'src/HttpRequestBodyReader.ts',

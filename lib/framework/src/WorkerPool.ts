@@ -52,6 +52,22 @@ interface WorkerResponseMessage {
 }
 
 /**
+ * Identifies Node watch dependency reports, already forwarded by Node to its watcher. / Распознаёт отчёты зависимостей Node watch, уже переданные Node своему watcher.
+ * @param message Worker message. / Сообщение Worker.
+ * @returns Whether this is a watch-only notification. / Является ли сообщение только уведомлением watch.
+ * @private
+ */
+function isWatchDependencyReport(message: unknown): boolean {
+  if (!process.env.WATCH_REPORT_DEPENDENCIES || !message || typeof message !== 'object')
+    return false;
+  const keys = Object.keys(message);
+  if (keys.length !== 1 || (keys[0] !== 'watch:import' && keys[0] !== 'watch:require'))
+    return false;
+  const files: unknown = Reflect.get(message, keys[0]);
+  return Array.isArray(files) && files.every((file) => typeof file === 'string');
+}
+
+/**
 
  * Restores a serialized worker error and its cause chain. / Восстанавливает сериализованную ошибку Worker и цепочку причин.
 
@@ -295,6 +311,7 @@ export class WorkerPool {
 
    */
   #onMessage(entry: WorkerEntry, message: WorkerResponseMessage): void {
+    if (isWatchDependencyReport(message)) return;
     const task = entry.task;
     if (!task || message.id !== task.id) {
       this.#terminateBrokenWorker(entry, 'Worker violated the job protocol');

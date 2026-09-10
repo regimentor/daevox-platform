@@ -67,3 +67,10 @@
 | Класс                                                                   | Операция                                      | Эффект                                                                            |
 | ----------------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------- |
 | [`MiddlewareExecutionError`](../api/errors.md#middlewareexecutionerror) | Один middleware повторно вызвал свой `next()` | HTTP: unexpected `500`; WebSocket: `HANDLER_ERROR`; transport observer вызывается |
+
+## ScheduledTask
+
+- TypeError: некорректные options, объявление, cron, повтор constructor или нарушение Promise-контракта run.
+- ApplicationStateError: регистрация вне допустимого lifecycle-окна.
+- [ScheduledTaskShutdownTimeoutError](../api/ScheduledTaskBase.md#scheduledtaskshutdowntimeouterror):
+  однократная диагностика незавершённого запуска после grace-бюджета; close не отклоняется.

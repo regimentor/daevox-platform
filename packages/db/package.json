@@ -1,20 +1,23 @@
 {
   "name": "@daevox/db",
-  "version": "1.0.0",
-  "description": "",
-  "main": "src/index.ts",
-  "scripts": {
-    "push": "drizzle-kit push"
-  },
-  "keywords": [],
+  "version": "0.0.0",
+  "private": true,
   "type": "module",
-  "devDependencies": {
-    "drizzle-kit": "^1.0.0-rc.4",
-    "tsx": "^4.23.13"
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./test-support.ts"
+  },
+  "scripts": {
+    "db:push": "drizzle-kit push --config=drizzle.config.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test test/*.test.ts",
+    "verify": "npm run typecheck && npm test"
   },
   "dependencies": {
-    "@libsql/client": "^0.17.4",
-    "dotenv": "^17.4.2",
-    "drizzle-orm": "^1.0.0-rc.4"
+    "drizzle-orm": "1.0.0-rc.4"
+  },
+  "engines": {
+    "node": ">= 26",
+    "npm": ">= 12"
   }
 }
