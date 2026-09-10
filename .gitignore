@@ -1,4 +1,5 @@
 node_modules/
+/:memory:.ses
 apps/*/.react-router/
 apps/*/build/
 apps/*/coverage/

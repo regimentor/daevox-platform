@@ -16,7 +16,9 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "typecheck": "npm run css:types && react-router typegen && tsc",
-    "verify": "npm run typecheck && npm run test:coverage && npm run build && npm run storybook:build"
+    "verify": "npm run typecheck && npm run test:coverage && npm run build && npm run storybook:build",
+    "test:e2e:transcription": "playwright test --config playwright.transcription.config.ts",
+    "test:e2e:voiceover": "playwright test --config playwright.voiceover.config.ts"
   },
   "dependencies": {
     "@daevox/telegram-contract": "^0.0.0",

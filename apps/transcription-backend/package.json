@@ -1,0 +1,12 @@
+{
+  "name": "@daevox/transcription-backend",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "uv run --locked --extra gpu python -m transcription",
+    "test": "uv run --locked --inexact pytest",
+    "typecheck": "uv run --locked --inexact mypy src",
+    "check": "uv run --locked --inexact ruff check . && uv run --locked --inexact ruff format --check .",
+    "verify": "npm run check && npm run typecheck && npm test"
+  }
+}

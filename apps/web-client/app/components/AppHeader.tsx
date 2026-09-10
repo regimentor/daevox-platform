@@ -23,7 +23,11 @@ export function AppHeader() {
       <Text fw={700} size="lg">
         Daevox
       </Text>
-      <Anchor href="/telegram">Telegram</Anchor>
+      <Group>
+        <Anchor href="/telegram">Telegram</Anchor>
+        <Anchor href="/transcription">Транскрибация</Anchor>
+        <Anchor href="/voiceover">Перевод видео</Anchor>
+      </Group>
       <ActionIcon
         aria-label={`Switch to ${nextColorScheme} theme`}
         onClick={() => setColorScheme(nextColorScheme)}
