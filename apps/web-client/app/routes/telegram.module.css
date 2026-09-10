@@ -1,6 +1,9 @@
 .panel {
   min-height: 280px;
 }
+.watchingPanel {
+  background: var(--mantine-color-blue-light);
+}
 .qrRow {
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr);

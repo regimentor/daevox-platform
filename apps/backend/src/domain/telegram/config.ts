@@ -7,7 +7,7 @@ export function telegramParameters(env: NodeJS.ProcessEnv): TdSetTdlibParameters
   const key = env.TELEGRAM_DATABASE_KEY ?? '';
   const database = env.TELEGRAM_DATABASE_DIRECTORY ?? '';
   const files = env.TELEGRAM_FILES_DIRECTORY ?? '';
-  const repo = new URL('../../../../', import.meta.url).pathname;
+  const repo = new URL('../../../../../', import.meta.url).pathname;
   const outsideRepo = (path: string) => isAbsolute(path) && relative(repo, path).startsWith('../');
   if (
     !/^\d+$/.test(id) ||

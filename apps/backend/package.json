@@ -11,10 +11,12 @@
     "verify": "npm run typecheck && npm test"
   },
   "dependencies": {
+    "@daevox/db": "0.0.0",
     "@daevox/framework": "0.0.1",
     "@daevox/tdlib": "0.0.0",
     "@daevox/telegram-contract": "0.0.0",
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "openai": "^7.13.0"
   },
   "engines": {
     "node": ">= 26",

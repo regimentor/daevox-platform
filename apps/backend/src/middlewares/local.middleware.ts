@@ -1,6 +1,6 @@
 import type { HttpMiddleware } from '@daevox/framework';
 import type { AppState } from '../app-state.ts';
-import { safeError } from '../telegram/connection.ts';
+import { safeError } from '../domain/telegram/connection.ts';
 
 function localOrigin(value: string): boolean {
   try {

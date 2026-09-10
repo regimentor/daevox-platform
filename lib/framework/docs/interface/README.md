@@ -11,6 +11,7 @@
 - HTTP-контроллеры, HTTP-маршруты, контекст и ответы: [HTTP](http.md).
 - `daevox.v1`, сессии, lifecycle и server push: [WebSocket](websocket.md).
 - Адресуемая fire-and-forget доставка и FIFO mailbox: [внутренние события](application-events.md).
+- Запланированные задачи и cron: [ScheduledTask](scheduled-tasks.md).
 - `Job`, Worker, очередь, отмена и тайм-ауты: [фоновые задачи](jobs.md).
 - Порядок `(ctx, next)`, short-circuit и transport-specific ошибки: [middleware](middleware.md).
 - Поиск error-класса по операции и transport-эффекту: [карта ошибок](errors.md).

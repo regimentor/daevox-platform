@@ -3,6 +3,7 @@ declare const styles: {
   readonly "panel": string;
   readonly "qrRow": string;
   readonly "qrWaiting": string;
+  readonly "watchingPanel": string;
 };
 export = styles;
 

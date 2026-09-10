@@ -49,7 +49,10 @@
     "test:coverage": "node --test --experimental-test-coverage test/unit/*.test.ts test/e2e/*.test.ts",
     "test:unit": "node --test test/unit/*.test.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "verify": "npm run check && npm test"
+    "verify": "npm run check && npm test",
+    "test:scheduled": "node --test test/unit/scheduled*.test.ts test/e2e/scheduled-tasks.test.ts",
+    "test:scheduled:coverage": "node --test --experimental-test-coverage --test-coverage-include='src/Scheduled*.ts' --test-coverage-include='src/scheduledCron.ts' --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 test/unit/scheduled*.test.ts test/e2e/scheduled-tasks.test.ts",
+    "example:scheduled-tasks": "node examples/scheduled-tasks/main.ts"
   },
   "engines": {
     "node": ">= 26",

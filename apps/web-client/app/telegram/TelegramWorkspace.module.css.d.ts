@@ -1,0 +1,30 @@
+declare const styles: {
+  readonly "avatar": string;
+  readonly "back": string;
+  readonly "chatHeader": string;
+  readonly "chatList": string;
+  readonly "chatRow": string;
+  readonly "conversation": string;
+  readonly "empty": string;
+  readonly "headerTitle": string;
+  readonly "listHeading": string;
+  readonly "notice": string;
+  readonly "observedDot": string;
+  readonly "preview": string;
+  readonly "rail": string;
+  readonly "railButton": string;
+  readonly "railFooter": string;
+  readonly "readOnly": string;
+  readonly "rowBody": string;
+  readonly "rowMeta": string;
+  readonly "rowTitle": string;
+  readonly "search": string;
+  readonly "sidebar": string;
+  readonly "sidebarFooter": string;
+  readonly "updateBar": string;
+  readonly "welcome": string;
+  readonly "welcomeIcon": string;
+  readonly "workspace": string;
+};
+export = styles;
+

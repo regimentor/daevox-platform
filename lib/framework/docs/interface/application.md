@@ -14,10 +14,7 @@
 
 <!-- adr-contract:application.shutdown-order -->
 
-Завершение сначала прекращает новый HTTP- и WebSocket-ввод и закрывает WebSocket-сессии, затем последовательно предоставляет
-отдельные grace-бюджеты HTTP- и WebSocket-операциями, запечатывает `EventSender`, ограниченно опустошает mailboxes и только после
-этого закрывает `Job Runner`. Бюджеты `http.shutdownTimeout`, `websocket.shutdownTimeout`, `events.shutdownTimeout` и `jobs.shutdownTimeout` независимы и складываются,
-а не делят общий deadline.
+Завершение прекращает новый HTTP- и WebSocket-ввод, останавливает расписания и отменяет сигналы активных ScheduledTask. После закрытия WebSocket-сессий приложение последовательно ждёт HTTP- и WebSocket-операции, затем ScheduledTask, запечатывает EventSender, опустошает mailboxes и закрывает Job Runner. Бюджеты `http.shutdownTimeout`, `websocket.shutdownTimeout`, `scheduledTasks.shutdownTimeout`, `events.shutdownTimeout` и `jobs.shutdownTimeout` независимы и складываются.
 
 ## Минимальный runnable пример
 
@@ -44,9 +41,9 @@ node example.ts
 - Runtime-регистрация синхронна, возвращает тот же `Application` и закрывается в начале `close()`.
 - `listen()` однократен; ошибка запуска, начавшийся `close()` и завершённое приложение необратимы.
 - `close()` прекращает новый ingress, закрывает WebSocket-сессии, ждёт transport settlement или
-  forced cutoff, запечатывает event sender, ограниченно опустошает mailboxes и затем закрывает Job
+  forced cutoff, ждёт ScheduledTask, запечатывает event sender, ограниченно опустошает mailboxes и затем закрывает Job
   Runner.
-- Бюджеты `http`, `websocket`, `events` и `jobs` независимы и складываются.
+- Бюджеты `http`, `websocket`, `scheduledTasks`, `events` и `jobs` независимы и складываются.
 - Transport object может завершиться раньше пользовательского handler; shutdown отслеживает именно
   settlement handler до соответствующего cutoff.
 - `ApplicationOptions.appState` обязателен и принимает класс без аргументов. `Application` создаёт
@@ -71,3 +68,5 @@ node example.ts
 - [`test/e2e/application-events-shutdown.test.ts`](../../test/e2e/application-events-shutdown.test.ts)
   — settlement transport-handler и event drain.
 - [`test/e2e/races.test.ts`](../../test/e2e/races.test.ts) — lifecycle-гонки.
+
+- [ScheduledTask и порядок завершения](scheduled-tasks.md).

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { isSnapshot } from '@daevox/telegram-contract';
 import type { Action } from '@daevox/telegram-contract';
-import { TelegramConnection, CommandError } from '../src/telegram/connection.ts';
+import { TelegramConnection, CommandError } from '../src/domain/telegram/connection.ts';
 import { ControlledTelegram, parameters, turn } from './support/controlled-telegram.ts';
 
 async function setup(initial?: object) {

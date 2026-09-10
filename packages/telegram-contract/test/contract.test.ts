@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { isCommand, isSnapshot, isAccepted, isSafeError } from '../src/index.ts';
+import { isObservationCommand } from '../src/secretary.ts';
 const expected = { instanceId: 'test', controlVersion: 0 };
 const snapshot = {
   ...expected,
@@ -50,4 +51,53 @@ test('browser validates complete snapshots and variant fields', () => {
   assert.ok(isAccepted({ instanceId: 'test', operationId: 'test' }));
   assert.equal(isAccepted({ instanceId: 'test' }), false);
   assert.equal(isSafeError({ code: 'raw_tdlib_error', message: 'secret' }), false);
+});
+test('observation command keeps context fields outside expected', () => {
+  assert.ok(
+    isObservationCommand({
+      accountId: '287895731',
+      chatId: '323014428',
+      enabled: true,
+      expected: {
+        instanceId: '574eb4d7-a7cd-42a2-921b-ec727b805b0c',
+        accountEpoch: 1,
+        observationVersion: 0,
+      },
+    }),
+  );
+  assert.equal(
+    isObservationCommand({
+      accountId: '287895731',
+      chatId: '323014428',
+      enabled: true,
+      expected: {
+        instanceId: '574eb4d7-a7cd-42a2-921b-ec727b805b0c',
+        accountId: '287895731',
+        accountEpoch: 1,
+        revision: 413,
+        observationVersion: 0,
+      },
+    }),
+    false,
+  );
+});
+
+test('auto-reply commands validate account/chat IDs and independent setting version', async () => {
+  const { isAutoReplyCommand } = await import('../src/secretary.ts');
+  const command = {
+    accountId: '42',
+    chatId: '-100',
+    enabled: true,
+    expected: { instanceId: 'backend', accountEpoch: 1, autoReplyVersion: 0 },
+  };
+  assert.equal(isAutoReplyCommand(command), true);
+  for (const invalid of [
+    { ...command, chatId: '9007199254740992' },
+    { ...command, accountId: 'garbage' },
+    { ...command, enabled: 'yes' },
+    { ...command, extra: true },
+    { ...command, expected: { ...command.expected, observationVersion: 0 } },
+    { ...command, expected: { ...command.expected, autoReplyVersion: -1 } },
+  ])
+    assert.equal(isAutoReplyCommand(invalid), false);
 });

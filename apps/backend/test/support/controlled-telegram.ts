@@ -1,5 +1,5 @@
 import { TdlibClient, type TdlibTransport, type TransportClientHandlers } from '@daevox/tdlib';
-import { telegramParameters } from '../../src/telegram/config.ts';
+import { telegramParameters } from '../../src/domain/telegram/config.ts';
 
 // Public test values only; never points at a personal session directory.
 export const parameters = telegramParameters({
@@ -20,6 +20,7 @@ export class ControlledTelegram implements TdlibTransport {
   startGate?: Promise<void>;
   stateGate?: Promise<void>;
   automatic = false;
+  respondTo?: (request: Record<string, unknown>) => object | undefined;
   metadataError = false;
   constructor(authorization: object = { '@type': 'authorizationStateWaitPhoneNumber' }) {
     this.authorization = authorization;
@@ -36,6 +37,11 @@ export class ControlledTelegram implements TdlibTransport {
   send(_id: string, requestId: string, request: Record<string, unknown>) {
     this.requests.push({ requestId, request });
     const reply = (payload: object) => this.respond(requestId, payload);
+    const response = this.respondTo?.(request);
+    if (response) {
+      reply(response);
+      return;
+    }
     switch (request['@type']) {
       case 'getAuthorizationState': {
         const state = this.authorization;

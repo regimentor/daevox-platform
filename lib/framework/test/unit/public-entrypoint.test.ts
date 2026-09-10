@@ -131,6 +131,8 @@ test('the package entrypoint exposes only the supported runtime interface', () =
     'JobRunnerClosedError',
     'JobTimedOutError',
     'MiddlewareExecutionError',
+    'ScheduledTaskBase',
+    'ScheduledTaskShutdownTimeoutError',
     'WebSocketClientNotFoundError',
     'WebSocketControllerBase',
     'WebSocketControllerConflictError',

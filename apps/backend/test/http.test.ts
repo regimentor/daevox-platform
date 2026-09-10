@@ -4,21 +4,26 @@ import { test } from 'node:test';
 import { isSnapshot } from '@daevox/telegram-contract';
 import { AppState } from '../src/app-state.ts';
 import { createApplication } from '../src/application.ts';
-import { TelegramConnection } from '../src/telegram/connection.ts';
+import { TelegramConnection } from '../src/domain/telegram/connection.ts';
 import { ControlledTelegram, parameters, turn } from './support/controlled-telegram.ts';
+import { testDatabase } from '@daevox/db/testing';
 
 const origin = 'http://127.0.0.1:5173';
 test('real local HTTP admission, CORS, validation and command races', async (t) => {
+  const database = testDatabase();
   const mock = new ControlledTelegram();
   const telegram = new TelegramConnection({ parameters, createClient: () => mock.client() });
   class State extends AppState {
     constructor() {
-      super(telegram, origin);
+      super(telegram, origin, database.url);
     }
   }
   const app = createApplication(State);
   const address = await app.listen({ port: 0, host: '127.0.0.1' });
-  t.after(() => app.close());
+  t.after(async () => {
+    await app.close();
+    database.cleanup();
+  });
   await telegram.start();
   const base = `http://127.0.0.1:${address.port}/api/telegram`;
   const get = await fetch(`${base}/state`, { headers: { Origin: origin } });
@@ -93,15 +98,19 @@ test('real local HTTP admission, CORS, validation and command races', async (t) 
 });
 
 test('HTTP remains healthy while Telegram starts and without configuration', async (t) => {
+  const database = testDatabase();
   const telegram = new TelegramConnection({ parameters: null });
   class State extends AppState {
     constructor() {
-      super(telegram, origin);
+      super(telegram, origin, database.url);
     }
   }
   const app = createApplication(State);
   const address = await app.listen({ port: 0 });
-  t.after(() => app.close());
+  t.after(async () => {
+    await app.close();
+    database.cleanup();
+  });
   const base = `http://127.0.0.1:${address.port}`;
   assert.equal((await fetch(`${base}/healthcheck`)).status, 200);
   const state = await (await fetch(`${base}/api/telegram/state`)).json();

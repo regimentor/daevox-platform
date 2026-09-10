@@ -7,6 +7,8 @@ export type TelegramClient = Pick<
   TdlibClient,
   'start' | 'close' | 'invoke' | 'onUpdate' | 'onError'
 >;
+export type TelegramReadRequest = Parameters<TelegramClient['invoke']>[0];
+export type TelegramUpdate = Parameters<Parameters<TelegramClient['onUpdate']>[0]>[0];
 export interface ConnectionOptions {
   parameters: TdSetTdlibParameters | null;
   createClient?: () => TelegramClient;
@@ -65,6 +67,16 @@ export class TelegramConnection {
   };
   private client?: TelegramClient;
   private generation = 0;
+  private liveSince: number | null = null;
+  get replyLiveSince() {
+    return this.state.client === 'running' &&
+      this.state.authorization.kind === 'connected' &&
+      !(this.state.operation?.kind === 'disconnect' && this.state.operation.status === 'pending') &&
+      !this.releasing &&
+      !this.stopping
+      ? this.liveSince
+      : null;
+  }
   private stopping = false;
   private releasing = false;
   private startup?: Promise<void>;
@@ -72,12 +84,31 @@ export class TelegramConnection {
   private release?: Promise<void>;
   private unsubscribe: Array<() => void> = [];
   private retryTimer?: ReturnType<typeof setTimeout>;
+  private readonly stateListeners = new Set<() => void>();
+  private readonly updateListeners = new Set<(update: TelegramUpdate) => void>();
 
   constructor(options: ConnectionOptions) {
     this.options = options;
   }
   snapshot(): Snapshot {
     return structuredClone(this.state);
+  }
+  onState(listener: () => void): () => void {
+    this.stateListeners.add(listener);
+    return () => this.stateListeners.delete(listener);
+  }
+  onSecretaryUpdate(listener: (update: TelegramUpdate) => void): () => void {
+    this.updateListeners.add(listener);
+    return () => this.updateListeners.delete(listener);
+  }
+  async invokeRead<T>(request: TelegramReadRequest): Promise<T> {
+    if (
+      !this.client ||
+      this.state.client !== 'running' ||
+      this.state.authorization.kind !== 'connected'
+    )
+      throw new Error('TELEGRAM_UNAVAILABLE');
+    return (await this.client.invoke(request)) as T;
   }
   start(): Promise<void> {
     if (!this.startup) this.startup = this.boot();
@@ -101,6 +132,7 @@ export class TelegramConnection {
     this.state.allowedActions = actions;
     this.state.revision++;
     if (control || previous !== actions.join()) this.state.controlVersion++;
+    for (const listener of this.stateListeners) listener();
   }
   private setAuthorization(authorization: Snapshot['authorization']): void {
     const changed = authorization.kind !== this.state.authorization.kind;
@@ -129,6 +161,7 @@ export class TelegramConnection {
       this.publish(true);
       return;
     }
+    this.liveSince = null;
     const generation = ++this.generation;
     this.state.client = 'initializing';
     this.state.connection = 'unknown';
@@ -161,6 +194,9 @@ export class TelegramConnection {
             latest = update.authorization_state;
             if (started) authorization(latest);
           }
+          if (update['@type'] === 'updateConnectionState')
+            this.liveSince = update.state?.['@type'] === 'connectionStateReady' ? Date.now() : null;
+          for (const listener of this.updateListeners) listener(update);
           if (update['@type'] === 'updateConnectionState' && update.state) {
             const type = update.state['@type'];
             this.state.connection =

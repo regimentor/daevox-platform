@@ -1,7 +1,7 @@
 import { HttpControllerBase, type HttpRequestContext } from '@daevox/framework';
 import { isCommand, type Action } from '@daevox/telegram-contract';
 import type { AppState } from '../app-state.ts';
-import { CommandError, safeError } from '../telegram/connection.ts';
+import { CommandError, safeError } from '../domain/telegram/connection.ts';
 
 export class TelegramController extends HttpControllerBase {
   static prefix = '/api/telegram';

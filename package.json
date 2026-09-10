@@ -9,6 +9,7 @@
   ],
   "type": "module",
   "scripts": {
+    "db:push": "npm run db:push --workspace @daevox/db",
     "check": "npm run check --workspaces --if-present",
     "docs:build": "npm run docs:build --workspaces --if-present",
     "docs:check": "npm run docs:check --workspaces --if-present",
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@types/node": "^26.4.0",
     "documentation": "^14.0.3",
+    "drizzle-kit": "1.0.0-rc.4",
     "oxfmt": "^0.64.0",
     "oxlint": "^1.79.0",
     "typescript": "^7.0.2"

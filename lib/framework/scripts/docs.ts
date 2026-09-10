@@ -136,6 +136,7 @@ function capability(name: string): string {
     ['Application', 'ApplicationOptions', 'ApplicationStateError', 'ListenOptions'].includes(name)
   )
     return 'Application';
+  if (name.includes('Scheduled')) return 'ScheduledTasks';
   if (name.includes('Http')) return 'HTTP';
   if (name.includes('WebSocket')) return 'WebSocket';
   if (name.includes('Event')) return 'Events';
@@ -146,6 +147,7 @@ function capability(name: string): string {
 function capabilityGuide(name: string): string {
   const guides = new Map([
     ['Application', 'application.md'],
+    ['ScheduledTasks', 'scheduled-tasks.md'],
     ['HTTP', 'http.md'],
     ['WebSocket', 'websocket.md'],
     ['Events', 'application-events.md'],
@@ -205,7 +207,15 @@ function indexMarkdown(modules: any[]): string {
       capabilities.set(group, entries);
     }
   }
-  const capabilityEntries = ['Application', 'HTTP', 'WebSocket', 'Events', 'Jobs', 'Middleware']
+  const capabilityEntries = [
+    'Application',
+    'HTTP',
+    'WebSocket',
+    'Events',
+    'Jobs',
+    'ScheduledTasks',
+    'Middleware',
+  ]
     .filter((name: string) => capabilities.has(name))
     .map((name: string) => {
       const links = (capabilities.get(name) ?? [])
@@ -410,6 +420,7 @@ async function checkAdrContracts(): Promise<void> {
     'application-events.md',
     'jobs.md',
     'middleware.md',
+    'scheduled-tasks.md',
   ];
   const adrFiles = (await readdir(path.join(root, 'docs', 'adr')))
     .filter((file: string) => file.endsWith('.md'))
