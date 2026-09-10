@@ -21,6 +21,7 @@ export interface Voiceover {
   transcript: Phrase[];
   translations: Translation[];
   speakers: { id: string; label: string }[];
+  available_voices?: string[];
   voice_assignments: Record<string, string>;
   problems: { start: number; end: number; reason: string }[];
   assets: { video?: string; audio?: string };
@@ -54,5 +55,6 @@ export const stageLabels: Record<string, string> = {
   synthesis: 'Синтез речи',
   shorten: 'Уточнение длины перевода',
   fit: 'Подгонка длительности речи',
+  pauses: 'Обработка пауз',
   rendering: 'Подготовка плеера',
 };

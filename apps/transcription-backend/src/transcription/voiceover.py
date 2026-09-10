@@ -18,6 +18,7 @@ from starlette.requests import ClientDisconnect
 
 from .alignment import align, normalize_turns
 from .config import Settings
+from .dubbing import semantic_windows
 from .models import StartRequest, Turn
 from .processes import WorkerFailure, run_worker
 
@@ -50,6 +51,7 @@ class VoiceoverSnapshot(BaseModel):
     status: str = "awaiting_upload"
     stages: dict = Field(default_factory=dict)
     speakers: list = Field(default_factory=list)
+    available_voices: list[str] = Field(default_factory=list)
     voice_assignments: dict = Field(default_factory=dict)
     transcript: list = Field(default_factory=list)
     translations: list = Field(default_factory=list)
@@ -69,6 +71,32 @@ class Voiceovers:
             "-m",
             "transcription.voice_worker",
         ]
+        self.voices = (
+            ["serena", "aiden", "uncle_fu"]
+            if settings.tts_engine == "qwen"
+            else ["aidar", "baya", "kseniya", "xenia", "eugene"]
+        )
+        self.tts_command = worker_command or (
+            [
+                str(Path(settings.qwen_python).resolve()),
+                str(Path(__file__).with_name("qwen_worker.py")),
+            ]
+            if settings.tts_engine == "qwen"
+            else self.translation_command
+        )
+        import hashlib
+
+        self.sample_key = hashlib.sha256(
+            json.dumps(
+                {
+                    "engine": settings.tts_engine,
+                    "model": settings.qwen_model_path
+                    if settings.tts_engine == "qwen"
+                    else settings.silero_sha256,
+                    "instruction": settings.qwen_instruction,
+                }
+            ).encode()
+        ).hexdigest()
         self.video_command = worker_command or [sys.executable, "-m", "transcription.video_worker"]
         self.database = settings.data_dir / "voiceovers.sqlite3"
         self.records: dict[str, VoiceoverSnapshot] = {}
@@ -331,6 +359,7 @@ class Voiceovers:
             "source_path": str(self.directory(record.id) / "source"),
             "source": record.source,
             "language": "en",
+            "voiceover": True,
         }
         words: list[dict] = []
         raw_turns: list[dict] = []
@@ -363,17 +392,21 @@ class Voiceovers:
                         )
                     ):
                         phrases[-1]["text"] += segment.text
-                        phrases[-1]["end"] = segment.end
+                        phrases[-1]["end"] = max(phrases[-1]["end"], segment.end)
                         phrases[-1]["words"].append(word)
                         phrases[-1]["overlap"] |= segment.overlap
                     else:
                         phrases.append({**segment.model_dump(), "words": [word]})
+            phrases = semantic_windows(phrases)
             record.transcript = phrases
             record.speakers = [speaker.model_dump() for speaker in speakers]
-            voices = ("aidar", "baya", "kseniya", "xenia", "eugene")
-            record.voice_assignments = {s.id: voices[i % 5] for i, s in enumerate(speakers)}
+            voices = self.voices
+            record.available_voices = voices
+            record.voice_assignments = {
+                s.id: voices[i % len(voices)] for i, s in enumerate(speakers)
+            }
             if any(p["speaker_id"] is None for p in phrases):
-                record.voice_assignments["unknown"] = "aidar"
+                record.voice_assignments["unknown"] = voices[0]
             record.revision += 1
             self.save(record, kind="transcript")
             return voices
@@ -401,6 +434,7 @@ class Voiceovers:
                         "id": phrase["id"],
                         "source_segment_ids": [phrase["id"]],
                         "text": event["text"],
+                        "candidates": event.get("candidates", [event["text"]]),
                         "status": event.get("status", "translated"),
                     }
                 )
@@ -438,11 +472,7 @@ class Voiceovers:
                 for index, phrase in enumerate(record.transcript)
             ]
             await self.phase(record, self.translation_command, "translation", config, receive)
-            sample_directory = (
-                self.database.parent
-                / "voice-samples"
-                / (self.settings.silero_sha256 or "unconfigured")
-            )
+            sample_directory = self.database.parent / "voice-samples" / self.sample_key
             sample_directory.mkdir(parents=True, exist_ok=True)
             samples = [
                 {
@@ -456,7 +486,7 @@ class Voiceovers:
             if samples:
                 await self.phase(
                     record,
-                    self.translation_command,
+                    self.tts_command,
                     "tts",
                     {
                         **config,
@@ -534,7 +564,50 @@ class Voiceovers:
                 clips[event["id"]] = event
 
         try:
-            await self.phase(record, self.translation_command, "tts", config, receive)
+            alternatives = []
+            candidate_owners = {}
+            for phrase in config["phrases"]:
+                for index, text in enumerate(phrase.get("candidates", [phrase["text"]])):
+                    key = phrase["id"] if index == 0 else f"{phrase['id']}-candidate-{index}"
+                    alternatives.append({**phrase, "id": key, "text": text})
+                    candidate_owners[key] = (phrase["id"], text)
+                    if self.settings.tts_engine == "qwen" and self.settings.qwen_pace_instruction:
+                        paced_key = key + "-brisk"
+                        alternatives.append(
+                            {
+                                **phrase,
+                                "id": paced_key,
+                                "text": text,
+                                "instruction": self.settings.qwen_pace_instruction,
+                            }
+                        )
+                        candidate_owners[paced_key] = (phrase["id"], text)
+            measured = {}
+
+            def receive_alternative(event):
+                if event["kind"] == "synthesized":
+                    measured[event["id"]] = event
+
+            await self.phase(
+                record,
+                self.tts_command,
+                "tts",
+                {**config, "phrases": alternatives},
+                receive_alternative,
+            )
+            await self.phase(
+                record,
+                [sys.executable, "-m", "transcription.video_worker"],
+                "pauses",
+                {"clips": list(measured.values())},
+                receive_alternative,
+            )
+            for key, clip in measured.items():
+                owner, text = candidate_owners[key]
+                if owner not in clips or clip["duration"] < clips[owner]["duration"]:
+                    clips[owner] = {**clip, "id": owner}
+                    translation = next(t for t in record.translations if t["id"] == owner)
+                    translation["text"] = text
             placements = []
             playback_cursor = 0.0
             groups: list[list[tuple[dict, dict]]] = []
@@ -550,7 +623,9 @@ class Voiceovers:
                 start = max(anchor, playback_cursor)
                 end = max(phrase["end"] for phrase, _ in group)
                 deadline = (
-                    groups[index + 1][0][0]["start"] if index + 1 < len(groups) else record.duration
+                    groups[index + 1][0][0]["start"]
+                    if index + 1 < len(groups)
+                    else (record.duration or 0.0)
                 )
                 if any(t["status"] == "failed" for _, t in group):
                     record.problems.append(
@@ -566,7 +641,9 @@ class Voiceovers:
                     continue
                 total = sum(clips[translation["id"]]["duration"] for _, translation in group)
                 available = max(0.05, deadline - start)
-                speech_budget = max(0.05, deadline - anchor)
+                speech_budget = max(
+                    0.05, min(deadline - anchor, deadline + self.settings.voiceover_max_lag - start)
+                )
                 rephrased: dict[str, str] = {}
                 for attempt in range(3):
                     if total / speech_budget <= 1.15:
@@ -615,7 +692,7 @@ class Voiceovers:
 
                             await self.phase(
                                 record,
-                                self.translation_command,
+                                self.tts_command,
                                 "tts",
                                 {
                                     **config,
@@ -631,6 +708,13 @@ class Voiceovers:
                                         for p, t in group
                                     ],
                                 },
+                                receive_candidate,
+                            )
+                            await self.phase(
+                                record,
+                                [sys.executable, "-m", "transcription.video_worker"],
+                                "pauses",
+                                {"clips": list(candidate_clips.values())},
                                 receive_candidate,
                             )
                             if all(t["id"] in candidate_clips for _, t in group):
@@ -662,6 +746,19 @@ class Voiceovers:
                     )
                     placements.append({**clip, "start": start})
                     start += clip["duration"]
+                lag = max(0.0, start - deadline)
+                for _, translation in group:
+                    translation["lag_seconds"] = lag
+                if lag > self.settings.voiceover_max_lag + 0.02:
+                    record.problems.append(
+                        {
+                            "start": anchor,
+                            "end": end,
+                            "reason": "timing_overflow",
+                            "lag_seconds": lag,
+                            "limit_seconds": self.settings.voiceover_max_lag,
+                        }
+                    )
                 playback_cursor = start
             config["placements"] = placements
             config["source_duration"] = record.duration
@@ -701,10 +798,8 @@ class Voiceovers:
         return self.directory(record_id) / ("video.mp4" if kind == "video" else "translation.m4a")
 
     def sample(self, voice: str) -> Path:
-        directory = (
-            self.database.parent / "voice-samples" / (self.settings.silero_sha256 or "unconfigured")
-        )
-        if voice not in {"aidar", "baya", "kseniya", "xenia", "eugene"}:
+        directory = self.database.parent / "voice-samples" / self.sample_key
+        if voice not in self.voices:
             raise HTTPException(404, "Голос не найден")
         path = directory / f"{voice}.wav"
         if not path.is_file():
@@ -717,7 +812,7 @@ class Voiceovers:
             raise HTTPException(409, {"code": "revision_conflict", "snapshot": record.model_dump()})
         if set(body.voice_assignments) != set(record.voice_assignments) or not set(
             body.voice_assignments.values()
-        ) <= {"aidar", "baya", "kseniya", "xenia", "eugene"}:
+        ) <= set(record.available_voices or self.voices):
             raise HTTPException(422, "Назначьте известный голос каждому спикеру")
         record.voice_assignments = body.voice_assignments
         record.revision += 1

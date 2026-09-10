@@ -214,7 +214,9 @@ def recognize(config):
         task="transcribe",
         word_timestamps=True,
         beam_size=5,
-        vad_filter=False,
+        # Video dubbing must not turn carried context or an outro pause into extra speech.
+        condition_on_previous_text=not config.get("voiceover", False),
+        vad_filter=config.get("voiceover", False),
     )
     if config["language"] == "auto" and info.language == "ru":
         import gc

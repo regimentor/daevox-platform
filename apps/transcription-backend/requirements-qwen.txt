@@ -1,0 +1,7 @@
+# Install into a separate Python 3.12 environment, not the backend environment.
+qwen-tts==0.1.1
+transformers==4.57.3
+accelerate==1.12.0
+torch==2.11.0
+torchaudio==2.11.0
+soundfile==0.13.1

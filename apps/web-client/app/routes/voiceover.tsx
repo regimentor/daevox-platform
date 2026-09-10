@@ -266,7 +266,9 @@ export default function VoiceoverPage() {
             {record.status === 'awaiting_voices' && (
               <Paper withBorder p="md">
                 <Stack>
-                  <VoiceSamples />
+                  <VoiceSamples
+                    voices={record.available_voices?.length ? record.available_voices : voices}
+                  />
                   {Object.entries(record.voice_assignments).map(([speaker, voice]) => (
                     <label key={speaker}>
                       {record.speakers.find((item) => item.id === speaker)?.label ||
@@ -294,9 +296,11 @@ export default function VoiceoverPage() {
                           })
                         }
                       >
-                        {voices.map((value) => (
-                          <option key={value}>{value}</option>
-                        ))}
+                        {(record.available_voices?.length ? record.available_voices : voices).map(
+                          (value) => (
+                            <option key={value}>{value}</option>
+                          ),
+                        )}
                       </select>
                     </label>
                   ))}

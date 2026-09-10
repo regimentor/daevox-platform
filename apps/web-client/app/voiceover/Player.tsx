@@ -213,7 +213,8 @@ export function Player({ record }: { record: Voiceover }) {
         <Stack>
           {record.problems.map((problem, index) => (
             <Button key={index} variant="light" color="orange" onClick={() => seek(problem.start)}>
-              Проблемный момент: {problem.start.toFixed(1)} с
+              {problem.reason === 'timing_overflow' ? 'Превышено отставание' : 'Проблемный момент'}:{' '}
+              {problem.start.toFixed(1)} с
             </Button>
           ))}
           <div style={{ maxHeight: '40vh', overflow: 'auto' }}>

@@ -63,6 +63,51 @@ if role == "voiceover_preparation":
     )
     sys.exit(result.returncode)
 elif role == "asr":
+    if config["source"].get("name") == "asr-recheck.mp4":
+        import subprocess
+
+        result = subprocess.run(
+            [sys.executable, "-m", "transcription.worker", role],
+            input=json.dumps(config),
+            text=True,
+            check=False,
+        )
+        sys.exit(result.returncode)
+    if config["source"].get("name") == "repeated-terms.mp4":
+        emit(
+            kind="words",
+            language="en",
+            words=[{"start": 0, "end": 2, "text": "Rust uses GPUs because Rust is fast."}],
+        )
+        emit(kind="done")
+        sys.exit(0)
+    if config["source"].get("name") == "semantic-window.mp4":
+        emit(
+            kind="words",
+            language="en",
+            words=[
+                {"start": 0, "end": 1, "text": "The reason Rust is used on GPUs."},
+                {"start": 1, "end": 2, "text": " Is the same reason it is used elsewhere."},
+            ],
+        )
+        emit(kind="done")
+        sys.exit(0)
+    if config["source"].get("name") in {"protected-terms.mp4", "plural-gpu.mp4"}:
+        emit(
+            kind="words",
+            language="en",
+            words=[
+                {
+                    "start": 0,
+                    "end": 2,
+                    "text": "Rust needs 4096 GPU cores."
+                    if config["source"].get("name") == "protected-terms.mp4"
+                    else "Rust needs 4096 cores on GPUs.",
+                }
+            ],
+        )
+        emit(kind="done")
+        sys.exit(0)
     if config["source"].get("name") == "zero-time-words.mp4":
         emit(
             kind="words",
@@ -112,6 +157,10 @@ elif role == "asr":
         time.sleep(1)
     emit(kind="stage", name="asr", state="completed", completed_units=2, unit="seconds")
 elif role == "diarization":
+    if config["source"].get("name") == "semantic-window.mp4":
+        emit(kind="turns", turns=[{"start": 0, "end": 3, "speaker_id": "A"}])
+        emit(kind="done")
+        sys.exit(0)
     if config["source"].get("name") == "zero-time-words.mp4":
         emit(kind="turns", turns=[{"start": 0, "end": 3, "speaker_id": "A"}])
         emit(kind="done")
@@ -151,7 +200,16 @@ elif role in {"translation", "shorten"}:
                 text = "Здравствуй." if phrase["text"] == "Привет!" else "Привет!"
             else:
                 text = "Привет!" if role == "shorten" else text
-            emit(kind="translation", id=phrase["id"], text=text)
+            emit(
+                kind="translation",
+                id=phrase["id"],
+                text=text,
+                **(
+                    {"candidates": [text, "Да.", "Здравствуйте."]}
+                    if config["source"].get("name") == "candidate-fit.mp4"
+                    else {}
+                ),
+            )
 elif role == "tts":
     import wave
     from pathlib import Path
@@ -182,6 +240,16 @@ elif role == "tts":
                 duration = {"Привет.": 1.3, "Привет!": 1.2, "Здравствуй.": 0.9}[phrase["text"]]
             if config["source"].get("name") == "voiceover-tail.mp4" and phrase["id"] != "0-0":
                 duration = 4
-            output.writeframes(b"\x01\x00" * round(duration * 24000))
+            if config["source"].get("name") == "candidate-fit.mp4":
+                duration = {"Привет.": 2, "До свидания.": 2, "Да.": 1.5, "Здравствуйте.": 0.8}.get(
+                    phrase["text"], 2
+                )
+            if config["source"].get("name") == "pace-fit.mp4":
+                duration = 0.8 if "brisk" in phrase.get("instruction", "") else 4
+            if config["source"].get("name") == "pause-fit.mp4":
+                output.writeframes(b"\x00\x20" * 9600 + b"\x00\x00" * 28800 + b"\x00\x20" * 9600)
+                duration = 2
+            else:
+                output.writeframes(b"\x01\x00" * round(duration * 24000))
         emit(kind="synthesized", id=phrase["id"], path=str(destination), duration=duration)
 emit(kind="done")

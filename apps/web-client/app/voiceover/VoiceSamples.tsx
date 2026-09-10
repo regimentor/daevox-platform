@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Group, Stack, Text } from '@mantine/core';
 
-export function VoiceSamples() {
+export function VoiceSamples({ voices }: { voices: string[] }) {
   const players = useRef(new Map<string, HTMLAudioElement>());
   useEffect(() => {
     const mounted = players.current;
@@ -11,7 +11,7 @@ export function VoiceSamples() {
   }, []);
   return (
     <Group align="start">
-      {['aidar', 'baya', 'kseniya', 'xenia', 'eugene'].map((voice) => (
+      {voices.map((voice) => (
         <Stack key={voice} gap="xs">
           <Text size="sm">{voice}</Text>
           <audio

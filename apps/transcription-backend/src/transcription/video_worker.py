@@ -144,6 +144,14 @@ def main():
     config = json.loads(sys.stdin.readline())
     sys.stdout = sys.stderr
     try:
+        if sys.argv[1] == "pauses":
+            from .pause_processing import compress_pauses
+
+            for clip in config["clips"]:
+                path, duration = compress_pauses(clip["path"])
+                emit(kind="synthesized", id=clip["id"], path=path, duration=duration)
+            emit(kind="done")
+            return
         if sys.argv[1] == "fit":
             speed = config["speed"]
             if not 1 <= speed <= 1.15:
