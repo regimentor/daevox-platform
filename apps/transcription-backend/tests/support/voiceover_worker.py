@@ -205,6 +205,14 @@ elif role in {"translation", "shorten"}:
                 id=phrase["id"],
                 text=text,
                 **(
+                    {
+                        "status": "warning",
+                        "warnings": [{"code": "semantic_review", "message": "Проверьте смысл."}],
+                    }
+                    if config["source"].get("name") == "advisory.mp4"
+                    else {}
+                ),
+                **(
                     {"candidates": [text, "Да.", "Здравствуйте."]}
                     if config["source"].get("name") == "candidate-fit.mp4"
                     else {}

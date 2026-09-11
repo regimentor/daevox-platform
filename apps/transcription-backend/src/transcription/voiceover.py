@@ -1,8 +1,10 @@
 import asyncio
 import base64
 import json
+import logging
 import shutil
 import sqlite3
+import subprocess
 import sys
 import time
 from collections import deque
@@ -18,6 +20,7 @@ from starlette.requests import ClientDisconnect
 
 from .alignment import align, normalize_turns
 from .config import Settings
+from .diagnostics import append_event
 from .dubbing import semantic_windows
 from .models import StartRequest, Turn
 from .processes import WorkerFailure, run_worker
@@ -25,6 +28,9 @@ from .processes import WorkerFailure, run_worker
 
 class VoiceoverRequest(StartRequest):
     language: Literal["en"] = "en"
+    asr_gpu: str | None = None
+    tts_gpu: str | None = None
+    auto_synthesize: bool = False
 
     @model_validator(mode="after")
     def validate_video(self):
@@ -60,6 +66,11 @@ class VoiceoverSnapshot(BaseModel):
     storage_bytes: int = 0
     error: dict | None = None
     duration: float | None = None
+    source_duration: float | None = None
+    devices: dict[str, str] = Field(default_factory=dict)
+    auto_synthesize: bool = False
+    elapsed_seconds: float = 0
+    processing_started_at: float | None = None
 
 
 class Voiceovers:
@@ -78,7 +89,7 @@ class Voiceovers:
         )
         self.tts_command = worker_command or (
             [
-                str(Path(settings.qwen_python).resolve()),
+                str(Path(settings.qwen_python).absolute()),
                 str(Path(__file__).with_name("qwen_worker.py")),
             ]
             if settings.tts_engine == "qwen"
@@ -178,6 +189,13 @@ class Voiceovers:
             raise HTTPException(
                 507, {"code": "storage_error", "message": "Ошибка хранения записи"}
             ) from exc
+        if record.status != "deleting":
+            append_event(
+                self.directory(record.id) / "processing.jsonl",
+                "record.snapshot",
+                record=record.model_dump(),
+                notification=kind,
+            )
         history = self.history.setdefault(record.id, deque(maxlen=self.settings.event_history))
         history.append((record.revision, self.wire(record, kind)))
         while len(history) > 1 and sum(len(wire.encode()) for _, wire in history) > 4 * 1024 * 1024:
@@ -286,9 +304,49 @@ class Voiceovers:
     def directory(self, record_id: str) -> Path:
         return self.database.parent / "voiceovers" / record_id
 
+    @staticmethod
+    def stop_clock(record):
+        if record.processing_started_at is not None:
+            record.elapsed_seconds += max(0, time.time() - record.processing_started_at)
+            record.processing_started_at = None
+
+    def devices(self):
+        try:
+            result = subprocess.run(
+                ["nvidia-smi", "--query-gpu=uuid,name", "--format=csv,noheader"],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=3,
+            )
+            return [
+                {
+                    "value": parts[0].strip(),
+                    "label": parts[1].strip() + " · " + parts[0].strip()[-8:],
+                }
+                for line in result.stdout.splitlines()
+                if len(parts := line.split(",", 1)) == 2
+            ]
+        except (OSError, subprocess.SubprocessError):
+            return []
+
     def fail(self, record: VoiceoverSnapshot, code: str, message: str):
+        self.stop_clock(record)
+        for stage in record.stages.values():
+            if stage.get("started_at"):
+                stage["elapsed_seconds"] = stage.get("elapsed_seconds", 0) + max(
+                    0, time.time() - stage["started_at"]
+                )
+                stage.update(started_at=None, finished_at=time.time(), state="failed")
         record.status = "failed"
         record.error = {"code": code, "message": message}
+        failed_stages = [
+            key for key, stage in record.stages.items() if stage.get("state") == "failed"
+        ]
+        logging.getLogger(__name__).error(
+            message,
+            extra={"operation_id": record.id, "stage": ",".join(failed_stages), "code": code},
+        )
         record.revision += 1
         self.save(record)
         if self.active == record.id:
@@ -338,23 +396,96 @@ class Voiceovers:
             "render": "rendering",
         }.get(role, role)
         started = time.monotonic()
-        record.stages[name] = {"state": "running", "completed_units": 0, "unit": ""}
+        previous_elapsed = record.stages.get(name, {}).get("elapsed_seconds", 0)
+        started_at = time.time()
+        first_started_at = record.stages.get(name, {}).get("first_started_at", started_at)
+        record.stages[name] = {
+            "state": "running",
+            "completed_units": 0,
+            "unit": "",
+            "started_at": started_at,
+            "first_started_at": first_started_at,
+            "elapsed_seconds": previous_elapsed,
+        }
+        phrase_groups: dict[tuple, set[str]] = {}
+        if role == "tts":
+            for phrase in config["phrases"]:
+                owner = tuple(phrase.get("source_segment_ids") or [phrase["id"]])
+                phrase_groups.setdefault(owner, set()).add(phrase["id"])
+            record.stages[name].update(total_units=len(phrase_groups), unit="phrases")
+        synthesized = set()
+
+        def tracked(event):
+            if event["kind"] == "stage":
+                key = event["name"]
+                prior = record.stages.get(key, {})
+                event = {
+                    **event,
+                    "started_at": prior.get("started_at") or time.time(),
+                    "first_started_at": prior.get("first_started_at", time.time()),
+                    "elapsed_seconds": prior.get("elapsed_seconds", 0),
+                }
+                if event.get("state") != "running":
+                    event["elapsed_seconds"] += time.time() - event["started_at"]
+                    event["started_at"] = None
+                    event["finished_at"] = time.time()
+            if role == "render" and event["kind"] == "stage" and event["name"] == name:
+                record.stages[name].update(
+                    {
+                        key: value
+                        for key, value in event.items()
+                        if key not in {"kind", "name", "state"}
+                    }
+                )
+                record.revision += 1
+                self.save(record, kind="progress")
+            receive(event)
+            if role == "tts" and event["kind"] == "synthesized":
+                synthesized.add(event["id"])
+                record.stages[name]["completed_units"] = sum(
+                    ids <= synthesized for ids in phrase_groups.values()
+                )
+                record.revision += 1
+                self.save(record, kind="progress")
+
+        if role == "render":
+            record.stages[name].update(
+                total_units=max(float(config["duration"]) * 2, 0.001), unit="seconds"
+            )
+        if name == "translation":
+            record.stages[name].update(total_units=len(config["phrases"]), unit="phrases")
         record.revision += 1
         self.save(record, kind="progress")
         state = "failed"
         try:
-            await run_worker(command, role, config, receive)
+            await run_worker(
+                command,
+                role,
+                {
+                    **config,
+                    "operation_id": record.id,
+                    "diagnostic_path": str(self.directory(record.id) / "processing.jsonl"),
+                },
+                tracked,
+            )
             state = "completed"
         finally:
             if record.status not in {"deleting", "delete_failed"}:
-                record.stages[name].update(state=state, elapsed_seconds=time.monotonic() - started)
+                record.stages[name].update(
+                    state=state,
+                    elapsed_seconds=previous_elapsed + time.monotonic() - started,
+                    started_at=None,
+                    finished_at=time.time(),
+                )
                 record.revision += 1
                 self.save(record, kind="progress")
 
     async def prepare(self, record: VoiceoverSnapshot):
+        record.processing_started_at = time.time()
         self.directory(record.id).mkdir(parents=True, exist_ok=True)
         config = {
             **self.settings.model_dump(mode="json"),
+            **record.devices,
             "directory": str(self.directory(record.id)),
             "source_path": str(self.directory(record.id) / "source"),
             "source": record.source,
@@ -412,7 +543,11 @@ class Voiceovers:
             return voices
 
         def receive(event):
-            if event["kind"] == "prepared":
+            if event["kind"] == "source_metadata":
+                record.source["name"] = event["title"]
+                record.revision += 1
+                self.save(record)
+            elif event["kind"] == "prepared":
                 config.update(audio_path=event["path"], duration=event["duration"])
                 record.duration = event["duration"]
             elif event["kind"] == "words":
@@ -436,10 +571,17 @@ class Voiceovers:
                         "text": event["text"],
                         "candidates": event.get("candidates", [event["text"]]),
                         "status": event.get("status", "translated"),
+                        "warnings": event.get("warnings", []),
+                        "candidate_warnings": event.get("candidate_warnings", {}),
                     }
                 )
+                record.stages["translation"].update(
+                    completed_units=len({item["id"] for item in record.translations}),
+                    total_units=len(config["phrases"]),
+                    unit="phrases",
+                )
                 record.revision += 1
-                self.save(record)
+                self.save(record, kind="progress")
 
         try:
             await self.phase(
@@ -503,22 +645,31 @@ class Voiceovers:
                     "total_units": 5,
                     "unit": "voices",
                 }
+            record.source_duration = record.duration
+            self.stop_clock(record)
             record.status = "awaiting_voices"
             record.revision += 1
             self.save(record)
+            if record.auto_synthesize:
+                record.status = "synthesizing"
+                record.revision += 1
+                self.save(record)
+                await self.render(record)
         except ExceptionGroup as errors:
             cause = errors.exceptions[0]
             code = str(cause) if isinstance(cause, WorkerFailure) else type(cause).__name__
             self.fail(
                 record,
                 code,
-                "Не удалось распознать речь и спикеров. Проверьте доступ к моделям и ресурсы GPU.",
+                (cause.message if isinstance(cause, WorkerFailure) else None)
+                or "Не удалось распознать речь и спикеров. Проверьте доступ к моделям и ресурсы GPU.",
             )
         except (WorkerFailure, OSError, ValueError) as error:
             self.fail(
                 record,
                 str(error) if isinstance(error, WorkerFailure) else type(error).__name__,
-                "Не удалось подготовить видео, перевод или образцы голосов. Проверьте источник и настройки моделей.",
+                (error.message if isinstance(error, WorkerFailure) else None)
+                or "Не удалось подготовить видео, перевод или образцы голосов. Проверьте источник и настройки моделей.",
             )
 
     def activity(self) -> dict | None:
@@ -529,12 +680,27 @@ class Voiceovers:
 
     def synthesize(self, record_id: str, body: SynthesisRequest) -> VoiceoverSnapshot:
         record = self.get(record_id)
-        if record_id in self.syntheses:
+        if (
+            record_id in self.syntheses
+            and self.syntheses[record_id]["client_request_id"] == body.client_request_id
+        ):
             if self.syntheses[record_id] != body.model_dump():
                 raise HTTPException(409, {"code": "idempotency_conflict"})
             return record
-        if record.status != "awaiting_voices" or record.revision != body.expected_revision:
+        if (
+            record.status not in {"awaiting_voices", "completed", "incomplete"}
+            or record.revision != body.expected_revision
+        ):
             raise HTTPException(409, {"code": "revision_conflict", "snapshot": record.model_dump()})
+        if self.active not in {None, record_id}:
+            raise HTTPException(409, {"code": "busy", "message": "Сервис занят"})
+        self.active = record_id
+        record.problems = []
+        record.error = None
+        record.assets = {}
+        record.duration = record.source_duration or record.duration
+        for key in ("synthesis", "shorten", "fit", "pauses", "rendering"):
+            record.stages.pop(key, None)
         self.syntheses[record_id] = body.model_dump()
         record.status = "synthesizing"
         record.revision += 1
@@ -543,8 +709,10 @@ class Voiceovers:
         return record
 
     async def render(self, record: VoiceoverSnapshot):
+        record.processing_started_at = time.time()
         config = {
             **self.settings.model_dump(mode="json"),
+            **record.devices,
             "directory": str(self.directory(record.id)),
             "source": record.source,
             "duration": record.duration,
@@ -604,10 +772,18 @@ class Voiceovers:
             )
             for key, clip in measured.items():
                 owner, text = candidate_owners[key]
-                if owner not in clips or clip["duration"] < clips[owner]["duration"]:
+                translation = next(t for t in record.translations if t["id"] == owner)
+                warnings = translation.get("candidate_warnings", {}).get(
+                    text, translation.get("warnings", [])
+                )
+                if owner not in clips or (len(warnings), clip["duration"]) < (
+                    len(translation.get("warnings", [])),
+                    clips[owner]["duration"],
+                ):
                     clips[owner] = {**clip, "id": owner}
-                    translation = next(t for t in record.translations if t["id"] == owner)
                     translation["text"] = text
+                    translation["warnings"] = warnings
+                    translation["status"] = "warning" if translation["warnings"] else "translated"
             placements = []
             playback_cursor = 0.0
             groups: list[list[tuple[dict, dict]]] = []
@@ -645,12 +821,19 @@ class Voiceovers:
                     0.05, min(deadline - anchor, deadline + self.settings.voiceover_max_lag - start)
                 )
                 rephrased: dict[str, str] = {}
+                rephrased_warnings: dict[str, list] = {}
                 for attempt in range(3):
                     if total / speech_budget <= 1.15:
                         break
                     candidate_text: dict[str, str] = {}
+                    candidate_warnings: dict[str, list] = {}
 
-                    def revised(event, group=group, candidate_text=candidate_text):
+                    def revised(
+                        event,
+                        group=group,
+                        candidate_text=candidate_text,
+                        candidate_warnings=candidate_warnings,
+                    ):
                         if (
                             event["kind"] == "translation"
                             and event["id"] in {t["id"] for _, t in group}
@@ -658,6 +841,7 @@ class Voiceovers:
                             and event.get("text", "").strip()
                         ):
                             candidate_text[event["id"]] = event["text"]
+                            candidate_warnings[event["id"]] = event.get("warnings", [])
 
                     try:
                         await self.phase(
@@ -709,6 +893,7 @@ class Voiceovers:
                                     ],
                                 },
                                 receive_candidate,
+                                stage_name="fit",
                             )
                             await self.phase(
                                 record,
@@ -724,6 +909,7 @@ class Voiceovers:
                                 if candidate_total < total:
                                     clips.update(candidate_clips)
                                     rephrased = candidate_text
+                                    rephrased_warnings = candidate_warnings
                                     total = candidate_total
                     except WorkerFailure:
                         break
@@ -741,6 +927,10 @@ class Voiceovers:
                     clip = clips[translation["id"]]
                     if translation["id"] in rephrased:
                         translation["text"] = rephrased[translation["id"]]
+                        translation["warnings"] = rephrased_warnings.get(translation["id"], [])
+                        translation["status"] = (
+                            "warning" if translation["warnings"] else "translated"
+                        )
                     translation.update(
                         playback_start=start, playback_end=start + clip["duration"], status="ready"
                     )
@@ -776,20 +966,33 @@ class Voiceovers:
                 for key in ("video", "audio")
             }
             for temporary in self.directory(record.id).iterdir():
-                if temporary.name not in {"source", "video.mp4", "translation.m4a"}:
+                if temporary.name not in {
+                    "source",
+                    "video.mp4",
+                    "translation.m4a",
+                    "processing.jsonl",
+                }:
                     if temporary.is_dir():
                         await asyncio.to_thread(shutil.rmtree, temporary)
                     else:
                         await asyncio.to_thread(temporary.unlink)
+            self.stop_clock(record)
             record.status = "incomplete" if record.problems else "completed"
             record.storage_bytes = sum(
-                p.stat().st_size for p in self.directory(record.id).iterdir()
+                p.stat().st_size
+                for p in self.directory(record.id).iterdir()
+                if p.name != "processing.jsonl"
             )
             record.revision += 1
             self.save(record)
             self.active = None
         except (WorkerFailure, OSError, ValueError, KeyError) as error:
-            self.fail(record, type(error).__name__, "Не удалось подготовить озвучку")
+            self.fail(
+                record,
+                str(error) if isinstance(error, WorkerFailure) else type(error).__name__,
+                (error.message if isinstance(error, WorkerFailure) else None)
+                or "Не удалось подготовить озвучку",
+            )
 
     def media(self, record_id: str, kind: str) -> Path:
         record = self.get(record_id)
@@ -808,7 +1011,10 @@ class Voiceovers:
 
     def assign(self, record_id: str, body: VoiceAssignment) -> VoiceoverSnapshot:
         record = self.get(record_id)
-        if record.status != "awaiting_voices" or record.revision != body.expected_revision:
+        if (
+            record.status not in {"awaiting_voices", "completed", "incomplete"}
+            or record.revision != body.expected_revision
+        ):
             raise HTTPException(409, {"code": "revision_conflict", "snapshot": record.model_dump()})
         if set(body.voice_assignments) != set(record.voice_assignments) or not set(
             body.voice_assignments.values()
@@ -841,7 +1047,10 @@ class Voiceovers:
                 {
                     "id": r.id,
                     "status": r.status,
-                    "title": r.source.get("name", "Видео"),
+                    "revision": r.revision,
+                    "title": r.source.get("name") or r.source.get("url") or "Видео",
+                    "source": r.source,
+                    "stages": r.stages,
                     "created_at": r.created_at,
                     "storage_bytes": r.storage_bytes,
                     "duration": r.duration,
@@ -851,13 +1060,28 @@ class Voiceovers:
             "next_cursor": next_cursor,
         }
 
-    def reserve(self, body: StartRequest) -> VoiceoverSnapshot:
+    def reserve(self, body: VoiceoverRequest) -> VoiceoverSnapshot:
+        devices = {key: getattr(body, key, None) for key in ("asr_gpu", "tts_gpu")}
+        if any(devices.values()):
+            available = {device["value"] for device in self.devices()}
+            if any(value and value not in available for value in devices.values()):
+                raise HTTPException(
+                    422,
+                    {
+                        "code": "invalid_gpu",
+                        "message": "Выбранная видеокарта недоступна. Обновите список устройств.",
+                    },
+                )
+        selected = {key: value or getattr(self.settings, key) for key, value in devices.items()}
+        selected["diarization_gpu"] = devices["asr_gpu"] or self.settings.diarization_gpu
         record = VoiceoverSnapshot(
             id=str(uuid4()),
             source={
                 "kind": body.source_kind,
                 **({"name": body.filename} if body.filename else {"url": body.url or ""}),
             },
+            devices=selected,
+            auto_synthesize=getattr(body, "auto_synthesize", False),
             created_at=datetime.now(UTC).isoformat(),
             status="preparing" if body.source_kind == "youtube" else "awaiting_upload",
         )

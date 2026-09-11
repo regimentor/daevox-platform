@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import time
+import traceback
 from pathlib import Path
 
 _protocol = sys.stdout
@@ -321,6 +322,16 @@ def main():
         {"preparation": prepare, "asr": recognize, "diarization": diarize}[role](config)
         emit(kind="done")
     except Exception as error:  # noqa: BLE001 -- process boundary: sanitize third-party failures
+        if config.get("diagnostic_path"):
+            emit(
+                kind="diagnostic",
+                event="worker.exception",
+                error_type=type(error).__name__,
+                message=str(error),
+                traceback=traceback.format_exc(),
+                stderr=str(getattr(error, "stderr", "") or ""),
+                stdout=str(getattr(error, "stdout", "") or ""),
+            )
         emit(kind="error", code=type(error).__name__)
         sys.exit(1)
 

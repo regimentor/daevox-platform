@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
 
-from .config import Settings
+from .config import Settings, load_settings
 from .models import TERMINAL, Snapshot, StartRequest
 from .service import Service
 from .voiceover import (
@@ -18,7 +18,7 @@ from .voiceover import (
 def create_app(
     settings: Settings | None = None, *, worker_command: list[str] | None = None
 ) -> FastAPI:
-    service = Service(settings or Settings(), worker_command)
+    service = Service(settings or load_settings(), worker_command)
     voiceovers = Voiceovers(service.settings, worker_command)
 
     @asynccontextmanager
@@ -54,6 +54,15 @@ def create_app(
     async def activity():
         return current_activity()
 
+    @app.get(prefix + "/voiceover-devices")
+    async def voiceover_devices():
+        import asyncio
+
+        return {
+            "items": await asyncio.to_thread(voiceovers.devices),
+            "defaults": {"asr_gpu": service.settings.asr_gpu, "tts_gpu": service.settings.tts_gpu},
+        }
+
     @app.post(prefix + "/voiceovers", status_code=201)
     async def reserve_voiceover(body: VoiceoverRequest, response: Response) -> VoiceoverSnapshot:
         previous = voiceovers.retry(body)
@@ -86,6 +95,8 @@ def create_app(
 
     @app.post(prefix + "/voiceovers/{record_id}/synthesize", status_code=202)
     async def synthesize(record_id: str, body: SynthesisRequest) -> VoiceoverSnapshot:
+        if current_activity() and current_activity().get("id") != record_id:
+            check_available()
         return voiceovers.synthesize(record_id, body)
 
     @app.api_route(prefix + "/voiceovers/{record_id}/media/{kind}", methods=["GET", "HEAD"])

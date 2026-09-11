@@ -4,6 +4,7 @@ import json
 import shutil
 import subprocess
 import sys
+import traceback
 import wave
 from pathlib import Path
 
@@ -52,10 +53,31 @@ def acquire(config):
         ):
             raise ValueError("Unsupported YouTube source")
         shutil.move(downloader.prepare_filename(info), config["source_path"])
+        if info.get("title"):
+            emit(kind="source_metadata", title=info["title"])
 
 
 def render(config):
     directory = Path(config["directory"])
+    duration = float(config["duration"])
+    total = max(duration * 2, 0.001)
+    submitted = 0
+    reported = -1.0
+
+    def progress(seconds, detail):
+        nonlocal reported
+        seconds = min(max(seconds, 0), total * 0.99)
+        if seconds > reported:
+            stage(
+                "rendering",
+                completed_units=seconds,
+                total_units=total,
+                unit="seconds",
+                detail=detail,
+            )
+            reported = seconds
+
+    progress(0, "Сборка аудиодорожки")
     with subprocess.Popen(
         [
             "ffmpeg",
@@ -81,11 +103,18 @@ def render(config):
         assert process.stdin
         position = 0
 
+        def write_audio(chunk):
+            nonlocal submitted
+            assert process.stdin
+            process.stdin.write(chunk)
+            submitted += len(chunk) // 2
+            progress(min(submitted / 24000, duration), "Сборка аудиодорожки")
+
         def silence(frames):
             assert process.stdin
             while frames > 0:
                 count = min(frames, 24000)
-                process.stdin.write(b"\x00" * count * 2)
+                write_audio(b"\x00" * count * 2)
                 frames -= count
 
         for clip in config["placements"]:
@@ -95,18 +124,22 @@ def render(config):
                 if source.getparams()[:3] != (1, 2, 24000):
                     raise ValueError("Unexpected clip format")
                 while chunk := source.readframes(24000):
-                    process.stdin.write(chunk)
+                    write_audio(chunk)
                 position = start + source.getnframes()
         silence(round(config["duration"] * 24000) - position)
         process.stdin.close()
         if process.wait():
             raise ValueError("Audio rendering failed")
     tail = max(0, config["duration"] - config.get("source_duration", config["duration"]))
-    subprocess.run(
+    progress(duration, "Кодирование видео")
+    with subprocess.Popen(
         [
             "ffmpeg",
             "-v",
             "error",
+            "-progress",
+            "pipe:1",
+            "-nostats",
             "-i",
             str(directory / "source"),
             "-map",
@@ -136,7 +169,27 @@ def render(config):
             "-y",
             str(directory / "video.mp4"),
         ],
-        check=True,
+        stdout=subprocess.PIPE,
+        text=True,
+    ) as video_process:
+        assert video_process.stdout
+        for line in video_process.stdout:
+            key, _, value = line.strip().partition("=")
+            if key == "out_time_us":
+                try:
+                    seconds = int(value) / 1_000_000
+                except ValueError:
+                    continue
+                progress(duration + min(seconds, duration), "Кодирование видео")
+        if video_process.wait():
+            raise ValueError("Video rendering failed")
+    stage(
+        "rendering",
+        state="completed",
+        completed_units=total,
+        total_units=total,
+        unit="seconds",
+        detail="Файлы собраны",
     )
 
 
@@ -207,7 +260,17 @@ def main():
             raise ValueError("Video with audio required")
         prepare(config)
         emit(kind="done")
-    except Exception:  # noqa: BLE001 -- sanitize third-party failures at the process boundary
+    except Exception as error:  # noqa: BLE001 -- sanitize third-party failures at the process boundary
+        if config.get("diagnostic_path"):
+            emit(
+                kind="diagnostic",
+                event="worker.exception",
+                error_type=type(error).__name__,
+                message=str(error),
+                traceback=traceback.format_exc(),
+                stderr=str(getattr(error, "stderr", "") or ""),
+                stdout=str(getattr(error, "stdout", "") or ""),
+            )
         emit(kind="error", code="invalid_media")
         sys.exit(1)
 

@@ -32,3 +32,24 @@ class Settings(BaseSettings):
     asr_revision: str = "edaa852ec7e145841d8ffdb056a99866b5f0a478"
     gigaam_revision: str = "7655ad717f8122257385bb4b2f373db3697e8680"
     diarization_revision: str = "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee"
+
+
+def load_settings() -> Settings:
+    """Load the monorepo environment at the application boundary."""
+    backend = Path(__file__).resolve().parents[2]
+
+    class EnvironmentSettings(Settings):
+        model_config = SettingsConfigDict(
+            env_prefix="TRANSCRIPTION_",
+            env_file=backend.parent.parent / ".env",
+            env_file_encoding="utf-8",
+            extra="ignore",
+        )
+
+    settings = EnvironmentSettings()
+    settings.data_dir = (backend / settings.data_dir).resolve()
+    # Resolving the interpreter symlink bypasses pyvenv.cfg and loses Qwen dependencies.
+    settings.qwen_python = str((backend / settings.qwen_python).absolute())
+    for name in ("qwen_model_path", "silero_path"):
+        setattr(settings, name, str((backend / getattr(settings, name)).resolve()))
+    return settings

@@ -69,3 +69,35 @@ def semantic_windows(phrases: list[dict]) -> list[dict]:
                 {**phrase, "words": list(phrase["words"]), "source_segment_ids": [phrase["id"]]}
             )
     return windows
+
+
+def translation_warnings(source: str, candidate: str, terms: list[str]) -> list[dict]:
+    """Advisory checks; never discard a usable translation."""
+
+    def numbers(text):
+        text = re.sub(r"(?<=\d)[ \u00a0\u202f](?=\d{3}(?:\D|$))", "", text)
+        text = re.sub(r"(?<=\d),(?=\d{3}(?:\D|$))", "", text)
+        return Counter(value.replace(",", ".") for value in NUMBER.findall(text))
+
+    warnings: list[dict] = []
+    if numbers(source) != numbers(candidate):
+        warnings.append(
+            {
+                "code": "numbers_changed",
+                "message": "Числа в оригинале и переводе могут различаться. Проверьте значения.",
+            }
+        )
+    missing = [
+        term
+        for term in terms
+        if not re.search(r"(?<!\w)" + re.escape(term) + r"s?(?!\w)", candidate, re.IGNORECASE)
+    ]
+    if missing:
+        warnings.append(
+            {
+                "code": "terms_changed",
+                "message": "Проверьте передачу терминов: " + ", ".join(missing),
+                "terms": missing,
+            }
+        )
+    return warnings

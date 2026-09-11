@@ -288,12 +288,13 @@ def test_voice_assignment_requires_current_revision_and_known_voices(tmp_path):
         assert client.put(f"{BASE}/voiceovers/{record['id']}/voices", json=bad).status_code == 422
 
 
-def test_confirmed_synthesis_produces_seekable_media_and_survives_restart(tmp_path):
+@pytest.mark.parametrize("filename", ["talk.mp4", "advisory.mp4"])
+def test_confirmed_synthesis_produces_seekable_media_and_survives_restart(tmp_path, filename):
     media = video_bytes(tmp_path)
     with TestClient(
         create_app(Settings(data_dir=tmp_path), worker_command=model_worker())
     ) as client:
-        record = client.post(f"{BASE}/voiceovers", json=SOURCE).json()
+        record = client.post(f"{BASE}/voiceovers", json={**SOURCE, "filename": filename}).json()
         client.put(f"{BASE}/voiceovers/{record['id']}/source", content=media)
         ready = wait_status(client, record["id"], {"awaiting_voices"})
         body = {"expected_revision": ready["revision"], "client_request_id": "synthesis"}
@@ -301,6 +302,14 @@ def test_confirmed_synthesis_produces_seekable_media_and_survives_restart(tmp_pa
         assert response.status_code == 202
         complete = wait_status(client, record["id"], {"completed", "failed"})
         assert complete["status"] == "completed", complete
+        if filename == "advisory.mp4":
+            assert all(t["status"] == "ready" and t["warnings"] for t in complete["translations"])
+        import json
+
+        journal = tmp_path / "voiceovers" / record["id"] / "processing.jsonl"
+        events = [json.loads(line) for line in journal.read_text().splitlines()]
+        assert events[-1]["record"]["status"] == "completed"
+        assert any(e["event"] == "worker.start" and e["role"] == "tts" for e in events)
         assert [(p["playback_start"], p["playback_end"]) for p in complete["translations"]] == [
             (0, 0.25),
             (1, 1.25),
@@ -598,7 +607,13 @@ def test_real_translation_adapter_reports_missing_phrase_without_losing_others(t
         def do_POST(self):
             body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             phrases = json.loads(body["messages"][-1]["content"])
-            answer = {"translations": [{"id": phrases[-1]["id"], "text": "До свидания."}]}
+            answer = {
+                "translations": [
+                    {"id": p["id"], "text": "До свидания."}
+                    for p in phrases
+                    if p["text"] != "Hello."
+                ]
+            }
             content = json.dumps(answer)
             if fenced == "trailing_tick":
                 content += "`"
@@ -823,7 +838,7 @@ def test_last_spoken_words_remain_playable_when_voiceover_extends_past_video(tmp
             assert float(probe["format"]["duration"]) >= last_word_end - 0.05
 
 
-def test_translation_rejects_candidates_that_change_numbers_or_terms(tmp_path):
+def test_translation_prefers_preserved_entities_and_keeps_warned_alternatives(tmp_path):
     import json
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
     from threading import Thread
@@ -871,7 +886,8 @@ def test_translation_rejects_candidates_that_change_numbers_or_terms(tmp_path):
             ready = wait_status(client, record["id"], {"awaiting_voices", "failed"})
             assert ready["status"] == "awaiting_voices", ready
             assert ready["translations"][0]["text"] == "Rust нужно 4096 ядер GPU."
-            assert ready["translations"][0]["candidates"] == ["Rust нужно 4096 ядер GPU."]
+            assert len(ready["translations"][0]["candidates"]) == 3
+            assert ready["translations"][0]["candidate_warnings"]["Rust нужно 496 ядер GPU."]
     finally:
         server.shutdown()
         server.server_close()
@@ -969,7 +985,7 @@ def test_long_silent_pause_is_reduced_before_fitting_voiceover(tmp_path):
         assert all(t["status"] == "ready" for t in result["translations"])
 
 
-def test_qwen_translation_rejects_semantic_changes_during_independent_review(tmp_path):
+def test_qwen_translation_prefers_approved_and_warns_about_other_candidates(tmp_path):
     import json
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
     from threading import Thread
@@ -1015,7 +1031,8 @@ def test_qwen_translation_rejects_semantic_changes_during_independent_review(tmp
             client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
             ready = wait_status(client, record["id"], {"awaiting_voices", "failed"})
             assert ready["status"] == "awaiting_voices", ready
-            assert ready["translations"][0]["candidates"] == ["Привет."]
+            assert ready["translations"][0]["candidates"] == ["Привет.", "Не здоровайся."]
+            assert ready["translations"][0]["candidate_warnings"]["Не здоровайся."]
     finally:
         server.shutdown()
         server.server_close()
@@ -1117,3 +1134,49 @@ def test_qwen_can_choose_a_brisk_neutral_reading_without_dropping_text(tmp_path)
         assert result["status"] == "completed", result
         assert result["translations"][0]["text"] == "Привет."
         assert result["translations"][0]["playback_end"] == pytest.approx(0.8, abs=0.01)
+
+
+def test_default_app_reads_root_env_from_another_working_directory(tmp_path):
+    import json
+    import os
+    import shutil
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    import transcription
+
+    root = tmp_path / "repo"
+    package = root / "apps" / "transcription-backend" / "src" / "transcription"
+    shutil.copytree(Path(transcription.__file__).parent, package)
+    (root / ".env").write_text("TRANSCRIPTION_TTS_ENGINE=qwen\nOTHER_APP_SETTING=ignored\n")
+    media = tmp_path / "input.mp4"
+    media.write_bytes(video_bytes(tmp_path))
+    environment = {k: v for k, v in os.environ.items() if not k.startswith("TRANSCRIPTION_")}
+    environment["PYTHONPATH"] = str(package.parent)
+    script = """
+import json, sys, time
+from fastapi.testclient import TestClient
+from transcription.api import create_app
+with TestClient(create_app(worker_command=[sys.executable, sys.argv[1]])) as client:
+    base = "/trancription-api/voiceovers"
+    record = client.post(base, json={"source_kind":"file", "filename":"talk.mp4", "client_request_id":"env"}).json()
+    client.put(base + "/" + record["id"] + "/source", content=open(sys.argv[2], "rb").read())
+    for _ in range(200):
+        result = client.get(base + "/" + record["id"]).json()
+        if result["status"] in {"awaiting_voices", "failed"}: break
+        time.sleep(.05)
+    print(json.dumps(result))
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script, model_worker()[1], str(media)],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=30,
+    )
+    record = json.loads(result.stdout)
+    assert record["status"] == "awaiting_voices", record
+    assert record["available_voices"] == ["serena", "aiden", "uncle_fu"]

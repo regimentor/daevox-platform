@@ -5,7 +5,7 @@ import sys
 import uvicorn
 
 from .api import create_app
-from .config import Settings
+from .config import load_settings
 
 
 class JsonFormatter(logging.Formatter):
@@ -25,7 +25,7 @@ def main():
     handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(JsonFormatter())
     logging.basicConfig(handlers=[handler], level=logging.INFO)
-    settings = Settings()
+    settings = load_settings()
     uvicorn.run(
         create_app(settings), host=settings.host, port=settings.port, workers=1, access_log=False
     )

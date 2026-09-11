@@ -2,8 +2,10 @@
 
 import json
 import os
+import re
 import subprocess
 import sys
+import traceback
 from pathlib import Path
 
 
@@ -63,7 +65,39 @@ def main():
                     text=phrase["text"],
                 )
         emit(kind="done")
+    except ModuleNotFoundError as error:
+        if config.get("diagnostic_path"):
+            emit(
+                kind="diagnostic",
+                event="worker.exception",
+                error_type=type(error).__name__,
+                message=str(error),
+                traceback=traceback.format_exc(),
+                stderr=str(getattr(error, "stderr", "") or ""),
+                stdout=str(getattr(error, "stdout", "") or ""),
+            )
+        module = (
+            error.name
+            if error.name and re.fullmatch(r"[a-zA-Z0-9_.]+", error.name)
+            else "неизвестный"
+        )
+        emit(
+            kind="error",
+            code="missing_dependency",
+            message=f"В окружении озвучки отсутствует Python-модуль «{module}». Проверьте путь Qwen Python и зависимости его виртуального окружения.",
+        )
+        sys.exit(1)
     except Exception as error:  # noqa: BLE001 -- external runtime boundary
+        if config.get("diagnostic_path"):
+            emit(
+                kind="diagnostic",
+                event="worker.exception",
+                error_type=type(error).__name__,
+                message=str(error),
+                traceback=traceback.format_exc(),
+                stderr=str(getattr(error, "stderr", "") or ""),
+                stdout=str(getattr(error, "stdout", "") or ""),
+            )
         emit(kind="error", code=type(error).__name__)
         sys.exit(1)
 
