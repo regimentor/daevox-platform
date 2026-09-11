@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import hashlib
 import json
 import logging
 import shutil
@@ -7,6 +8,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+import wave
 from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path
@@ -21,7 +23,7 @@ from starlette.requests import ClientDisconnect
 from .alignment import align, normalize_turns
 from .config import Settings
 from .diagnostics import append_event
-from .dubbing import semantic_windows
+from .dubbing import MAX_SPEECH_SPEED, phrase_deadlines, semantic_windows
 from .models import StartRequest, Turn
 from .processes import WorkerFailure, run_worker
 
@@ -49,10 +51,16 @@ class SynthesisRequest(BaseModel):
     client_request_id: str = Field(min_length=1, max_length=128)
 
 
+class PhraseRetryRequest(SynthesisRequest):
+    adapted_text: str | None = Field(default=None, min_length=1, max_length=10000)
+    voice: str | None = None
+
+
 class VoiceoverSnapshot(BaseModel):
     id: str
     revision: int = 1
     source: dict[str, str]
+    source_language: Literal["en"] = "en"
     created_at: str
     status: str = "awaiting_upload"
     stages: dict = Field(default_factory=dict)
@@ -60,6 +68,10 @@ class VoiceoverSnapshot(BaseModel):
     available_voices: list[str] = Field(default_factory=list)
     voice_assignments: dict = Field(default_factory=dict)
     transcript: list = Field(default_factory=list)
+    context: dict = Field(default_factory=dict)
+    dubbing: dict = Field(default_factory=dict)
+    speaker_samples: dict = Field(default_factory=dict)
+    background: dict = Field(default_factory=lambda: {"mode": "speech_only", "reason": None})
     translations: list = Field(default_factory=list)
     problems: list = Field(default_factory=list)
     assets: dict = Field(default_factory=dict)
@@ -95,6 +107,18 @@ class Voiceovers:
             if settings.tts_engine == "qwen"
             else self.translation_command
         )
+        if settings.tts_engine == "chatterbox":
+            self.voices = list(settings.chatterbox_voices) or ["default"]
+            self.tts_command = worker_command or [
+                str(Path(settings.chatterbox_python).absolute()),
+                str(Path(__file__).with_name("chatterbox_worker.py")),
+            ]
+        if settings.tts_engine == "cosyvoice":
+            self.voices = list(settings.cosyvoice_voices) or ["demo"]
+            self.tts_command = worker_command or [
+                str(Path(settings.cosyvoice_python).absolute()),
+                str(Path(__file__).with_name("cosyvoice_worker.py")),
+            ]
         import hashlib
 
         self.sample_key = hashlib.sha256(
@@ -105,10 +129,27 @@ class Voiceovers:
                     if settings.tts_engine == "qwen"
                     else settings.silero_sha256,
                     "instruction": settings.qwen_instruction,
+                    "cosyvoice": {
+                        "model": settings.cosyvoice_model_path,
+                        "source": settings.cosyvoice_source_path,
+                        "voices": settings.cosyvoice_voices,
+                    },
+                    "chatterbox": {
+                        "model": settings.chatterbox_model_path,
+                        "version": "v3",
+                        "voices": settings.chatterbox_voices,
+                        "exaggeration": settings.chatterbox_exaggeration,
+                        "cfg_weight": settings.chatterbox_cfg_weight,
+                    },
                 }
             ).encode()
         ).hexdigest()
         self.video_command = worker_command or [sys.executable, "-m", "transcription.video_worker"]
+        self.separation_command = worker_command or [
+            sys.executable,
+            "-m",
+            "transcription.separation_worker",
+        ]
         self.database = settings.data_dir / "voiceovers.sqlite3"
         self.records: dict[str, VoiceoverSnapshot] = {}
         self.active: str | None = None
@@ -139,6 +180,9 @@ class Voiceovers:
                     for key, payload in db.execute("SELECT id, payload FROM syntheses")
                 }
             for record in self.records.values():
+                for translation in record.translations:
+                    translation.setdefault("full_text", translation.get("text", ""))
+                    translation.setdefault("adapted_text", translation.get("text", ""))
                 if record.status in {"deleting", "delete_failed"}:
                     if record.id in held:
                         self.active = record.id
@@ -489,7 +533,7 @@ class Voiceovers:
             "directory": str(self.directory(record.id)),
             "source_path": str(self.directory(record.id) / "source"),
             "source": record.source,
-            "language": "en",
+            "language": record.source_language,
             "voiceover": True,
         }
         words: list[dict] = []
@@ -562,26 +606,11 @@ class Voiceovers:
                 }
                 record.revision += 1
                 self.save(record)
-            elif event["kind"] == "translation":
-                phrase = next(p for p in config["phrases"] if p["id"] == event["id"])
-                record.translations.append(
-                    {
-                        "id": phrase["id"],
-                        "source_segment_ids": [phrase["id"]],
-                        "text": event["text"],
-                        "candidates": event.get("candidates", [event["text"]]),
-                        "status": event.get("status", "translated"),
-                        "warnings": event.get("warnings", []),
-                        "candidate_warnings": event.get("candidate_warnings", {}),
-                    }
-                )
-                record.stages["translation"].update(
-                    completed_units=len({item["id"] for item in record.translations}),
-                    total_units=len(config["phrases"]),
-                    unit="phrases",
-                )
+            elif event["kind"] == "context":
+                record.context = event["context"]
+                config["video_context"] = record.context
                 record.revision += 1
-                self.save(record, kind="progress")
+                self.save(record, kind="context")
 
         try:
             await self.phase(
@@ -598,6 +627,95 @@ class Voiceovers:
                 self.fail(record, "no_speech", "Распознаваемой речи нет — озвучивать нечего")
                 return
             voices = project(final=True)
+            separated = {}
+
+            def receive_separation(event):
+                if event["kind"] == "separated":
+                    separated.update(event)
+
+            try:
+                await self.phase(
+                    record,
+                    self.separation_command,
+                    "separation",
+                    config,
+                    receive_separation,
+                )
+            except WorkerFailure:
+                record.background = {
+                    "mode": self.settings.background_fallback,
+                    "reason": "separation_failed",
+                }
+            else:
+                if not {"background_path", "vocals_path"} <= separated.keys():
+                    record.background = {
+                        "mode": self.settings.background_fallback,
+                        "reason": "separation_unavailable",
+                    }
+                    separated.clear()
+            if separated:
+                config.update(
+                    background_path=separated["background_path"],
+                    vocals_path=separated["vocals_path"],
+                )
+                record.background = {"mode": "separated", "reason": None}
+            record.revision += 1
+            self.save(record, kind="background")
+            candidates = []
+            for speaker in record.speakers:
+                matching = [
+                    phrase
+                    for phrase in record.transcript
+                    if phrase["speaker_id"] == speaker["id"]
+                    and not phrase["overlap"]
+                    and phrase["end"] - phrase["start"] >= 0.25
+                ]
+                if matching:
+                    phrase = max(matching, key=lambda item: item["end"] - item["start"])
+                    candidates.append(
+                        {
+                            "id": speaker["id"],
+                            "start": phrase["start"],
+                            "end": min(phrase["end"], phrase["start"] + 30),
+                            "path": str(self.speaker_sample_path(record.id, speaker["id"])),
+                        }
+                    )
+            extracted: set[str] = set()
+
+            def receive_sample(event):
+                if event["kind"] == "speaker_sample":
+                    extracted.add(event["id"])
+
+            await self.phase(
+                record,
+                self.video_command,
+                "speaker_samples",
+                {
+                    **config,
+                    "audio_path": config.get("vocals_path", config["audio_path"]),
+                    "candidates": candidates,
+                },
+                receive_sample,
+            )
+            record.speaker_samples = {}
+            for speaker in record.speakers:
+                speaker_id = speaker["id"]
+                if speaker_id in extracted:
+                    record.speaker_samples[speaker_id] = {
+                        "kind": "reference",
+                        "asset": (
+                            f"/trancription-api/voiceovers/{record.id}/speakers/{speaker_id}/sample"
+                        ),
+                    }
+                    record.voice_assignments[speaker_id] = f"speaker:{speaker_id}"
+                else:
+                    record.speaker_samples[speaker_id] = {
+                        "kind": "fallback",
+                        "fallback_voice": record.voice_assignments[speaker_id],
+                        "reason": "no_clean_speech",
+                    }
+            record.revision += 1
+            self.save(record, kind="speaker_samples")
             config["phrases"] = [
                 {
                     **phrase,
@@ -613,7 +731,27 @@ class Voiceovers:
                 }
                 for index, phrase in enumerate(record.transcript)
             ]
-            await self.phase(record, self.translation_command, "translation", config, receive)
+            config["source_transcript"] = [
+                {
+                    "id": phrase["id"],
+                    "text": phrase["text"],
+                    "speaker_id": phrase["speaker_id"],
+                }
+                for phrase in record.transcript
+            ]
+            await self.phase(record, self.translation_command, "context", config, receive)
+            record.translations = [
+                {
+                    "id": p["id"],
+                    "source_segment_ids": [p["id"]],
+                    "text": "",
+                    "full_text": "",
+                    "adapted_text": "",
+                    "status": "pending",
+                    "warnings": [],
+                }
+                for p in record.transcript
+            ]
             sample_directory = self.database.parent / "voice-samples" / self.sample_key
             sample_directory.mkdir(parents=True, exist_ok=True)
             samples = [
@@ -699,9 +837,68 @@ class Voiceovers:
         record.error = None
         record.assets = {}
         record.duration = record.source_duration or record.duration
-        for key in ("synthesis", "shorten", "fit", "pauses", "rendering"):
+        for translation in record.translations:
+            for key in ("playback_start", "playback_end", "lag_seconds", "audio_asset", "step"):
+                translation.pop(key, None)
+            if translation.get("status") in {"ready", "timing_conflict"}:
+                translation["status"] = "translated"
+        for key in ("dubbing", "translation", "synthesis", "shorten", "fit", "pauses", "rendering"):
             record.stages.pop(key, None)
         self.syntheses[record_id] = body.model_dump()
+        record.status = "synthesizing"
+        record.revision += 1
+        self.save(record)
+        self.tasks[record_id] = asyncio.create_task(self.render(record))
+        return record
+
+    def retry_phrase(
+        self, record_id: str, phrase_id: str, body: PhraseRetryRequest
+    ) -> VoiceoverSnapshot:
+        record = self.get(record_id)
+        payload = {**body.model_dump(), "kind": "phrase", "phrase_id": phrase_id}
+        previous = self.syntheses.get(record_id)
+        if previous and previous.get("client_request_id") == body.client_request_id:
+            if previous != payload:
+                raise HTTPException(409, {"code": "idempotency_conflict"})
+            return record
+        if (
+            record.status not in {"completed", "incomplete"}
+            or record.revision != body.expected_revision
+        ):
+            raise HTTPException(409, {"code": "revision_conflict", "snapshot": record.model_dump()})
+        if self.active not in {None, record_id}:
+            raise HTTPException(409, {"code": "busy", "message": "Сервис занят"})
+        translation = next((item for item in record.translations if item["id"] == phrase_id), None)
+        if translation is None:
+            raise HTTPException(404, "Фраза озвучки не найдена")
+        if body.adapted_text is not None and not body.adapted_text.strip():
+            raise HTTPException(422, "Текст озвучки не может быть пустым")
+        if body.adapted_text is not None:
+            translation["adapted_text"] = body.adapted_text.strip()
+            translation["text"] = body.adapted_text.strip()
+        if body.voice is not None:
+            allowed = set(record.available_voices) | {
+                f"speaker:{speaker_id}"
+                for speaker_id, sample in record.speaker_samples.items()
+                if sample.get("kind") in {"reference", "manual"}
+            }
+            if body.voice not in allowed:
+                raise HTTPException(422, "Неизвестный голос")
+            translation["voice"] = body.voice
+        translation.pop("audio_cache_key", None)
+        self.active = record_id
+        record.problems = []
+        record.error = None
+        record.assets = {}
+        record.duration = record.source_duration or record.duration
+        for item in record.translations:
+            for key in ("playback_start", "playback_end", "lag_seconds", "audio_asset", "step"):
+                item.pop(key, None)
+            if item.get("status") in {"ready", "timing_conflict"}:
+                item["status"] = "translated"
+        for key in ("dubbing", "translation", "synthesis", "shorten", "fit", "pauses", "rendering"):
+            record.stages.pop(key, None)
+        self.syntheses[record_id] = payload
         record.status = "synthesizing"
         record.revision += 1
         self.save(record)
@@ -716,243 +913,318 @@ class Voiceovers:
             "directory": str(self.directory(record.id)),
             "source": record.source,
             "duration": record.duration,
-            "phrases": [
-                {
-                    **translation,
-                    "voice": record.voice_assignments[phrase["speaker_id"] or "unknown"],
-                }
-                for translation, phrase in zip(record.translations, record.transcript)
-                if translation["status"] != "failed"
-            ],
+            "background_mode": record.background.get("mode", "speech_only"),
+            "background_path": str(self.directory(record.id) / "background.wav"),
+            "audio_path": str(self.directory(record.id) / "audio.wav"),
+            "phrases": [],
         }
-        clips = {}
+        config["video_context"] = record.context
+        config["source_transcript"] = [
+            {"id": p["id"], "text": p["text"], "speaker_id": p["speaker_id"]}
+            for p in record.transcript
+        ]
+        cache_directory = self.directory(record.id) / "clips"
+        cache_directory.mkdir(exist_ok=True)
+        retry = self.syntheses.get(record.id, {})
+        retry_id = retry.get("phrase_id") if retry.get("kind") == "phrase" else None
+        translations = {t["id"]: t for t in record.translations}
+        record.translations = [
+            translations.get(
+                p["id"],
+                {
+                    "id": p["id"],
+                    "source_segment_ids": [p["id"]],
+                    "text": "",
+                    "full_text": "",
+                    "adapted_text": "",
+                    "status": "pending",
+                    "warnings": [],
+                },
+            )
+            for p in record.transcript
+        ]
+        record.stages["dubbing"] = {
+            "state": "running",
+            "completed_units": 0,
+            "total_units": len(record.transcript),
+            "unit": "phrases",
+            "started_at": time.time(),
+            "elapsed_seconds": 0,
+        }
+        deadlines = phrase_deadlines(record.transcript, record.duration or 0)
 
-        def receive(event):
-            if event["kind"] == "synthesized":
-                clips[event["id"]] = event
+        def update(translation, step, **values):
+            translation.update(values, step=step)
+            record.dubbing = {"phrase_id": translation["id"], "step": step}
+            record.stages["dubbing"]["completed_units"] = sum(
+                t.get("status") == "ready" for t in record.translations
+            )
+            record.revision += 1
+            self.save(record, kind="progress")
+
+        async def translate_one(phrase, translation, index, *, shorten=False, **timing):
+            output = {}
+
+            def receive(event):
+                if event["kind"] == "translation" and event["id"] == phrase["id"]:
+                    output.update(event)
+
+            await self.phase(
+                record,
+                self.translation_command,
+                "shorten" if shorten else "translation",
+                {
+                    **config,
+                    **timing,
+                    "context": [
+                        p["text"]
+                        for p in record.transcript[max(0, index - 3) : index]
+                        + record.transcript[index + 1 : index + 4]
+                    ],
+                    "phrases": [
+                        {**phrase, "text": translation["text"], "original": phrase["text"]}
+                        if shorten
+                        else phrase
+                    ],
+                },
+                receive,
+            )
+            return output
+
+        async def synthesize_one(phrase, translation):
+            speaker = phrase["speaker_id"] or "unknown"
+            voice = translation.get("voice") or record.voice_assignments[speaker]
+            reference = (
+                str(self.speaker_sample_path(record.id, speaker))
+                if voice == f"speaker:{speaker}"
+                else None
+            )
+            reference_digest = None
+            if reference and Path(reference).is_file():
+
+                def digest_reference():
+                    with Path(reference).open("rb") as source:
+                        return hashlib.file_digest(source, "sha256").hexdigest()
+
+                reference_digest = await asyncio.to_thread(digest_reference)
+            text = translation.get("adapted_text") or translation["text"]
+            key = hashlib.sha256(
+                json.dumps(
+                    {
+                        "version": "unfitted-v2",
+                        "tts": self.sample_key,
+                        "text": text,
+                        "voice": voice,
+                        "reference": reference_digest,
+                        "instruction": self.settings.qwen_pace_instruction,
+                    },
+                    sort_keys=True,
+                    ensure_ascii=False,
+                ).encode()
+            ).hexdigest()
+            path = cache_directory / f"{key}.wav"
+            clip = {}
+
+            def receive(event):
+                if event["kind"] == "synthesized" and event["id"] == phrase["id"]:
+                    clip.update(event)
+
+            if path.is_file():
+                with wave.open(str(path), "rb") as audio:
+                    clip.update(
+                        id=phrase["id"],
+                        path=str(path),
+                        duration=audio.getnframes() / audio.getframerate(),
+                    )
+            else:
+                rendered = {**translation, "text": text, "voice": voice}
+                if reference:
+                    rendered["reference_path"] = reference
+                if self.settings.tts_engine == "qwen":
+                    rendered["instruction"] = self.settings.qwen_pace_instruction
+                await self.phase(
+                    record, self.tts_command, "tts", {**config, "phrases": [rendered]}, receive
+                )
+                if not clip:
+                    return None
+                await self.phase(
+                    record,
+                    [sys.executable, "-m", "transcription.video_worker"],
+                    "pauses",
+                    {"clips": [dict(clip)]},
+                    receive,
+                )
+                await asyncio.to_thread(shutil.copyfile, clip["path"], path)
+                clip["path"] = str(path)
+            translation["audio_cache_key"] = key
+            return clip
+
+        async def fit_clip(clip, speed):
+            result = dict(clip)
+
+            def receive(event):
+                if event["kind"] == "synthesized":
+                    result.update(event)
+
+            if speed > 1:
+                await self.phase(
+                    record,
+                    [sys.executable, "-m", "transcription.video_worker"],
+                    "fit",
+                    {"speed": speed, "clips": [clip]},
+                    receive,
+                )
+            return result
 
         try:
-            alternatives = []
-            candidate_owners = {}
-            for phrase in config["phrases"]:
-                for index, text in enumerate(phrase.get("candidates", [phrase["text"]])):
-                    key = phrase["id"] if index == 0 else f"{phrase['id']}-candidate-{index}"
-                    alternatives.append({**phrase, "id": key, "text": text})
-                    candidate_owners[key] = (phrase["id"], text)
-                    if self.settings.tts_engine == "qwen" and self.settings.qwen_pace_instruction:
-                        paced_key = key + "-brisk"
-                        alternatives.append(
-                            {
-                                **phrase,
-                                "id": paced_key,
-                                "text": text,
-                                "instruction": self.settings.qwen_pace_instruction,
-                            }
-                        )
-                        candidate_owners[paced_key] = (phrase["id"], text)
-            measured = {}
-
-            def receive_alternative(event):
-                if event["kind"] == "synthesized":
-                    measured[event["id"]] = event
-
-            await self.phase(
-                record,
-                self.tts_command,
-                "tts",
-                {**config, "phrases": alternatives},
-                receive_alternative,
-            )
-            await self.phase(
-                record,
-                [sys.executable, "-m", "transcription.video_worker"],
-                "pauses",
-                {"clips": list(measured.values())},
-                receive_alternative,
-            )
-            for key, clip in measured.items():
-                owner, text = candidate_owners[key]
-                translation = next(t for t in record.translations if t["id"] == owner)
-                warnings = translation.get("candidate_warnings", {}).get(
-                    text, translation.get("warnings", [])
-                )
-                if owner not in clips or (len(warnings), clip["duration"]) < (
-                    len(translation.get("warnings", [])),
-                    clips[owner]["duration"],
-                ):
-                    clips[owner] = {**clip, "id": owner}
-                    translation["text"] = text
-                    translation["warnings"] = warnings
-                    translation["status"] = "warning" if translation["warnings"] else "translated"
             placements = []
             playback_cursor = 0.0
-            groups: list[list[tuple[dict, dict]]] = []
-            end = -1.0
-            for phrase, translation in zip(record.transcript, record.translations):
-                if not groups or phrase["start"] >= end:
-                    groups.append([])
-                    end = phrase["end"]
-                groups[-1].append((phrase, translation))
-                end = max(end, phrase["end"])
-            for index, group in enumerate(groups):
-                anchor = group[0][0]["start"]
-                start = max(anchor, playback_cursor)
-                end = max(phrase["end"] for phrase, _ in group)
-                deadline = (
-                    groups[index + 1][0][0]["start"]
-                    if index + 1 < len(groups)
-                    else (record.duration or 0.0)
-                )
-                if any(t["status"] == "failed" for _, t in group):
-                    record.problems.append(
-                        {"start": start, "end": end, "reason": "translation_error"}
-                    )
-                    continue
-                if any(t["id"] not in clips for _, t in group):
-                    for _, translation in group:
-                        translation["status"] = "failed"
-                    record.problems.append(
-                        {"start": start, "end": end, "reason": "synthesis_error"}
-                    )
-                    continue
-                total = sum(clips[translation["id"]]["duration"] for _, translation in group)
-                available = max(0.05, deadline - start)
-                speech_budget = max(
-                    0.05, min(deadline - anchor, deadline + self.settings.voiceover_max_lag - start)
-                )
-                rephrased: dict[str, str] = {}
-                rephrased_warnings: dict[str, list] = {}
-                for attempt in range(3):
-                    if total / speech_budget <= 1.15:
-                        break
-                    candidate_text: dict[str, str] = {}
-                    candidate_warnings: dict[str, list] = {}
-
-                    def revised(
-                        event,
-                        group=group,
-                        candidate_text=candidate_text,
-                        candidate_warnings=candidate_warnings,
-                    ):
-                        if (
-                            event["kind"] == "translation"
-                            and event["id"] in {t["id"] for _, t in group}
-                            and event.get("status") != "failed"
-                            and event.get("text", "").strip()
-                        ):
-                            candidate_text[event["id"]] = event["text"]
-                            candidate_warnings[event["id"]] = event.get("warnings", [])
-
-                    try:
-                        await self.phase(
-                            record,
-                            self.translation_command,
-                            "shorten",
-                            {
-                                **config,
-                                "target_duration": speech_budget,
-                                "measured_duration": total,
-                                "phrases": [
-                                    {
-                                        **t,
-                                        "text": rephrased.get(t["id"], t["text"]),
-                                        "original": p["text"],
-                                    }
-                                    for p, t in group
-                                ],
-                            },
-                            revised,
-                        )
-                        if len(candidate_text) == len(group):
-                            candidate_clips: dict[str, dict] = {}
-                            candidate_directory = (
-                                self.directory(record.id) / f"fit-{index}-{attempt}"
-                            )
-                            candidate_directory.mkdir(exist_ok=True)
-
-                            def receive_candidate(event, candidate_clips=candidate_clips):
-                                if event["kind"] == "synthesized":
-                                    candidate_clips[event["id"]] = event
-
-                            await self.phase(
-                                record,
-                                self.tts_command,
-                                "tts",
-                                {
-                                    **config,
-                                    "directory": str(candidate_directory),
-                                    "phrases": [
-                                        {
-                                            **t,
-                                            "text": candidate_text[t["id"]],
-                                            "voice": record.voice_assignments[
-                                                p["speaker_id"] or "unknown"
-                                            ],
-                                        }
-                                        for p, t in group
-                                    ],
-                                },
-                                receive_candidate,
-                                stage_name="fit",
-                            )
-                            await self.phase(
-                                record,
-                                [sys.executable, "-m", "transcription.video_worker"],
-                                "pauses",
-                                {"clips": list(candidate_clips.values())},
-                                receive_candidate,
-                            )
-                            if all(t["id"] in candidate_clips for _, t in group):
-                                candidate_total = sum(
-                                    candidate_clips[t["id"]]["duration"] for _, t in group
-                                )
-                                if candidate_total < total:
-                                    clips.update(candidate_clips)
-                                    rephrased = candidate_text
-                                    rephrased_warnings = candidate_warnings
-                                    total = candidate_total
-                    except WorkerFailure:
-                        break
-                if total > available:
-                    speed = min(1.15, total / available + 0.01)
-                    await self.phase(
-                        record,
-                        [sys.executable, "-m", "transcription.video_worker"],
-                        "fit",
-                        {"speed": speed, "clips": [clips[t["id"]] for _, t in group]},
-                        receive,
-                    )
-                    total = sum(clips[t["id"]]["duration"] for _, t in group)
-                for _, translation in group:
-                    clip = clips[translation["id"]]
-                    if translation["id"] in rephrased:
-                        translation["text"] = rephrased[translation["id"]]
-                        translation["warnings"] = rephrased_warnings.get(translation["id"], [])
-                        translation["status"] = (
-                            "warning" if translation["warnings"] else "translated"
-                        )
+            for index, (phrase, translation) in enumerate(
+                zip(record.transcript, record.translations)
+            ):
+                targeted = retry_id is None or retry_id == phrase["id"]
+                start = max(phrase["start"], playback_cursor)
+                deadline = deadlines[index]
+                available = max(0.0, deadline - start)
+                translation["attempts"] = []
+                translation["original_duration"] = phrase["end"] - phrase["start"]
+                translation["available_seconds"] = available
+                translation["lag_seconds"] = max(0.0, start - phrase["start"])
+                translation["deadline"] = deadline
+                if not translation.get("text", "").strip() and targeted:
+                    update(translation, "translation", status="processing", attempt=1)
+                    result = await translate_one(phrase, translation, index)
+                    text = result.get("text", "").strip()
                     translation.update(
-                        playback_start=start, playback_end=start + clip["duration"], status="ready"
+                        text=text,
+                        full_text=text,
+                        adapted_text=text,
+                        warnings=result.get("warnings", []),
+                        candidates=[text],
+                        candidate_warnings={},
                     )
-                    placements.append({**clip, "start": start})
-                    start += clip["duration"]
-                lag = max(0.0, start - deadline)
-                for _, translation in group:
-                    translation["lag_seconds"] = lag
-                if lag > self.settings.voiceover_max_lag + 0.02:
+                if not translation.get("text", "").strip():
+                    update(translation, "failed", status="failed")
                     record.problems.append(
                         {
-                            "start": anchor,
-                            "end": end,
-                            "reason": "timing_overflow",
-                            "lag_seconds": lag,
-                            "limit_seconds": self.settings.voiceover_max_lag,
+                            "start": phrase["start"],
+                            "end": phrase["end"],
+                            "reason": "translation_error",
                         }
                     )
-                playback_cursor = start
+                    continue
+                best = None
+                best_text = translation.get("adapted_text") or translation["text"]
+                best_key = None
+                for attempt in range(3 if targeted else 1):
+                    update(translation, "synthesis", status="processing", attempt=attempt + 1)
+                    raw = await synthesize_one(phrase, translation)
+                    if raw is None:
+                        break
+                    update(translation, "comparison", measured_duration=raw["duration"])
+                    speed = min(MAX_SPEECH_SPEED, max(1.0, raw["duration"] / max(available, 0.001)))
+                    update(translation, "fit", speed=speed)
+                    fitted = await fit_clip(raw, speed)
+                    for _ in range(4):
+                        if (
+                            fitted["duration"] <= available
+                            or speed >= MAX_SPEECH_SPEED
+                            or available <= 0
+                        ):
+                            break
+                        speed = min(
+                            MAX_SPEECH_SPEED, speed * fitted["duration"] / available * 1.005
+                        )
+                        fitted = await fit_clip(raw, speed)
+                    if fitted["duration"] > available > 0 and speed < MAX_SPEECH_SPEED:
+                        speed = MAX_SPEECH_SPEED
+                        fitted = await fit_clip(raw, speed)
+                    # Measure atempo's output; never truncate speech or exceed the source window.
+                    fits = fitted["duration"] <= available and available > 0
+                    translation["attempts"].append(
+                        {
+                            "number": attempt + 1,
+                            "text": translation.get("adapted_text") or translation["text"],
+                            "measured_duration": raw["duration"],
+                            "speed": speed,
+                            "fitted_duration": fitted["duration"],
+                            "available_seconds": available,
+                            "fits": fits,
+                        }
+                    )
+                    if best is None or fitted["duration"] < best["duration"]:
+                        best = dict(fitted)
+                        best_text = translation.get("adapted_text") or translation["text"]
+                        best_key = translation["audio_cache_key"]
+                        translation["selected_attempt"] = attempt + 1
+                    if fits or attempt == 2 or not targeted or available <= 0:
+                        break
+                    update(translation, "shorten", fitted_duration=fitted["duration"])
+                    result = await translate_one(
+                        phrase,
+                        translation,
+                        index,
+                        shorten=True,
+                        target_duration=available * MAX_SPEECH_SPEED,
+                        measured_duration=raw["duration"],
+                    )
+                    if not result.get("text", "").strip():
+                        break
+                    translation.update(text=result["text"], adapted_text=result["text"])
+                if best is None:
+                    update(translation, "failed", status="failed")
+                    record.problems.append(
+                        {
+                            "start": phrase["start"],
+                            "end": phrase["end"],
+                            "reason": "synthesis_error",
+                        }
+                    )
+                    continue
+                translation.update(text=best_text, adapted_text=best_text, audio_cache_key=best_key)
+                selected_attempt = translation["attempts"][translation["selected_attempt"] - 1]
+                translation.update(
+                    measured_duration=selected_attempt["measured_duration"],
+                    speed=selected_attempt["speed"],
+                    fitted_duration=best["duration"],
+                )
+                # Keep every successful phrase playable, including a complete conflicting WAV.
+                destination = self.directory(record.id) / f"problem-{translation['id']}.wav"
+                await asyncio.to_thread(shutil.copyfile, best["path"], destination)
+                best["path"] = str(destination)
+                translation["audio_asset"] = (
+                    f"/trancription-api/voiceovers/{record.id}/phrases/{translation['id']}/audio"
+                )
+                if best["duration"] > available or available <= 0:
+                    record.problems.append(
+                        {
+                            "start": phrase["start"],
+                            "end": phrase["end"],
+                            "reason": "timing_overflow",
+                            "lag_seconds": max(0, start + best["duration"] - deadline),
+                            "limit_seconds": 0,
+                        }
+                    )
+                    update(translation, "conflict", status="timing_conflict")
+                    continue
+                translation.update(playback_start=start, playback_end=start + best["duration"])
+                placements.append({**best, "start": start})
+                playback_cursor = start + best["duration"]
+                update(translation, "ready", status="ready", warnings=[])
+            stage = record.stages["dubbing"]
+            stage.update(
+                state="incomplete" if record.problems else "completed",
+                elapsed_seconds=time.time() - stage["started_at"],
+                started_at=None,
+                finished_at=time.time(),
+            )
+            record.dubbing = {
+                **record.dubbing,
+                "step": "completed" if not record.problems else "incomplete",
+            }
             config["placements"] = placements
             config["source_duration"] = record.duration
-            config["duration"] = max(record.duration or 0, playback_cursor)
+            config["duration"] = record.source_duration or record.duration or 0
             await self.phase(
                 record,
                 [sys.executable, "-m", "transcription.video_worker"],
@@ -971,7 +1243,12 @@ class Voiceovers:
                     "video.mp4",
                     "translation.m4a",
                     "processing.jsonl",
-                }:
+                    "clips",
+                    "speaker-samples",
+                    "audio.wav",
+                    "background.wav",
+                    "vocals.wav",
+                } and not temporary.name.startswith("problem-"):
                     if temporary.is_dir():
                         await asyncio.to_thread(shutil.rmtree, temporary)
                     else:
@@ -980,8 +1257,8 @@ class Voiceovers:
             record.status = "incomplete" if record.problems else "completed"
             record.storage_bytes = sum(
                 p.stat().st_size
-                for p in self.directory(record.id).iterdir()
-                if p.name != "processing.jsonl"
+                for p in self.directory(record.id).rglob("*")
+                if p.is_file() and p.name != "processing.jsonl"
             )
             record.revision += 1
             self.save(record)
@@ -1000,6 +1277,104 @@ class Voiceovers:
             raise HTTPException(404, "Медиа недоступно")
         return self.directory(record_id) / ("video.mp4" if kind == "video" else "translation.m4a")
 
+    def phrase_audio(self, record_id: str, phrase_id: str) -> Path:
+        record = self.get(record_id)
+        translation = next((item for item in record.translations if item["id"] == phrase_id), None)
+        if translation is None or not translation.get("audio_asset"):
+            raise HTTPException(404, "Аудиофрагмент недоступен")
+        path = self.directory(record_id) / f"problem-{phrase_id}.wav"
+        if not path.is_file():
+            raise HTTPException(404, "Аудиофрагмент недоступен")
+        return path
+
+    def speaker_sample_path(self, record_id: str, speaker_id: str) -> Path:
+        import hashlib
+
+        name = hashlib.sha256(speaker_id.encode()).hexdigest()[:20]
+        return self.directory(record_id) / "speaker-samples" / f"{name}.wav"
+
+    def speaker_sample(self, record_id: str, speaker_id: str) -> Path:
+        record = self.get(record_id)
+        if record.speaker_samples.get(speaker_id, {}).get("kind") not in {
+            "reference",
+            "manual",
+        }:
+            raise HTTPException(404, "Образец спикера недоступен")
+        path = self.speaker_sample_path(record_id, speaker_id)
+        if not path.is_file():
+            raise HTTPException(404, "Образец спикера недоступен")
+        return path
+
+    async def replace_speaker_sample(
+        self, record_id: str, speaker_id: str, expected_revision: int, request: Request
+    ) -> VoiceoverSnapshot:
+        import wave
+
+        record = self.get(record_id)
+        if (
+            record.status not in {"awaiting_voices", "completed", "incomplete"}
+            or record.revision != expected_revision
+        ):
+            raise HTTPException(409, {"code": "revision_conflict", "snapshot": record.model_dump()})
+        if speaker_id not in {speaker["id"] for speaker in record.speakers}:
+            raise HTTPException(404, "Спикер не найден")
+        destination = self.speaker_sample_path(record_id, speaker_id)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        upload = destination.with_suffix(".upload.wav")
+        size = 0
+        try:
+            with upload.open("wb") as output:
+                async for chunk in request.stream():
+                    size += len(chunk)
+                    if size > 6 * 1024 * 1024:
+                        raise HTTPException(413, "Образец слишком большой")
+                    await asyncio.to_thread(output.write, chunk)
+            try:
+                with wave.open(str(upload), "rb") as source:
+                    duration = source.getnframes() / source.getframerate()
+                    valid = (
+                        0 < duration <= 30
+                        and source.getframerate() >= 16000
+                        and source.getnchannels() in {1, 2}
+                    )
+            except (wave.Error, EOFError, ZeroDivisionError) as error:
+                raise HTTPException(422, "Требуется корректный WAV-образец") from error
+            if not valid:
+                raise HTTPException(
+                    422, "Образец должен длиться до 30 секунд и иметь частоту не ниже 16 кГц"
+                )
+            await asyncio.to_thread(
+                subprocess.run,
+                [
+                    "ffmpeg",
+                    "-v",
+                    "error",
+                    "-i",
+                    str(upload),
+                    "-ac",
+                    "1",
+                    "-ar",
+                    "24000",
+                    "-c:a",
+                    "pcm_s16le",
+                    "-y",
+                    str(destination),
+                ],
+                check=True,
+            )
+        except subprocess.SubprocessError as error:
+            raise HTTPException(422, "Не удалось подготовить WAV-образец") from error
+        finally:
+            upload.unlink(missing_ok=True)
+        record.speaker_samples[speaker_id] = {
+            "kind": "manual",
+            "asset": (f"/trancription-api/voiceovers/{record.id}/speakers/{speaker_id}/sample"),
+        }
+        record.voice_assignments[speaker_id] = f"speaker:{speaker_id}"
+        record.revision += 1
+        self.save(record, kind="speaker_samples")
+        return record
+
     def sample(self, voice: str) -> Path:
         directory = self.database.parent / "voice-samples" / self.sample_key
         if voice not in self.voices:
@@ -1016,9 +1391,16 @@ class Voiceovers:
             or record.revision != body.expected_revision
         ):
             raise HTTPException(409, {"code": "revision_conflict", "snapshot": record.model_dump()})
-        if set(body.voice_assignments) != set(record.voice_assignments) or not set(
-            body.voice_assignments.values()
-        ) <= set(record.available_voices or self.voices):
+        reference_voices = {
+            f"speaker:{speaker_id}"
+            for speaker_id, sample in record.speaker_samples.items()
+            if sample.get("kind") in {"reference", "manual"}
+        }
+        if (
+            set(body.voice_assignments) != set(record.voice_assignments)
+            or not set(body.voice_assignments.values())
+            <= set(record.available_voices or self.voices) | reference_voices
+        ):
             raise HTTPException(422, "Назначьте известный голос каждому спикеру")
         record.voice_assignments = body.voice_assignments
         record.revision += 1
@@ -1081,6 +1463,7 @@ class Voiceovers:
                 **({"name": body.filename} if body.filename else {"url": body.url or ""}),
             },
             devices=selected,
+            source_language=body.language,
             auto_synthesize=getattr(body, "auto_synthesize", False),
             created_at=datetime.now(UTC).isoformat(),
             status="preparing" if body.source_kind == "youtube" else "awaiting_upload",

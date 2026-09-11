@@ -22,7 +22,49 @@ if (
     emit(kind="error", code="wrong_gpu")
     sys.exit(1)
 
-if role == "voiceover_preparation":
+if role == "separation":
+    if config["source"].get("name") == "separation-failure.mp4":
+        emit(kind="error", code="separation_failed")
+        sys.exit(1)
+    from pathlib import Path
+
+    background = Path(config["directory"]) / "background.wav"
+    vocals = Path(config["directory"]) / "vocals.wav"
+    for destination, volume in ((background, "0.2"), (vocals, "0.8")):
+        import subprocess
+
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-i",
+                config["audio_path"],
+                "-af",
+                f"volume={volume}",
+                "-ac",
+                "1",
+                "-ar",
+                "24000",
+                "-c:a",
+                "pcm_s16le",
+                "-y",
+                str(destination),
+            ],
+            check=True,
+        )
+    emit(kind="separated", background_path=str(background), vocals_path=str(vocals))
+elif role == "speaker_samples":
+    import subprocess
+
+    result = subprocess.run(
+        [sys.executable, "-m", "transcription.video_worker", role],
+        input=json.dumps(config),
+        text=True,
+        check=False,
+    )
+    sys.exit(result.returncode)
+elif role == "voiceover_preparation":
     import subprocess
     from pathlib import Path
 
@@ -73,6 +115,17 @@ elif role == "asr":
             check=False,
         )
         sys.exit(result.returncode)
+    if config["source"].get("name") == "fit-jitter.mp4":
+        emit(
+            kind="words",
+            language="en",
+            words=[
+                {"start": 0, "end": 1.44, "text": "Hello."},
+                {"start": 1.66, "end": 2.5, "text": "Goodbye."},
+            ],
+        )
+        emit(kind="done")
+        sys.exit(0)
     if config["source"].get("name") == "repeated-terms.mp4":
         emit(
             kind="words",
@@ -178,6 +231,15 @@ elif role == "diarization":
             {"start": 0.2 if overlap else 1, "end": 0.6 if overlap else 1.6, "speaker_id": "B"},
         ],
     )
+elif role == "context":
+    emit(
+        kind="context",
+        context={
+            "topic": "Greeting and farewell",
+            "names": [],
+            "terms": {"Hello": "Привет", "Goodbye": "До свидания"},
+        },
+    )
 elif role in {"translation", "shorten"}:
     if config.get("llm_model") == "translation-test-server":
         import subprocess
@@ -189,11 +251,9 @@ elif role in {"translation", "shorten"}:
             check=False,
         )
         sys.exit(result.returncode)
-    for phrase, text in zip(config["phrases"], ["Привет.", "До свидания."]):
-        if (
-            config["source"].get("name") == "translation-failure.mp4"
-            and phrase == config["phrases"][0]
-        ):
+    for phrase in config["phrases"]:
+        text = "До свидания." if "Goodbye" in phrase.get("text", "") else "Привет."
+        if config["source"].get("name") == "translation-failure.mp4" and phrase["id"] == "0-0":
             emit(kind="translation", id=phrase["id"], text="", status="failed")
         else:
             if config["source"].get("name") == "adaptive-fit.mp4" and role == "shorten":
@@ -222,6 +282,22 @@ elif role == "tts":
     import wave
     from pathlib import Path
 
+    if config["source"].get("name") == "candidate-fit.mp4":
+        if any("-candidate-" in phrase["id"] for phrase in config["phrases"]):
+            emit(kind="error", code="multiple_primary_variants")
+            sys.exit(1)
+        if "/fit-" in config["directory"] and any(
+            phrase["id"] != "0-0" for phrase in config["phrases"]
+        ):
+            emit(kind="error", code="unrelated_phrase_retry")
+            sys.exit(1)
+    if (
+        config["source"].get("name") == "voiceover-tail.mp4"
+        and any(phrase["text"] == "Пока." for phrase in config["phrases"])
+        and len(config["phrases"]) != 1
+    ):
+        emit(kind="error", code="unchanged_phrase_was_resynthesized")
+        sys.exit(1)
     for phrase in config["phrases"]:
         if config["source"].get("name") == "tts-failure.mp4" and phrase["text"] == "Привет.":
             emit(kind="synthesis_failed", id=phrase["id"])
@@ -231,7 +307,7 @@ elif role == "tts":
             output.setparams((1, 2, 24000, 0, "NONE", "not compressed"))
             duration = (
                 (
-                    1.3
+                    1.7
                     if config["source"].get("name") == "too-long.mp4"
                     or (
                         config["source"].get("name") == "rephrase.mp4"
@@ -245,8 +321,12 @@ elif role == "tts":
                 else 0.25
             )
             if config["source"].get("name") == "adaptive-fit.mp4" and phrase["id"] == "0-0":
-                duration = {"Привет.": 1.3, "Привет!": 1.2, "Здравствуй.": 0.9}[phrase["text"]]
-            if config["source"].get("name") == "voiceover-tail.mp4" and phrase["id"] != "0-0":
+                duration = {"Привет.": 1.8, "Привет!": 1.7, "Здравствуй.": 0.9}[phrase["text"]]
+            if (
+                config["source"].get("name") == "voiceover-tail.mp4"
+                and phrase["id"] != "0-0"
+                and phrase["text"] != "Пока."
+            ):
                 duration = 4
             if config["source"].get("name") == "candidate-fit.mp4":
                 duration = {"Привет.": 2, "До свидания.": 2, "Да.": 1.5, "Здравствуйте.": 0.8}.get(
@@ -254,6 +334,12 @@ elif role == "tts":
                 )
             if config["source"].get("name") == "pace-fit.mp4":
                 duration = 0.8 if "brisk" in phrase.get("instruction", "") else 4
+            if config["source"].get("name") == "long-transcript.mp4":
+                duration = 0.01
+            if config["source"].get("name") == "fit-jitter.mp4":
+                duration = 1.88 if phrase["id"] == "0-0" else 0.25
+            if config["source"].get("name") == "speed-150.mp4":
+                duration = 1.45 if phrase["id"] == "0-0" else 0.25
             if config["source"].get("name") == "pause-fit.mp4":
                 output.writeframes(b"\x00\x20" * 9600 + b"\x00\x00" * 28800 + b"\x00\x20" * 9600)
                 duration = 2

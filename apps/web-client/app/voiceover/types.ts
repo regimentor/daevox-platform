@@ -10,9 +10,32 @@ export interface Translation {
   source_segment_ids: string[];
   warnings?: { code: string; message: string }[];
   text: string;
+  full_text?: string;
+  adapted_text?: string;
   status: string;
+  audio_asset?: string;
+  audio_cache_key?: string;
   playback_start?: number;
   playback_end?: number;
+  step?: string;
+  attempt?: number;
+  selected_attempt?: number;
+  original_duration?: number;
+  measured_duration?: number;
+  fitted_duration?: number;
+  available_seconds?: number;
+  speed?: number;
+  lag_seconds?: number;
+  deadline?: number;
+  attempts?: {
+    number: number;
+    text: string;
+    measured_duration: number;
+    fitted_duration: number;
+    available_seconds: number;
+    speed: number;
+    fits: boolean;
+  }[];
 }
 export interface Voiceover {
   id: string;
@@ -30,6 +53,16 @@ export interface Voiceover {
   speakers: { id: string; label: string }[];
   available_voices?: string[];
   voice_assignments: Record<string, string>;
+  speaker_samples?: Record<
+    string,
+    {
+      kind: 'reference' | 'manual' | 'fallback';
+      asset?: string;
+      fallback_voice?: string;
+      reason?: string;
+    }
+  >;
+  background?: { mode: 'separated' | 'speech_only' | 'original_ducked'; reason?: string | null };
   problems: { start: number; end: number; reason: string }[];
   assets: { video?: string; audio?: string };
   error: { code: string; message: string } | null;
@@ -46,11 +79,12 @@ export interface Voiceover {
       finished_at?: number;
     }
   >;
+  dubbing?: { phrase_id?: string; step?: string };
 }
 export const statuses: Record<string, string> = {
   awaiting_upload: 'Ожидание видео',
   preparing: 'Подготовка перевода',
-  awaiting_voices: 'Выберите голоса',
+  awaiting_voices: 'Готово к озвучке',
   synthesizing: 'Подготовка озвучки',
   completed: 'Готово',
   incomplete: 'Перевод неполный',
@@ -60,12 +94,15 @@ export const statuses: Record<string, string> = {
 };
 
 export const stageLabels: Record<string, string> = {
+  dubbing: 'Озвучка фраз',
   acquisition: 'Получение видео',
   preparation: 'Подготовка аудио',
   asr_model: 'Загрузка распознавания',
   diarization_model: 'Загрузка разметки спикеров',
   asr: 'Распознавание речи',
   diarization: 'Определение спикеров',
+  separation: 'Разделение речи и фона',
+  context: 'Контекст видео',
   translation: 'Перевод',
   voice_samples: 'Образцы голосов',
   synthesis: 'Синтез речи',

@@ -481,6 +481,7 @@ dependencies = [
 [package.optional-dependencies]
 gpu = [
     { name = "ctranslate2" },
+    { name = "demucs" },
     { name = "faster-whisper" },
     { name = "gigaam" },
     { name = "huggingface-hub" },
@@ -504,6 +505,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "ctranslate2", marker = "extra == 'gpu'", specifier = "==4.8.2" },
+    { name = "demucs", marker = "extra == 'gpu'", specifier = "==4.0.1" },
     { name = "fastapi", specifier = ">=0.135,<1" },
     { name = "faster-whisper", marker = "extra == 'gpu'", specifier = "==1.2.1" },
     { name = "gigaam", marker = "extra == 'gpu'", git = "https://github.com/salute-developers/GigaAM.git?rev=7447938d791c4f3e643386ee22c33777004293a5" },
@@ -526,6 +528,39 @@ dev = [
     { name = "mypy", specifier = ">=1.17" },
     { name = "pytest", specifier = ">=8.4,<10" },
     { name = "ruff", specifier = ">=0.12" },
+]
+
+[[package]]
+name = "demucs"
+version = "4.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dora-search" },
+    { name = "einops" },
+    { name = "julius" },
+    { name = "lameenc" },
+    { name = "openunmix" },
+    { name = "pyyaml" },
+    { name = "torch" },
+    { name = "torchaudio" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/87/38/55f835ebd9f443465087a6954ede19d4a41aebdf5e28567e89b99d6d2f57/demucs-4.0.1.tar.gz", hash = "sha256:e45a5a788bae79767c37bbf6e69aae03862ddcca05550fb79b926346a177d713", size = 1212924, upload-time = "2023-09-07T16:09:01.334Z" }
+
+[[package]]
+name = "dora-search"
+version = "0.1.13"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "omegaconf" },
+    { name = "retrying" },
+    { name = "submitit" },
+    { name = "torch" },
+    { name = "treetable" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/19/4e/5e14933be05a5d35769a9fafa30d739092689ecf9e1dcf9a5a3886536e92/dora_search-0.1.13.tar.gz", hash = "sha256:ac490e48706640a2ae08b67b36db18174b969459a13a9831c21423575a194a87", size = 69530, upload-time = "2026-09-09T15:46:14.227Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a2/80/0929bff2e33154d92d16ca7af918aca81ed86ba063f133a35e87640f1f65/dora_search-0.1.13-py3-none-any.whl", hash = "sha256:2b440ab095d3dd715367bf680e64c94d9abe1a3950006224badecad9ff8240a5", size = 73400, upload-time = "2026-09-09T15:46:12.814Z" },
 ]
 
 [[package]]
@@ -883,6 +918,23 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a9/c4/1407df7512a5b36cc79840e01710dc575733c461b13ab866cae77eaf87f3/kiwisolver-1.5.1-graalpy312-graalpy250_312_native-macosx_11_0_arm64.whl", hash = "sha256:482676e5bd48d70ac99d9fc78863469845421e01184fa83f1f9366dc49f7e974", size = 134002, upload-time = "2026-08-28T10:28:08.881Z" },
     { url = "https://files.pythonhosted.org/packages/16/45/c37a21ad5c0ab581a93c55ad544721aaa1f0ae94edb29c6a678a23d013e6/kiwisolver-1.5.1-graalpy312-graalpy250_312_native-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:072bdb15a3c19a5b5dbc8f8fb1f4e1884bf4f3507eeb4cc6334401274d37a5c0", size = 194292, upload-time = "2026-08-28T10:28:11.06Z" },
     { url = "https://files.pythonhosted.org/packages/a6/c1/69f00d627949580e43d57af0aa465df46868d7c29801c137a55374101294/kiwisolver-1.5.1-graalpy312-graalpy250_312_native-win_amd64.whl", hash = "sha256:a5a00665d1a0e26763a7338d7e911d4598fbc1d50dd0d6b7919b7dc6c5d6569f", size = 73362, upload-time = "2026-08-28T10:28:12.449Z" },
+]
+
+[[package]]
+name = "lameenc"
+version = "1.8.4"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e7/41/afa8b9bd15ebe757b8a1029b1f44b0caa94252dd12537d78a81c360ad069/lameenc-1.8.4-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:8482f68a0910606efc182f1858fef8655681d9d29c8edc9fa5c36acf74819118", size = 189628, upload-time = "2026-06-27T15:03:08.34Z" },
+    { url = "https://files.pythonhosted.org/packages/4b/bd/d64e49025090c1971eb085076a40d82f3fcd8339f2a2a4e1e224bd9aa482/lameenc-1.8.4-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:fb0d5bb76b09d8bf4e27f4824a72e4acd659bd4ec8dac2879fd5744f3d6d88fc", size = 178226, upload-time = "2026-06-27T15:02:59.939Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/1a/fa4d2e4df30b6322a806da58b214c5c8de30e4136027dddbbaa1238e5c1c/lameenc-1.8.4-cp312-cp312-manylinux1_i686.manylinux_2_34_i686.manylinux_2_5_i686.whl", hash = "sha256:43500c41c51a88bdca9b4ee85c5764d4c0d8c5b1d1cb9cc35c2449fc2e0412f9", size = 221785, upload-time = "2026-06-27T15:02:46.71Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/80/9f1ae88f9dc02b6a9ad53ab687c3e13077bb81f3f452bb59f17b42318ba0/lameenc-1.8.4-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ea7a7968b20535934bc11caca3d23b12e972de6e02f31bdc6a9e206c198cfd1e", size = 251884, upload-time = "2026-06-27T15:12:18.347Z" },
+    { url = "https://files.pythonhosted.org/packages/98/4a/f5856aa2362feb8afc1a9e51d81a946b82413b465f5577943984dafab256/lameenc-1.8.4-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_34_aarch64.whl", hash = "sha256:606ee90e18b70b0134c410fe21db11e31bc539e1da1a2c298d90889878766552", size = 251631, upload-time = "2026-06-27T15:07:58.681Z" },
+    { url = "https://files.pythonhosted.org/packages/49/98/ced7da98fb0c149e80d3a5a97546b5abcec6a06f4187cc8842a737107487/lameenc-1.8.4-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:00d619c0a617f66feccbbd2fa9ed3857958ea503f9fe0038cb8b1d950b8b6452", size = 247546, upload-time = "2026-06-27T14:58:55.928Z" },
+    { url = "https://files.pythonhosted.org/packages/48/03/1d153252a5aa9093a461b3d013b1e8d383806f6c8c59c7f65c6928197aaa/lameenc-1.8.4-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_34_x86_64.whl", hash = "sha256:18ba38c49759e217dd6fecf56ef92eab2a24f0a0d87ae4c3564ce4748d75b166", size = 247480, upload-time = "2026-06-27T15:02:59.079Z" },
+    { url = "https://files.pythonhosted.org/packages/24/5c/f7f73b6ed2a46d149b7f8a2046c26e61e2cd4ac248f628cebce300abbf31/lameenc-1.8.4-cp312-cp312-win32.whl", hash = "sha256:513b5163b30581350be6c3e6adb58fd63ab1573ee534f5e9270655f3ffe63562", size = 124729, upload-time = "2026-06-27T15:03:41.39Z" },
+    { url = "https://files.pythonhosted.org/packages/6e/d1/b4b08b1c27b4991052db2fae3082100a6317fef34873bbeb121809315b22/lameenc-1.8.4-cp312-cp312-win_amd64.whl", hash = "sha256:33854f5b479cec81679860c8d67225e2ab3a31a0bde0bdf49b55e2bd6ee1923e", size = 153045, upload-time = "2026-06-27T15:03:40.24Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/bd/ccbf35970373ab076e5036c1f14670eb13ed05bf4dbb2fbdfefe35e8b812/lameenc-1.8.4-cp312-cp312-win_arm64.whl", hash = "sha256:e72e10ea0240bcc46e05df9dd4979116e74e183a5983cd0dcb14ff5315444649", size = 131452, upload-time = "2026-06-27T15:03:36.726Z" },
 ]
 
 [[package]]
@@ -1475,6 +1527,21 @@ wheels = [
 ]
 
 [[package]]
+name = "openunmix"
+version = "1.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "torch" },
+    { name = "torchaudio" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/42/ef/4ad54e3ecb1e89f7f7bdb4c7b751e43754e892d3c32a8550e5d0882565df/openunmix-1.3.0.tar.gz", hash = "sha256:cc9245ce728700f5d0b72c67f01be4162777e617cdc47f9b035963afac180fc8", size = 45889, upload-time = "2024-04-16T11:10:47.121Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/43/37/320afd9458abb186f09a5183f36e48829df7151821bf887f272a63b2584d/openunmix-1.3.0-py3-none-any.whl", hash = "sha256:e893ae22c5b8001a6107022499c2587b70d5c2e4777cc7c9ed6272b68a69534e", size = 40047, upload-time = "2024-04-16T11:10:45.107Z" },
+]
+
+[[package]]
 name = "optuna"
 version = "5.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1933,6 +2000,15 @@ wheels = [
 ]
 
 [[package]]
+name = "retrying"
+version = "1.4.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c8/5a/b17e1e257d3e6f2e7758930e1256832c9ddd576f8631781e6a072914befa/retrying-1.4.2.tar.gz", hash = "sha256:d102e75d53d8d30b88562d45361d6c6c934da06fab31bd81c0420acb97a8ba39", size = 11411, upload-time = "2025-08-03T03:35:25.189Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/67/f3/6cd296376653270ac1b423bb30bd70942d9916b6978c6f40472d6ac038e7/retrying-1.4.2-py3-none-any.whl", hash = "sha256:bbc004aeb542a74f3569aeddf42a2516efefcdaff90df0eb38fbfbf19f179f59", size = 10859, upload-time = "2025-08-03T03:35:23.829Z" },
+]
+
+[[package]]
 name = "rich"
 version = "15.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2133,6 +2209,19 @@ wheels = [
 ]
 
 [[package]]
+name = "submitit"
+version = "1.5.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cloudpickle" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/47/86/497018fb3b74e71bef45df82762b176e6b3d159f29941c20d2f141ec4096/submitit-1.5.4.tar.gz", hash = "sha256:7100848bd1cdda79c7196e54ee830793ae75fd7adde0c5bef738d72360a07508", size = 81538, upload-time = "2025-12-17T19:20:03.396Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ea/bb/711e1c2ebd18a21202c972dd5d5c8e09a921f2d3560e3a53d6350c808ab7/submitit-1.5.4-py3-none-any.whl", hash = "sha256:c26f3a7c8d4150eaf70b1da71e2023e9e9936c93e8342ed7db910f29158561c5", size = 76043, upload-time = "2025-12-17T19:20:01.941Z" },
+]
+
+[[package]]
 name = "sympy"
 version = "1.14.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2284,6 +2373,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/21/3b/6c24bec5be5e743ffd99576daa5cc077722fc7d5bbc00bd133fa0c698dc6/tqdm-4.70.0.tar.gz", hash = "sha256:55b0b0dbd97462d06ebee91e4dac24ed4d4702be82b24f07e6c1d27e08cea220", size = 795438, upload-time = "2026-07-27T11:33:15.271Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f9/1c/01bfd571a64e7f270e6bab5e33777debe0edc56759233ce84f27dec92d14/tqdm-4.70.0-py3-none-any.whl", hash = "sha256:7f585706bfddbdebf89daac705b2dfcc16890130727d3197ca62c732b4310953", size = 80184, upload-time = "2026-07-27T11:33:13.167Z" },
+]
+
+[[package]]
+name = "treetable"
+version = "0.2.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8d/f1/e5f28b2485d8d3169ff0167e3e560fa912a96e71916bf11365c9e40f11f5/treetable-0.2.6.tar.gz", hash = "sha256:7e1d62dbce503fbf24561aee1461b8fbcc2c232ff45661c3b9d0c2081c795bdf", size = 9577, upload-time = "2025-09-02T20:40:06.557Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e4/16/dd00f9fc5b84cb3fb396d62245e11761accfd9d27fd56ce0024bdd38a0ae/treetable-0.2.6-py3-none-any.whl", hash = "sha256:fa7dfa0297d2bbc5882191edd2e15f79a5e883e352f489e2acadb221db565adf", size = 7379, upload-time = "2025-09-03T18:57:17.784Z" },
 ]
 
 [[package]]

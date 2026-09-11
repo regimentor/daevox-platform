@@ -1,7 +1,32 @@
 """Constraints shared by translation and measured speech selection."""
 
 import re
-from collections import Counter
+
+MAX_SPEECH_SPEED = 1.5
+
+
+def phrase_deadlines(phrases: list[dict], duration: float) -> list[float]:
+    """Share overlapping speech's window in source-duration order; never mix voices."""
+    groups: list[list[dict]] = []
+    end = -1.0
+    for phrase in phrases:
+        if not groups or phrase["start"] >= end:
+            groups.append([])
+        groups[-1].append(phrase)
+        end = max(end, phrase["end"])
+    deadlines = []
+    for index, group in enumerate(groups):
+        anchor = group[0]["start"]
+        deadline = min(
+            duration, groups[index + 1][0]["start"] if index + 1 < len(groups) else duration
+        )
+        weights = [max(0.001, p["end"] - p["start"]) for p in group]
+        elapsed = 0.0
+        for weight in weights:
+            elapsed += weight
+            deadlines.append(anchor + max(0, deadline - anchor) * elapsed / sum(weights))
+    return deadlines
+
 
 # Keep compound names intact. Projects can extend this list in Settings.
 DEFAULT_TERMS = (
@@ -17,7 +42,6 @@ DEFAULT_TERMS = (
     "Vulkan",
     "OpenCL",
 )
-NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
 
 
 def protected_terms(source: str, glossary: list[str]) -> list[str]:
@@ -33,18 +57,40 @@ def protected_terms(source: str, glossary: list[str]) -> list[str]:
     )
 
 
-def preserves_entities(source: str, candidate: str, terms: list[str]) -> bool:
-    source = re.sub(r"\b([A-Z]{2,})s\b", r"\1", source)
-    candidate = re.sub(r"\b([A-Z]{2,})s\b", r"\1", candidate)
-    if Counter(NUMBER.findall(source)) != Counter(NUMBER.findall(candidate)):
-        return False
-    return all(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", candidate) for term in terms)
-
-
 def semantic_windows(phrases: list[dict]) -> list[dict]:
     """Repair conservative English ASR clause boundaries without rewriting source words."""
-    windows: list[dict] = []
+    bounded: list[dict] = []
     for phrase in phrases:
+        words = phrase.get("words", [])
+        if phrase["end"] - phrase["start"] <= 18 or len(words) < 2:
+            bounded.append(phrase)
+            continue
+        chunks: list[list[dict]] = []
+        chunk: list[dict] = []
+        for word in words:
+            if chunk and word["end"] - chunk[0]["start"] > 18:
+                chunks.append(chunk)
+                chunk = []
+            chunk.append(word)
+        if chunk:
+            chunks.append(chunk)
+        if len(chunks) == 1:
+            bounded.append(phrase)
+            continue
+        for index, words_chunk in enumerate(chunks):
+            bounded.append(
+                {
+                    **phrase,
+                    "id": f"{phrase['id']}:{index}",
+                    "start": words_chunk[0]["start"],
+                    "end": words_chunk[-1]["end"],
+                    "text": "".join(word["text"] for word in words_chunk),
+                    "words": words_chunk,
+                    "source_segment_ids": [phrase["id"]],
+                }
+            )
+    windows: list[dict] = []
+    for phrase in bounded:
         continuation = re.match(
             r"(?:which\b|including\b|with libraries\b|for low-level\b|is the same reason\b|whether\b)",
             phrase["text"].strip(),
@@ -66,38 +112,10 @@ def semantic_windows(phrases: list[dict]) -> list[dict]:
             windows[-1]["source_segment_ids"].append(phrase["id"])
         else:
             windows.append(
-                {**phrase, "words": list(phrase["words"]), "source_segment_ids": [phrase["id"]]}
+                {
+                    **phrase,
+                    "words": list(phrase["words"]),
+                    "source_segment_ids": phrase.get("source_segment_ids", [phrase["id"]]),
+                }
             )
     return windows
-
-
-def translation_warnings(source: str, candidate: str, terms: list[str]) -> list[dict]:
-    """Advisory checks; never discard a usable translation."""
-
-    def numbers(text):
-        text = re.sub(r"(?<=\d)[ \u00a0\u202f](?=\d{3}(?:\D|$))", "", text)
-        text = re.sub(r"(?<=\d),(?=\d{3}(?:\D|$))", "", text)
-        return Counter(value.replace(",", ".") for value in NUMBER.findall(text))
-
-    warnings: list[dict] = []
-    if numbers(source) != numbers(candidate):
-        warnings.append(
-            {
-                "code": "numbers_changed",
-                "message": "Числа в оригинале и переводе могут различаться. Проверьте значения.",
-            }
-        )
-    missing = [
-        term
-        for term in terms
-        if not re.search(r"(?<!\w)" + re.escape(term) + r"s?(?!\w)", candidate, re.IGNORECASE)
-    ]
-    if missing:
-        warnings.append(
-            {
-                "code": "terms_changed",
-                "message": "Проверьте передачу терминов: " + ", ".join(missing),
-                "terms": missing,
-            }
-        )
-    return warnings

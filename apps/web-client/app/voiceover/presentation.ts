@@ -2,10 +2,20 @@ import { stageLabels, type Voiceover } from './types';
 
 export const pipelineGroups = [
   { label: 'Источник', keys: ['acquisition', 'preparation'] },
-  { label: 'Распознавание', keys: ['asr_model', 'diarization_model', 'asr', 'diarization'] },
-  { label: 'Перевод', keys: ['translation'] },
-  { label: 'Голоса', keys: ['voice_samples'] },
-  { label: 'Озвучка', keys: ['synthesis', 'shorten', 'fit', 'pauses'] },
+  { label: 'Речь', keys: ['asr_model', 'diarization_model', 'asr', 'diarization', 'separation'] },
+  {
+    label: 'Озвучка',
+    keys: [
+      'context',
+      'voice_samples',
+      'dubbing',
+      'translation',
+      'synthesis',
+      'shorten',
+      'fit',
+      'pauses',
+    ],
+  },
   { label: 'Сборка', keys: ['rendering'] },
 ];
 export const activeStatuses = ['awaiting_upload', 'preparing', 'synthesizing'];
@@ -36,17 +46,22 @@ export function pipeline(record: Pick<Voiceover, 'status' | 'stages'>) {
   const last = Math.max(
     -1,
     ...pipelineGroups.map((group, index) => (group.keys.some((key) => stages[key]) ? index : -1)),
-    record.status === 'awaiting_voices' ? 3 : -1,
-    record.status === 'synthesizing' ? 4 : -1,
+    record.status === 'awaiting_voices' ? 2 : -1,
+    record.status === 'synthesizing' ? 2 : -1,
   );
   return pipelineGroups.map((group, index) => {
     const entries = group.keys.flatMap((key) => (stages[key] ? [{ key, ...stages[key] }] : []));
+    const overall = group.label === 'Озвучка' ? stages.dubbing : undefined;
     const running = entries.filter((stage) => stage.state === 'running');
     const failed = entries.some((stage) => stage.state === 'failed');
     let state = 'pending';
-    if (['completed', 'incomplete'].includes(record.status)) state = 'completed';
+    if (overall?.state === 'incomplete') state = 'incomplete';
+    else if (overall?.state === 'running')
+      state = activeStatuses.includes(record.status) ? 'running' : 'failed';
+    else if (['completed', 'incomplete'].includes(record.status)) state = 'completed';
     else if (failed) state = 'failed';
-    else if (index === 3 && record.status === 'awaiting_voices') state = 'waiting';
+    else if (index === 2 && record.status === 'synthesizing' && !overall) state = 'running';
+    else if (index === 2 && record.status === 'awaiting_voices') state = 'waiting';
     else if (index < last) state = 'completed';
     else if (running.length) state = activeStatuses.includes(record.status) ? 'running' : 'failed';
     else if (
@@ -58,7 +73,11 @@ export function pipeline(record: Pick<Voiceover, 'status' | 'stages'>) {
     else if (index === last && record.status === 'failed') state = 'failed';
     else if (index === Math.max(0, last) && activeStatuses.includes(record.status))
       state = 'running';
-    const measured = running.length ? running : entries.filter((stage) => stage.state === 'failed');
+    const measured = overall
+      ? [overall]
+      : running.length
+        ? running
+        : entries.filter((stage) => stage.state === 'failed');
     const values = measured.map(percent);
     const value =
       state === 'completed'
@@ -74,9 +93,9 @@ export function pipeline(record: Pick<Voiceover, 'status' | 'stages'>) {
 export function currentProgress(record: Pick<Voiceover, 'status' | 'stages'>) {
   const groups = pipeline(record);
   return (
-    groups.find((group) => ['running', 'failed', 'waiting'].includes(group.state)) ??
+    groups.find((group) => ['running', 'failed', 'waiting', 'incomplete'].includes(group.state)) ??
     groups.find((group) => group.state === 'pending') ??
-    groups[5]
+    groups[3]
   );
 }
 export function duration(seconds?: number | null) {

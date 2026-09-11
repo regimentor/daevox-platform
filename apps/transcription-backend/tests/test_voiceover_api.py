@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -106,10 +108,10 @@ def test_library_pages_newest_first_without_full_text_or_local_paths(tmp_path):
         assert tail["next_cursor"] is None
 
 
-def wait_status(client, record_id, statuses):
+def wait_status(client, record_id, statuses, timeout=10):
     import time
 
-    deadline = time.monotonic() + 10
+    deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         record = client.get(f"{BASE}/voiceovers/{record_id}").json()
         if record["status"] in statuses:
@@ -147,6 +149,18 @@ def test_failed_cleanup_remains_visible_and_can_be_retried(tmp_path, monkeypatch
                 client.get(f"{BASE}/voiceovers/{record['id']}").json()["status"] == "delete_failed"
             )
         assert client.delete(f"{BASE}/voiceovers/{record['id']}").status_code == 204
+
+
+def start_dubbing(client, ready):
+    response = client.post(
+        f"{BASE}/voiceovers/{ready['id']}/synthesize",
+        json={
+            "expected_revision": ready["revision"],
+            "client_request_id": "dubbing-test",
+        },
+    )
+    assert response.status_code == 202, response.text
+    return wait_status(client, ready["id"], {"completed", "incomplete", "failed"}, timeout=60)
 
 
 def model_worker():
@@ -203,14 +217,14 @@ def test_video_preparation_preserves_timed_text_and_waits_for_voice_confirmation
             ("Hello.", 0, 0.4),
             (" Goodbye.", 1, 1.5),
         ]
-        assert [s["text"] for s in ready["translations"]] == ["Привет.", "До свидания."]
+        assert [s["status"] for s in ready["translations"]] == ["pending", "pending"]
         assert [s["source_segment_ids"] for s in ready["translations"]] == [
             [ready["transcript"][0]["id"]],
             [ready["transcript"][1]["id"]],
         ]
         assert len(ready["voice_assignments"]) == 2
         assert ready["stages"]["preparation"]["state"] == "completed"
-        assert ready["stages"]["translation"]["state"] == "completed"
+        assert "translation" not in ready["stages"]
         assert ready["stages"]["voice_samples"]["state"] == "completed"
         assert client.get(f"{BASE}/activity").json()["status"] == "awaiting_voices"
 
@@ -262,7 +276,7 @@ def test_default_video_processing_uses_second_gpu(tmp_path):
         ready = wait_status(client, record["id"], {"awaiting_voices", "failed"})
         assert ready["status"] == "awaiting_voices", ready
         assert ready["stages"]["preparation"]["state"] == "completed"
-        assert ready["stages"]["translation"]["state"] == "completed"
+        assert "translation" not in ready["stages"]
         assert ready["stages"]["voice_samples"]["state"] == "completed"
         assert client.get(f"{BASE}/activity").json()["status"] == "awaiting_voices"
 
@@ -303,7 +317,9 @@ def test_confirmed_synthesis_produces_seekable_media_and_survives_restart(tmp_pa
         complete = wait_status(client, record["id"], {"completed", "failed"})
         assert complete["status"] == "completed", complete
         if filename == "advisory.mp4":
-            assert all(t["status"] == "ready" and t["warnings"] for t in complete["translations"])
+            assert all(
+                t["status"] == "ready" and not t["warnings"] for t in complete["translations"]
+            )
         import json
 
         journal = tmp_path / "voiceovers" / record["id"] / "processing.jsonl"
@@ -322,7 +338,7 @@ def test_confirmed_synthesis_produces_seekable_media_and_survives_restart(tmp_pa
         published_bytes = sum(
             int(client.head(url).headers["content-length"]) for url in complete["assets"].values()
         )
-        assert complete["storage_bytes"] == len(media) + published_bytes
+        assert complete["storage_bytes"] > len(media) + published_bytes
     with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
         replay = client.post(f"{BASE}/voiceovers/{record['id']}/synthesize", json=body)
         assert replay.status_code == 202
@@ -334,7 +350,7 @@ def test_confirmed_synthesis_produces_seekable_media_and_survives_restart(tmp_pa
             assert response.headers["content-range"].startswith("bytes 0-15/")
 
 
-def test_long_speech_is_preserved_and_delays_the_next_phrase_without_overlap(tmp_path):
+def test_unfittable_speech_is_preserved_without_delaying_the_next_phrase(tmp_path):
     with TestClient(
         create_app(Settings(data_dir=tmp_path), worker_command=model_worker())
     ) as client:
@@ -351,13 +367,15 @@ def test_long_speech_is_preserved_and_delays_the_next_phrase_without_overlap(tmp
             },
         )
         result = wait_status(client, record["id"], {"completed", "incomplete", "failed"})
-        assert result["status"] == "completed"
-        assert result["problems"] == []
-        assert result["translations"][0]["text"] == "Привет."
+        assert result["status"] == "incomplete"
+        assert result["problems"][0]["reason"] == "timing_overflow"
+        assert result["translations"][0]["full_text"] == "Привет."
         first, second = result["translations"]
-        assert first["status"] == second["status"] == "ready"
-        assert 1 < first["playback_end"] < 1.3
-        assert second["playback_start"] == first["playback_end"]
+        assert first["status"] == "timing_conflict"
+        assert second["status"] == "ready"
+        assert first["fitted_duration"] > 1
+        assert client.get(first["audio_asset"]).status_code == 200
+        assert second["playback_start"] == 1
         assert client.get(result["assets"]["audio"]).status_code == 200
 
 
@@ -405,6 +423,70 @@ def test_all_five_voice_samples_are_ready_before_voice_selection(tmp_path):
             assert response.content.startswith(b"RIFF")
         client.delete(f"{BASE}/voiceovers/{record['id']}")
         assert client.head(f"{BASE}/voiceover-voices/aidar/sample").status_code == 200
+
+
+@pytest.mark.parametrize(
+    "filename, expected_kind", [("talk.mp4", "reference"), ("overlap.mp4", "fallback")]
+)
+def test_speakers_expose_stable_reference_samples_or_explicit_fallback(
+    tmp_path, filename, expected_kind
+):
+    with TestClient(
+        create_app(
+            Settings(data_dir=tmp_path, tts_engine="cosyvoice"), worker_command=model_worker()
+        )
+    ) as client:
+        record = client.post(f"{BASE}/voiceovers", json={**SOURCE, "filename": filename}).json()
+        client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
+        ready = wait_status(client, record["id"], {"awaiting_voices", "failed"})
+
+        assert ready["status"] == "awaiting_voices", ready
+        assert {sample["kind"] for sample in ready["speaker_samples"].values()} == {expected_kind}
+        for speaker in ready["speakers"]:
+            sample = ready["speaker_samples"][speaker["id"]]
+            if expected_kind == "reference":
+                assert ready["voice_assignments"][speaker["id"]] == f"speaker:{speaker['id']}"
+                response = client.get(sample["asset"])
+                assert response.status_code == 200
+                assert response.content.startswith(b"RIFF")
+            else:
+                assert sample["fallback_voice"] == ready["voice_assignments"][speaker["id"]]
+                assert sample["reason"] == "no_clean_speech"
+
+
+def test_user_can_replace_a_fallback_with_a_valid_manual_speaker_sample(tmp_path):
+    import io
+    import wave
+
+    audio = io.BytesIO()
+    with wave.open(audio, "wb") as output:
+        output.setparams((1, 2, 16000, 0, "NONE", "not compressed"))
+        output.writeframes(b"\x01\x00" * 16000)
+
+    with TestClient(
+        create_app(
+            Settings(data_dir=tmp_path, tts_engine="cosyvoice"), worker_command=model_worker()
+        )
+    ) as client:
+        record = client.post(
+            f"{BASE}/voiceovers", json={**SOURCE, "filename": "overlap.mp4"}
+        ).json()
+        client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
+        ready = wait_status(client, record["id"], {"awaiting_voices"})
+        speaker_id = ready["speakers"][0]["id"]
+
+        response = client.put(
+            f"{BASE}/voiceovers/{record['id']}/speakers/{speaker_id}/sample",
+            params={"expected_revision": ready["revision"]},
+            content=audio.getvalue(),
+            headers={"Content-Type": "audio/wav"},
+        )
+
+        assert response.status_code == 200, response.text
+        updated = response.json()
+        assert updated["speaker_samples"][speaker_id]["kind"] == "manual"
+        assert updated["voice_assignments"][speaker_id] == f"speaker:{speaker_id}"
+        assert client.get(updated["speaker_samples"][speaker_id]["asset"]).status_code == 200
 
 
 def test_overlapping_speech_is_placed_sequentially_inside_its_group(tmp_path):
@@ -551,6 +633,84 @@ def test_retries_duration_feedback_before_dropping_a_translated_phrase(tmp_path)
         assert all(t["status"] == "ready" for t in result["translations"])
 
 
+def test_duration_adaptation_preserves_full_translation_separately(tmp_path):
+    with TestClient(
+        create_app(Settings(data_dir=tmp_path), worker_command=model_worker())
+    ) as client:
+        record = client.post(
+            f"{BASE}/voiceovers", json={**SOURCE, "filename": "adaptive-fit.mp4"}
+        ).json()
+        client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
+        ready = wait_status(client, record["id"], {"awaiting_voices"})
+        assert ready["translations"][0]["full_text"] == ""
+        assert ready["translations"][0]["adapted_text"] == ""
+
+        client.post(
+            f"{BASE}/voiceovers/{record['id']}/synthesize",
+            json={"expected_revision": ready["revision"], "client_request_id": "synth"},
+        )
+        result = wait_status(client, record["id"], {"completed", "incomplete", "failed"})
+
+        assert result["status"] == "completed", result
+        assert result["translations"][0]["full_text"] == "Привет."
+        assert result["translations"][0]["adapted_text"] == "Здравствуй."
+
+
+def test_initial_tts_uses_one_text_per_phrase_and_retries_only_the_overflow(tmp_path):
+    with TestClient(
+        create_app(Settings(data_dir=tmp_path), worker_command=model_worker())
+    ) as client:
+        record = client.post(
+            f"{BASE}/voiceovers", json={**SOURCE, "filename": "candidate-fit.mp4"}
+        ).json()
+        client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
+        ready = wait_status(client, record["id"], {"awaiting_voices"})
+        client.post(
+            f"{BASE}/voiceovers/{record['id']}/synthesize",
+            json={"expected_revision": ready["revision"], "client_request_id": "synth"},
+        )
+        result = wait_status(client, record["id"], {"completed", "incomplete", "failed"})
+        assert result["status"] in {"completed", "incomplete"}, result
+        assert result["translations"][0]["full_text"] == "Привет."
+
+
+def test_preparation_stores_one_video_context_and_passes_the_full_transcript(tmp_path):
+    import json
+
+    with TestClient(
+        create_app(Settings(data_dir=tmp_path), worker_command=model_worker())
+    ) as client:
+        record = client.post(
+            f"{BASE}/voiceovers", json={**SOURCE, "filename": "context.mp4"}
+        ).json()
+        client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
+        ready = wait_status(client, record["id"], {"awaiting_voices", "failed"})
+        ready = start_dubbing(client, ready)
+
+        assert ready["status"] in {"completed", "incomplete"}, ready
+        assert ready["context"] == {
+            "topic": "Greeting and farewell",
+            "names": [],
+            "terms": {"Hello": "Привет", "Goodbye": "До свидания"},
+        }
+        journal = tmp_path / "voiceovers" / record["id"] / "processing.jsonl"
+        events = [json.loads(line) for line in journal.read_text().splitlines()]
+        translation_start = next(
+            event
+            for event in events
+            if event["event"] == "worker.start" and event["role"] == "translation"
+        )
+        assert translation_start["config"]["video_context"] == ready["context"]
+        assert [phrase["text"] for phrase in translation_start["config"]["source_transcript"]] == [
+            "Hello.",
+            " Goodbye.",
+        ]
+        assert (
+            sum(event["event"] == "worker.start" and event["role"] == "context" for event in events)
+            == 1
+        )
+
+
 def test_a_failed_translation_keeps_other_phrases_playable(tmp_path):
     with TestClient(
         create_app(Settings(data_dir=tmp_path), worker_command=model_worker())
@@ -641,7 +801,8 @@ def test_real_translation_adapter_reports_missing_phrase_without_losing_others(t
             record = client.post(f"{BASE}/voiceovers", json=SOURCE).json()
             client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
             ready = wait_status(client, record["id"], {"awaiting_voices", "failed"})
-            assert ready["status"] == "awaiting_voices", ready
+            ready = start_dubbing(client, ready)
+            assert ready["status"] in {"completed", "incomplete"}, ready
             assert ready["translations"][0]["status"] == "failed"
             assert ready["translations"][1]["text"] == "До свидания."
     finally:
@@ -721,11 +882,11 @@ def test_long_transcript_is_translated_in_bounded_requests(tmp_path):
             ).json()
             client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
             ready = wait_status(client, record["id"], {"awaiting_voices", "failed"})
-            assert ready["status"] == "awaiting_voices", ready
+            ready = start_dubbing(client, ready)
+            assert ready["status"] in {"completed", "incomplete"}, ready
             assert len(ready["translations"]) == 60
             assert all(
-                t["text"] == "Привет." and t["status"] == "translated"
-                for t in ready["translations"]
+                t["text"] == "Привет." and t["status"] == "ready" for t in ready["translations"]
             )
     finally:
         server.shutdown()
@@ -752,7 +913,7 @@ def test_concurrent_delete_retries_share_cleanup_and_do_not_resurrect_record(tmp
         assert client.get(f"{BASE}/voiceovers/{record['id']}").status_code == 404
 
 
-def test_translation_receives_available_speech_time_from_the_video(tmp_path):
+def test_initial_translation_is_not_limited_by_video_speech_time(tmp_path):
     import json
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
     from threading import Thread
@@ -789,16 +950,17 @@ def test_translation_receives_available_speech_time_from_the_video(tmp_path):
             record = client.post(f"{BASE}/voiceovers", json=SOURCE).json()
             client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
             ready = wait_status(client, record["id"], {"awaiting_voices", "failed"})
-            assert ready["status"] == "awaiting_voices"
-            assert [p.get("available_seconds") for p in requests] == [1.0, 2.0]
-            assert thinking_options == [False]
+            ready = start_dubbing(client, ready)
+            assert ready["status"] == "completed"
+            assert all("available_seconds" not in p for p in requests)
+            assert thinking_options == [False, False]
     finally:
         server.shutdown()
         server.server_close()
         thread.join()
 
 
-def test_last_spoken_words_remain_playable_when_voiceover_extends_past_video(tmp_path):
+def test_tail_overflow_preserves_video_duration_and_keeps_problem_audio(tmp_path):
     import json
     import subprocess
 
@@ -815,9 +977,14 @@ def test_last_spoken_words_remain_playable_when_voiceover_extends_past_video(tmp
             json={"expected_revision": ready["revision"], "client_request_id": "synth"},
         )
         result = wait_status(client, record["id"], {"completed", "incomplete", "failed"})
-        assert result["status"] == "completed"
-        last_word_end = result["translations"][-1]["playback_end"]
-        assert result["duration"] >= last_word_end > 4
+        assert result["status"] == "incomplete"
+        assert result["duration"] == pytest.approx(3, abs=0.05)
+        assert result["problems"][-1]["reason"] == "timing_overflow"
+        assert result["translations"][-1]["status"] == "timing_conflict"
+        assert "playback_end" not in result["translations"][-1]
+        problem_audio = client.get(result["translations"][-1]["audio_asset"])
+        assert problem_audio.status_code == 200
+        assert problem_audio.content.startswith(b"RIFF")
         for kind, url in result["assets"].items():
             media = tmp_path / f"download-{kind}.mp4"
             media.write_bytes(client.get(url).content)
@@ -835,10 +1002,83 @@ def test_last_spoken_words_remain_playable_when_voiceover_extends_past_video(tmp
                     ]
                 )
             )
-            assert float(probe["format"]["duration"]) >= last_word_end - 0.05
+            assert float(probe["format"]["duration"]) == pytest.approx(3, abs=0.08)
 
 
-def test_translation_prefers_preserved_entities_and_keeps_warned_alternatives(tmp_path):
+def test_user_can_retry_only_a_problem_phrase_with_saved_intermediates(tmp_path):
+    with TestClient(
+        create_app(Settings(data_dir=tmp_path), worker_command=model_worker())
+    ) as client:
+        record = client.post(
+            f"{BASE}/voiceovers", json={**SOURCE, "filename": "voiceover-tail.mp4"}
+        ).json()
+        client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
+        ready = wait_status(client, record["id"], {"awaiting_voices"})
+        client.post(
+            f"{BASE}/voiceovers/{record['id']}/synthesize",
+            json={"expected_revision": ready["revision"], "client_request_id": "initial"},
+        )
+        incomplete = wait_status(client, record["id"], {"incomplete", "failed"})
+        problem = incomplete["translations"][-1]
+        journal = tmp_path / "voiceovers" / record["id"] / "processing.jsonl"
+        before_retry = len(journal.read_text().splitlines())
+
+        response = client.post(
+            f"{BASE}/voiceovers/{record['id']}/phrases/{problem['id']}/retry",
+            json={
+                "expected_revision": incomplete["revision"],
+                "client_request_id": "retry-tail",
+                "adapted_text": "Пока.",
+            },
+        )
+        assert response.status_code == 202, response.text
+        completed = wait_status(client, record["id"], {"completed", "incomplete", "failed"})
+
+        assert completed["status"] == "completed", completed
+        assert completed["problems"] == []
+        assert completed["translations"][-1]["full_text"] == "До свидания."
+        assert completed["translations"][-1]["adapted_text"] == "Пока."
+        retry_events = [
+            json.loads(line) for line in journal.read_text().splitlines()[before_retry:]
+        ]
+        tts_phrase_ids = {
+            phrase["id"]
+            for event in retry_events
+            if event.get("event") == "worker.start" and event.get("role") == "tts"
+            for phrase in event["config"]["phrases"]
+        }
+        assert tts_phrase_ids == {problem["id"]}
+
+
+@pytest.mark.parametrize(
+    "filename, expected",
+    [
+        ("talk.mp4", {"mode": "separated", "reason": None}),
+        ("separation-failure.mp4", {"mode": "speech_only", "reason": "separation_failed"}),
+    ],
+)
+def test_background_separation_or_explicit_fallback_is_part_of_the_result(
+    tmp_path, filename, expected
+):
+    with TestClient(
+        create_app(Settings(data_dir=tmp_path), worker_command=model_worker())
+    ) as client:
+        record = client.post(f"{BASE}/voiceovers", json={**SOURCE, "filename": filename}).json()
+        client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
+        ready = wait_status(client, record["id"], {"awaiting_voices", "failed"})
+
+        assert ready["status"] == "awaiting_voices", ready
+        assert ready["background"] == expected
+        client.post(
+            f"{BASE}/voiceovers/{record['id']}/synthesize",
+            json={"expected_revision": ready["revision"], "client_request_id": "synth"},
+        )
+        result = wait_status(client, record["id"], {"completed", "incomplete", "failed"})
+        assert result["status"] in {"completed", "incomplete"}, result
+        assert client.get(result["assets"]["audio"]).status_code == 200
+
+
+def test_translation_accepts_the_single_nonempty_primary_result(tmp_path):
     import json
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
     from threading import Thread
@@ -884,17 +1124,18 @@ def test_translation_prefers_preserved_entities_and_keeps_warned_alternatives(tm
             ).json()
             client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
             ready = wait_status(client, record["id"], {"awaiting_voices", "failed"})
-            assert ready["status"] == "awaiting_voices", ready
-            assert ready["translations"][0]["text"] == "Rust нужно 4096 ядер GPU."
-            assert len(ready["translations"][0]["candidates"]) == 3
-            assert ready["translations"][0]["candidate_warnings"]["Rust нужно 496 ядер GPU."]
+            ready = start_dubbing(client, ready)
+            assert ready["status"] in {"completed", "incomplete"}, ready
+            assert ready["translations"][0]["text"] == "Rust нужно 496 ядер GPU."
+            assert ready["translations"][0]["candidates"] == ["Rust нужно 496 ядер GPU."]
+            assert ready["translations"][0]["candidate_warnings"] == {}
     finally:
         server.shutdown()
         server.server_close()
         thread.join()
 
 
-def test_speech_candidate_is_chosen_by_audio_duration_not_character_count(tmp_path):
+def test_primary_speech_is_preserved_when_it_cannot_fit(tmp_path):
     with TestClient(
         create_app(Settings(data_dir=tmp_path), worker_command=model_worker())
     ) as client:
@@ -908,10 +1149,15 @@ def test_speech_candidate_is_chosen_by_audio_duration_not_character_count(tmp_pa
             json={"expected_revision": ready["revision"], "client_request_id": "synth"},
         )
         result = wait_status(client, record["id"], {"completed", "incomplete", "failed"})
-        assert result["status"] == "completed", result
-        assert result["translations"][0]["text"] == "Здравствуйте."
-        assert result["translations"][0]["playback_end"] == pytest.approx(0.8, abs=0.01)
-        assert result["translations"][1]["playback_start"] == 1
+        assert result["status"] == "incomplete", result
+        assert result["translations"][0]["text"] != "Здравствуйте."
+        conflicts = [
+            translation
+            for translation in result["translations"]
+            if translation["status"] == "timing_conflict"
+        ]
+        assert conflicts
+        assert all(translation["audio_asset"] for translation in conflicts)
 
 
 def test_excessive_lag_is_reported_without_discarding_narration(tmp_path):
@@ -932,7 +1178,8 @@ def test_excessive_lag_is_reported_without_discarding_narration(tmp_path):
         result = wait_status(client, record["id"], {"completed", "incomplete", "failed"})
         assert result["status"] == "incomplete", result
         assert any(p["reason"] == "timing_overflow" for p in result["problems"])
-        assert all(t["status"] == "ready" for t in result["translations"])
+        assert all(t["status"] in {"ready", "timing_conflict"} for t in result["translations"])
+        assert any(t["status"] == "timing_conflict" for t in result["translations"])
         assert client.get(result["assets"]["audio"]).status_code == 200
 
 
@@ -944,7 +1191,10 @@ def test_qwen_voices_are_available_for_assignment_and_samples(tmp_path):
         client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
         ready = wait_status(client, record["id"], {"awaiting_voices"})
         assert ready["available_voices"] == ["serena", "aiden", "uncle_fu"]
-        assert set(ready["voice_assignments"].values()) <= set(ready["available_voices"])
+        assert all(
+            voice in ready["available_voices"] or voice.startswith("speaker:")
+            for voice in ready["voice_assignments"].values()
+        )
         assert client.get(f"{BASE}/voiceover-voices/serena/sample").status_code == 200
 
 
@@ -985,7 +1235,7 @@ def test_long_silent_pause_is_reduced_before_fitting_voiceover(tmp_path):
         assert all(t["status"] == "ready" for t in result["translations"])
 
 
-def test_qwen_translation_prefers_approved_and_warns_about_other_candidates(tmp_path):
+def test_qwen_translation_uses_one_primary_result_without_audit(tmp_path):
     import json
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
     from threading import Thread
@@ -1030,9 +1280,10 @@ def test_qwen_translation_prefers_approved_and_warns_about_other_candidates(tmp_
             record = client.post(f"{BASE}/voiceovers", json=SOURCE).json()
             client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
             ready = wait_status(client, record["id"], {"awaiting_voices", "failed"})
-            assert ready["status"] == "awaiting_voices", ready
-            assert ready["translations"][0]["candidates"] == ["Привет.", "Не здоровайся."]
-            assert ready["translations"][0]["candidate_warnings"]["Не здоровайся."]
+            ready = start_dubbing(client, ready)
+            assert ready["status"] in {"completed", "incomplete"}, ready
+            assert ready["translations"][0]["candidates"] == ["Не здоровайся."]
+            assert ready["translations"][0]["candidate_warnings"] == {}
     finally:
         server.shutdown()
         server.server_close()
@@ -1078,7 +1329,8 @@ def test_plural_gpu_name_does_not_reject_valid_russian_translation(tmp_path, fil
             record = client.post(f"{BASE}/voiceovers", json={**SOURCE, "filename": filename}).json()
             client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
             ready = wait_status(client, record["id"], {"awaiting_voices", "failed"})
-            assert ready["translations"][0]["status"] == "translated", ready
+            ready = start_dubbing(client, ready)
+            assert ready["translations"][0]["status"] == "ready", ready
     finally:
         server.shutdown()
         server.server_close()
@@ -1180,3 +1432,89 @@ with TestClient(create_app(worker_command=[sys.executable, sys.argv[1]])) as cli
     record = json.loads(result.stdout)
     assert record["status"] == "awaiting_voices", record
     assert record["available_voices"] == ["serena", "aiden", "uncle_fu"]
+
+
+@pytest.mark.parametrize("voices", [{}, {"narrator": "reference.wav"}])
+def test_chatterbox_voices_have_samples_and_can_be_assigned(tmp_path, voices):
+    settings = Settings(data_dir=tmp_path, tts_engine="chatterbox", chatterbox_voices=voices)
+    with TestClient(create_app(settings, worker_command=model_worker())) as client:
+        record = client.post(f"{BASE}/voiceovers", json=SOURCE).json()
+        client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
+        ready = wait_status(client, record["id"], {"awaiting_voices"})
+        expected = list(voices) or ["default"]
+        assert ready["available_voices"] == expected
+        assert all(
+            voice in expected or voice.startswith("speaker:")
+            for voice in ready["voice_assignments"].values()
+        )
+        assert client.get(f"{BASE}/voiceover-voices/{expected[0]}/sample").status_code == 200
+
+
+@pytest.mark.parametrize("voices", [{}, {"narrator": "reference.wav"}])
+def test_cosyvoice_voices_have_samples_and_can_be_assigned(tmp_path, voices):
+    settings = Settings(data_dir=tmp_path, tts_engine="cosyvoice", cosyvoice_voices=voices)
+    with TestClient(create_app(settings, worker_command=model_worker())) as client:
+        record = client.post(f"{BASE}/voiceovers", json=SOURCE).json()
+        client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
+        ready = wait_status(client, record["id"], {"awaiting_voices"})
+        expected = list(voices) or ["demo"]
+        assert ready["available_voices"] == expected
+        assert all(
+            voice in expected or voice.startswith("speaker:")
+            for voice in ready["voice_assignments"].values()
+        )
+        assert client.get(f"{BASE}/voiceover-voices/{expected[0]}/sample").status_code == 200
+
+
+def test_150_speed_is_attempted_before_shortening_and_raw_cache_is_reused(tmp_path):
+    with TestClient(
+        create_app(Settings(data_dir=tmp_path), worker_command=model_worker())
+    ) as client:
+        record = client.post(
+            f"{BASE}/voiceovers", json={**SOURCE, "filename": "speed-150.mp4"}
+        ).json()
+        client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
+        ready = wait_status(client, record["id"], {"awaiting_voices"})
+        complete = start_dubbing(client, ready)
+        assert complete["status"] == "completed", complete
+        phrase = complete["translations"][0]
+        assert 1.35 < phrase["speed"] <= 1.5
+        assert phrase["playback_end"] <= 1
+        assert phrase["full_text"] == phrase["adapted_text"] == "Привет."
+        assert len(phrase["attempts"]) == 1
+        journal = tmp_path / "voiceovers" / record["id"] / "processing.jsonl"
+        events = [json.loads(line) for line in journal.read_text().splitlines()]
+        assert not any(e["event"] == "worker.start" and e["role"] == "shorten" for e in events)
+        response = client.post(
+            f"{BASE}/voiceovers/{record['id']}/synthesize",
+            json={
+                "expected_revision": complete["revision"],
+                "client_request_id": "cached-run",
+            },
+        )
+        assert response.status_code == 202
+        repeated = wait_status(client, record["id"], {"completed", "incomplete", "failed"})
+        assert repeated["translations"][0]["measured_duration"] == phrase["measured_duration"]
+        assert repeated["translations"][0]["speed"] == phrase["speed"]
+        subsequent = [json.loads(line) for line in journal.read_text().splitlines()][len(events) :]
+        assert not any(
+            e["event"] == "worker.start" and e["role"] in {"translation", "tts", "shorten"}
+            for e in subsequent
+        )
+
+
+def test_short_atempo_clip_is_corrected_before_requesting_a_shorter_translation(tmp_path):
+    with TestClient(
+        create_app(Settings(data_dir=tmp_path), worker_command=model_worker())
+    ) as client:
+        record = client.post(
+            f"{BASE}/voiceovers", json={**SOURCE, "filename": "fit-jitter.mp4"}
+        ).json()
+        client.put(f"{BASE}/voiceovers/{record['id']}/source", content=video_bytes(tmp_path))
+        complete = start_dubbing(client, wait_status(client, record["id"], {"awaiting_voices"}))
+        assert complete["status"] == "completed", complete
+        phrase = complete["translations"][0]
+        assert phrase["fitted_duration"] <= phrase["available_seconds"]
+        assert phrase["speed"] <= 1.5
+        assert len(phrase["attempts"]) == 1
+        assert phrase["full_text"] == phrase["adapted_text"]

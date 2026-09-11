@@ -50,7 +50,7 @@ test('prepares uploaded video, confirms voices and opens the saved player', asyn
   await page.getByRole('button', { name: 'Подготовить перевод' }).click();
   await expect(page.getByRole('button', { name: 'Выбрать голоса ↗' })).toBeVisible();
   await page.getByRole('button', { name: 'Текст и перевод ↗' }).click();
-  await expect(page.getByText('Привет.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Перевод готовится…').first()).toBeVisible();
   await page.getByRole('button', { name: 'Закрыть детали' }).click();
   await page.getByRole('button', { name: 'Выбрать голоса ↗' }).click();
   await expect(page.getByLabel('Образец aidar', { exact: true })).toBeVisible();

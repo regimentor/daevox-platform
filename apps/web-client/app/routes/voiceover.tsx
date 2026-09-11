@@ -245,6 +245,32 @@ export default function VoiceoverPage() {
           );
         })
       }
+      onRetryPhrase={(phraseId, adaptedText) =>
+        act(async () => {
+          if (!record) return;
+          acceptMutation(
+            await request<Voiceover>(
+              `/voiceovers/${record.id}/phrases/${encodeURIComponent(phraseId)}/retry`,
+              json({
+                expected_revision: record.revision,
+                client_request_id: crypto.randomUUID(),
+                adapted_text: adaptedText,
+              }),
+            ),
+          );
+        })
+      }
+      onReplaceSample={(speakerId, sample) =>
+        act(async () => {
+          if (!record) return;
+          acceptMutation(
+            await request<Voiceover>(
+              `/voiceovers/${record.id}/speakers/${encodeURIComponent(speakerId)}/sample?expected_revision=${record.revision}`,
+              { method: 'PUT', body: sample },
+            ),
+          );
+        })
+      }
       onDelete={() =>
         act(async () => {
           if (!record) return;

@@ -38,12 +38,12 @@ describe('pipeline progress', () => {
         stages: {
           voice_samples: { state: 'completed', completed_units: 5, total_units: 5, unit: 'voices' },
         },
-      })[3],
+      })[2],
     ).toMatchObject({ state: 'waiting', value: 0 });
   });
   it('shows completed preparation groups and pending synthesis at voice selection', () => {
     expect(pipeline({ status: 'awaiting_voices', stages: {} }).map((group) => group.state)).toEqual(
-      ['completed', 'completed', 'completed', 'waiting', 'pending', 'pending'],
+      ['completed', 'completed', 'waiting', 'pending'],
     );
   });
   it('clamps overestimates and recognises terminal completion', () => {
@@ -76,4 +76,29 @@ it('treats stale download progress as completed once later phases begin', () => 
       },
     })[0],
   ).toMatchObject({ state: 'completed', value: 100 });
+});
+
+it('uses fitted phrase progress instead of the current TTS worker percentage', () => {
+  const result = pipeline({
+    status: 'synthesizing',
+    stages: {
+      dubbing: { state: 'running', completed_units: 1, total_units: 4, unit: 'phrases' },
+      synthesis: { state: 'completed', completed_units: 1, total_units: 1, unit: 'phrases' },
+      shorten: { state: 'running', completed_units: 0, unit: '' },
+    },
+  });
+  expect(result.map((group) => group.label)).toEqual(['Источник', 'Речь', 'Озвучка', 'Сборка']);
+  expect(result[2]).toMatchObject({ state: 'running', value: 25 });
+});
+
+it('does not show failed timing fits as 100 percent dubbing completion', () => {
+  expect(
+    pipeline({
+      status: 'incomplete',
+      stages: {
+        dubbing: { state: 'incomplete', completed_units: 1, total_units: 2, unit: 'phrases' },
+        rendering: { state: 'completed', completed_units: 1, total_units: 1, unit: 'file' },
+      },
+    })[2],
+  ).toMatchObject({ state: 'incomplete', value: 50 });
 });

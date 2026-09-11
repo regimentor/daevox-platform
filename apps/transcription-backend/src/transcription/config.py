@@ -19,8 +19,23 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://127.0.0.1:8080/v1"
     llm_model: str = ""
     tts_gpu: str = "NVIDIA GeForce RTX 4070 Ti"
+    separation_model: str = "htdemucs"
+    separation_checkpoint_path: str = "~/.cache/torch/hub/checkpoints/955717e8-8726e21a.th"
+    separation_checkpoint_sha256: str = (
+        "8726e21a993978c7ba086d3872e7608d7d5bfca646ca4aca459ffda844faa8b4"
+    )
+    background_fallback: Literal["speech_only", "original_ducked"] = "speech_only"
     voiceover_max_lag: float = Field(default=2.0, ge=0, le=10)
-    tts_engine: Literal["silero", "qwen"] = "silero"
+    tts_engine: Literal["silero", "qwen", "chatterbox", "cosyvoice"] = "silero"
+    cosyvoice_python: str = "data/tts-options/cosyvoice-env/bin/python"
+    cosyvoice_source_path: str = "data/tts-options/cosyvoice-source"
+    cosyvoice_model_path: str = "data/tts-options/cosyvoice3"
+    cosyvoice_voices: dict[str, str] = Field(default_factory=dict)
+    chatterbox_python: str = "data/tts-options/chatterbox-env/bin/python"
+    chatterbox_model_path: str = "data/tts-options/chatterbox"
+    chatterbox_voices: dict[str, str] = Field(default_factory=dict)
+    chatterbox_exaggeration: float = Field(default=0.5, ge=0, le=1)
+    chatterbox_cfg_weight: float = Field(default=0.5, ge=0, le=1)
     qwen_python: str = "data/tts-options/qwen-env/bin/python"
     qwen_model_path: str = "data/tts-options/qwen-1.7b"
     qwen_instruction: str = "Read this technical narration in a neutral, matter-of-fact voice. Use even intonation, consistent volume, clear articulation and a steady pace with short natural pauses. No dramatic emphasis, excitement, sadness, laughter, sighs, or added interjections. Read only the supplied text."
@@ -49,7 +64,23 @@ def load_settings() -> Settings:
     settings = EnvironmentSettings()
     settings.data_dir = (backend / settings.data_dir).resolve()
     # Resolving the interpreter symlink bypasses pyvenv.cfg and loses Qwen dependencies.
-    settings.qwen_python = str((backend / settings.qwen_python).absolute())
-    for name in ("qwen_model_path", "silero_path"):
+    for name in ("qwen_python", "chatterbox_python", "cosyvoice_python"):
+        setattr(settings, name, str((backend / getattr(settings, name)).absolute()))
+    for name in (
+        "qwen_model_path",
+        "silero_path",
+        "chatterbox_model_path",
+        "cosyvoice_model_path",
+        "cosyvoice_source_path",
+    ):
         setattr(settings, name, str((backend / getattr(settings, name)).resolve()))
+    settings.separation_checkpoint_path = str(
+        Path(settings.separation_checkpoint_path).expanduser().resolve()
+    )
+    settings.chatterbox_voices = {
+        voice: str((backend / path).resolve()) for voice, path in settings.chatterbox_voices.items()
+    }
+    settings.cosyvoice_voices = {
+        voice: str((backend / path).resolve()) for voice, path in settings.cosyvoice_voices.items()
+    }
     return settings

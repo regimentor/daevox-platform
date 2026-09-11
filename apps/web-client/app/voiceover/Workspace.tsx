@@ -1,3 +1,4 @@
+import { DubbingPanel } from './DubbingPanel';
 import { TranslationText } from './TranslationText';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
@@ -38,6 +39,8 @@ type Props = {
   ) => Promise<boolean>;
   onAssign: (assignments: Record<string, string>) => Promise<boolean>;
   onSynthesize: () => Promise<boolean>;
+  onRetryPhrase: (phraseId: string, adaptedText: string) => Promise<boolean>;
+  onReplaceSample: (speakerId: string, sample: File) => Promise<boolean>;
   onDelete: () => Promise<boolean>;
   onLoadMore: () => Promise<boolean>;
 };
@@ -129,7 +132,13 @@ function SourcePlayer({ record }: { record: Voiceover }) {
     </div>
   );
 }
-function Transcript({ record }: { record: Voiceover }) {
+function Transcript({
+  record,
+  onRetryPhrase,
+}: {
+  record: Voiceover;
+  onRetryPhrase: Props['onRetryPhrase'];
+}) {
   return (
     <>
       {record.transcript.length === 0 && <p>Распознанных фраз пока нет.</p>}
@@ -142,6 +151,7 @@ function Transcript({ record }: { record: Voiceover }) {
           <p>{phrase.text}</p>
           <TranslationText
             value={record.translations.find((t) => t.source_segment_ids.includes(phrase.id))}
+            onRetry={onRetryPhrase}
           />
         </div>
       ))}
@@ -233,7 +243,7 @@ export function VoiceoverWorkspace(props: Props) {
       <header className="vo-header">
         <div>
           <h1>Перевод видео</h1>
-          <p>Источник → речь → перевод → голоса → озвучка → сборка</p>
+          <p>Источник → Речь → Озвучка → Сборка</p>
         </div>
         <Button color="teal" size="sm" onClick={() => setPanel('new')}>
           ＋ Добавить видео
@@ -398,48 +408,10 @@ export function VoiceoverWorkspace(props: Props) {
                   record={record}
                   details={panel === 'text' || panel === 'audio' ? panel : null}
                   onDetails={setPanel}
+                  onRetryPhrase={props.onRetryPhrase}
                 />
               ) : (
                 <SourcePlayer key={record.id} record={record} />
-              )}
-              {record.stages.translation && (
-                <div className="vo-translation-progress">
-                  <div>
-                    <strong>Перевод текста</strong>
-                    <span>
-                      Обработано{' '}
-                      {record.stages.translation.total_units
-                        ? record.stages.translation.completed_units
-                        : record.translations.length}{' '}
-                      из {record.stages.translation.total_units ?? record.transcript.length} фраз
-                    </span>
-                  </div>
-                  <Meter
-                    value={percent({
-                      ...record.stages.translation,
-                      completed_units: record.stages.translation.total_units
-                        ? record.stages.translation.completed_units
-                        : record.translations.length,
-                      total_units:
-                        record.stages.translation.total_units ?? record.transcript.length,
-                    })}
-                    state={
-                      record.stages.translation.state === 'running' && record.status === 'preparing'
-                        ? 'running'
-                        : record.stages.translation.state === 'completed'
-                          ? 'completed'
-                          : 'failed'
-                    }
-                    label="Прогресс перевода текста"
-                  />
-                  {record.translations.some((phrase) => phrase.status === 'failed') && (
-                    <small>
-                      Не удалось перевести:{' '}
-                      {record.translations.filter((phrase) => phrase.status === 'failed').length}.
-                      Подробности — в тексте.
-                    </small>
-                  )}
-                </div>
               )}
               {record.translations.some((phrase) => phrase.warnings?.length) && (
                 <button className="vo-quality-warning" onClick={() => setPanel('text')}>
@@ -457,24 +429,11 @@ export function VoiceoverWorkspace(props: Props) {
                       : 0),
                 )}
               </small>
-              {record.stages.synthesis && (
-                <div className="vo-translation-progress">
-                  <strong>
-                    Синтез речи · {record.stages.synthesis.completed_units} из{' '}
-                    {record.stages.synthesis.total_units ?? 0} фраз
-                  </strong>
-                  <Meter
-                    value={percent(record.stages.synthesis)}
-                    state={record.stages.synthesis.state}
-                    label="Прогресс синтеза речи"
-                  />
-                </div>
-              )}
               <div className="vo-pipeline-label">
                 <strong>Пайплайн подготовки</strong>
                 <span>
-                  {groups.filter((group) => group.state === 'completed').length} из 6 этапов
-                  завершено
+                  {groups.filter((group) => group.state === 'completed').length} из {groups.length}{' '}
+                  этапов завершено
                 </span>
               </div>
               <div className="vo-pipeline large">
@@ -487,7 +446,7 @@ export function VoiceoverWorkspace(props: Props) {
                       setPanel(
                         group.state === 'failed' && failed
                           ? 'error'
-                          : index === 3 && record.status === 'awaiting_voices'
+                          : index === 2 && record.status === 'awaiting_voices'
                             ? 'voices'
                             : index,
                       )
@@ -501,7 +460,12 @@ export function VoiceoverWorkspace(props: Props) {
                             ? '!'
                             : `0${index + 1}`}
                       </b>{' '}
-                      {group.label} · {duration(groupElapsed(group.entries))}
+                      {group.label} ·{' '}
+                      {duration(
+                        group.label === 'Озвучка' && record.stages.dubbing
+                          ? elapsed(record.stages.dubbing)
+                          : groupElapsed(group.entries),
+                      )}
                     </span>
                     <Meter value={group.value} state={group.state} label={group.label} />
                     <small>
@@ -513,13 +477,24 @@ export function VoiceoverWorkspace(props: Props) {
                             : `${group.value}%`
                           : group.state === 'failed'
                             ? 'Остановлено'
-                            : group.state === 'waiting'
-                              ? 'Нужен ваш выбор'
-                              : 'Ожидание'}
+                            : group.state === 'incomplete'
+                              ? 'Нужна правка'
+                              : group.state === 'waiting'
+                                ? 'Нужен ваш выбор'
+                                : 'Ожидание'}
                     </small>
                   </button>
                 ))}
               </div>
+              {record.transcript.length > 0 && (
+                <DubbingPanel
+                  key={record.id}
+                  record={record}
+                  pending={pending}
+                  onRetry={props.onRetryPhrase}
+                  onVoices={() => setPanel('voices')}
+                />
+              )}
               <div className={`vo-current ${current?.state}`}>
                 <div>
                   <small>ТЕКУЩЕЕ СОСТОЯНИЕ</small>
@@ -709,7 +684,9 @@ export function VoiceoverWorkspace(props: Props) {
               </Button>
             </>
           )}
-          {panel === 'text' && record && <Transcript record={record} />}
+          {panel === 'text' && record && (
+            <Transcript record={record} onRetryPhrase={props.onRetryPhrase} />
+          )}
           {panel === 'voices' && record && (
             <>
               <p>
@@ -722,24 +699,50 @@ export function VoiceoverWorkspace(props: Props) {
               ) : (
                 <p>Образцы голосов пока не подготовлены.</p>
               )}
-              {Object.entries(record.voice_assignments).map(([speaker, voice]) => (
-                <Select
-                  key={speaker}
-                  label={
-                    record.speakers.find((s) => s.id === speaker)?.label ?? 'Неизвестный спикер'
-                  }
-                  data={voiceOptions}
-                  value={voice}
-                  disabled={
-                    pending ||
-                    !['awaiting_voices', 'completed', 'incomplete'].includes(record.status)
-                  }
-                  onChange={(value) => {
-                    if (value)
-                      void props.onAssign({ ...record.voice_assignments, [speaker]: value });
-                  }}
-                />
-              ))}
+              {Object.entries(record.voice_assignments).map(([speaker, voice]) => {
+                const sample = record.speaker_samples?.[speaker];
+                const options = [
+                  ...voiceOptions.map((value) => ({ value, label: value })),
+                  ...(sample && sample.kind !== 'fallback'
+                    ? [{ value: `speaker:${speaker}`, label: 'Образец спикера' }]
+                    : []),
+                ];
+                return (
+                  <div key={speaker}>
+                    <Select
+                      label={
+                        record.speakers.find((s) => s.id === speaker)?.label ?? 'Неизвестный спикер'
+                      }
+                      data={options}
+                      value={voice}
+                      disabled={
+                        pending ||
+                        !['awaiting_voices', 'completed', 'incomplete'].includes(record.status)
+                      }
+                      onChange={(value) => {
+                        if (value)
+                          void props.onAssign({ ...record.voice_assignments, [speaker]: value });
+                      }}
+                    />
+                    <small>
+                      {sample?.kind === 'reference'
+                        ? 'Используется чистый образец из видео.'
+                        : sample?.kind === 'manual'
+                          ? 'Используется загруженный образец.'
+                          : 'Чистый образец не найден; используется готовый запасной голос.'}
+                    </small>
+                    {sample?.asset && <audio controls preload="none" src={sample.asset} />}
+                    <FileInput
+                      label="Заменить образец"
+                      accept="audio/wav,.wav"
+                      disabled={pending}
+                      onChange={(sampleFile) => {
+                        if (sampleFile) void props.onReplaceSample(speaker, sampleFile);
+                      }}
+                    />
+                  </div>
+                );
+              })}
               <Button
                 color="teal"
                 loading={pending}
@@ -769,6 +772,13 @@ export function VoiceoverWorkspace(props: Props) {
                     </a>
                   )}
                   <p>В плеере видео и перевод воспроизводятся синхронно.</p>
+                  <p>
+                    {record.background?.mode === 'separated'
+                      ? 'RU-дорожка содержит отделённый фон и русскую речь.'
+                      : record.background?.mode === 'original_ducked'
+                        ? 'Запасной режим: приглушённый оригинал и русская речь.'
+                        : 'Запасной режим: только русская речь без фонового звука.'}
+                  </p>
                 </>
               ) : (
                 <p>Материалы появятся после завершения сборки.</p>

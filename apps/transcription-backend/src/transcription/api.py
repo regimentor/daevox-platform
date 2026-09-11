@@ -7,6 +7,7 @@ from .config import Settings, load_settings
 from .models import TERMINAL, Snapshot, StartRequest
 from .service import Service
 from .voiceover import (
+    PhraseRetryRequest,
     SynthesisRequest,
     VoiceAssignment,
     VoiceoverRequest,
@@ -99,9 +100,39 @@ def create_app(
             check_available()
         return voiceovers.synthesize(record_id, body)
 
+    @app.post(prefix + "/voiceovers/{record_id}/phrases/{phrase_id}/retry", status_code=202)
+    async def retry_voiceover_phrase(
+        record_id: str, phrase_id: str, body: PhraseRetryRequest
+    ) -> VoiceoverSnapshot:
+        if current_activity() and current_activity().get("id") != record_id:
+            check_available()
+        return voiceovers.retry_phrase(record_id, phrase_id, body)
+
     @app.api_route(prefix + "/voiceovers/{record_id}/media/{kind}", methods=["GET", "HEAD"])
     async def voiceover_media(record_id: str, kind: str):
         return FileResponse(voiceovers.media(record_id, kind))
+
+    @app.api_route(
+        prefix + "/voiceovers/{record_id}/phrases/{phrase_id}/audio", methods=["GET", "HEAD"]
+    )
+    async def voiceover_phrase_audio(record_id: str, phrase_id: str):
+        return FileResponse(voiceovers.phrase_audio(record_id, phrase_id), media_type="audio/wav")
+
+    @app.api_route(
+        prefix + "/voiceovers/{record_id}/speakers/{speaker_id}/sample", methods=["GET", "HEAD"]
+    )
+    async def voiceover_speaker_sample(record_id: str, speaker_id: str):
+        return FileResponse(
+            voiceovers.speaker_sample(record_id, speaker_id), media_type="audio/wav"
+        )
+
+    @app.put(prefix + "/voiceovers/{record_id}/speakers/{speaker_id}/sample")
+    async def replace_voiceover_speaker_sample(
+        record_id: str, speaker_id: str, expected_revision: int, request: Request
+    ) -> VoiceoverSnapshot:
+        return await voiceovers.replace_speaker_sample(
+            record_id, speaker_id, expected_revision, request
+        )
 
     @app.api_route(prefix + "/voiceover-voices/{voice}/sample", methods=["GET", "HEAD"])
     async def voice_sample(voice: str):

@@ -78,40 +78,18 @@ def render(config):
             reported = seconds
 
     progress(0, "Сборка аудиодорожки")
-    with subprocess.Popen(
-        [
-            "ffmpeg",
-            "-v",
-            "error",
-            "-f",
-            "s16le",
-            "-ar",
-            "24000",
-            "-ac",
-            "1",
-            "-i",
-            "pipe:0",
-            "-c:a",
-            "aac",
-            "-movflags",
-            "+faststart",
-            "-y",
-            str(directory / "translation.m4a"),
-        ],
-        stdin=subprocess.PIPE,
-    ) as process:
-        assert process.stdin
+    speech_path = directory / "speech.wav"
+    with wave.open(str(speech_path), "wb") as speech:
+        speech.setparams((1, 2, 24000, 0, "NONE", "not compressed"))
         position = 0
 
         def write_audio(chunk):
             nonlocal submitted
-            assert process.stdin
-            process.stdin.write(chunk)
+            speech.writeframesraw(chunk)
             submitted += len(chunk) // 2
             progress(min(submitted / 24000, duration), "Сборка аудиодорожки")
 
         def silence(frames):
-            assert process.stdin
             while frames > 0:
                 count = min(frames, 24000)
                 write_audio(b"\x00" * count * 2)
@@ -127,13 +105,72 @@ def render(config):
                     write_audio(chunk)
                 position = start + source.getnframes()
         silence(round(config["duration"] * 24000) - position)
-        process.stdin.close()
-        if process.wait():
-            raise ValueError("Audio rendering failed")
-    tail = max(0, config["duration"] - config.get("source_duration", config["duration"]))
-    progress(duration, "Кодирование видео")
-    with subprocess.Popen(
+    mode = config.get("background_mode", "speech_only")
+    background = (
+        config.get("background_path")
+        if mode == "separated"
+        else config.get("audio_path")
+        if mode == "original_ducked"
+        else None
+    )
+    audio_command = ["ffmpeg", "-v", "error"]
+    if background and Path(background).is_file():
+        background_volume = "0.85" if mode == "separated" else "0.18"
+        audio_command.extend(
+            [
+                "-i",
+                str(background),
+                "-i",
+                str(speech_path),
+                "-filter_complex",
+                (
+                    f"[0:a]volume={background_volume}[background];"
+                    "[background][1:a]amix=inputs=2:duration=longest:normalize=0,"
+                    "alimiter=limit=0.95[audio]"
+                ),
+                "-map",
+                "[audio]",
+            ]
+        )
+    else:
+        audio_command.extend(["-i", str(speech_path), "-af", "alimiter=limit=0.95"])
+    audio_command.extend(
         [
+            "-t",
+            str(duration),
+            "-c:a",
+            "aac",
+            "-movflags",
+            "+faststart",
+            "-y",
+            str(directory / "translation.m4a"),
+        ]
+    )
+    subprocess.run(audio_command, check=True)
+    progress(duration, "Кодирование видео")
+    destination = directory / "video.mp4"
+    copy_command = [
+        "ffmpeg",
+        "-v",
+        "error",
+        "-i",
+        str(directory / "source"),
+        "-map",
+        "0:v:0",
+        "-map",
+        "0:a:0",
+        "-c",
+        "copy",
+        "-movflags",
+        "+faststart",
+        "-y",
+        str(destination),
+    ]
+    copied = subprocess.run(copy_command, check=False).returncode == 0
+    video_command = (
+        copy_command
+        if copied
+        else [
             "ffmpeg",
             "-v",
             "error",
@@ -146,20 +183,16 @@ def render(config):
             "0:v:0",
             "-map",
             "0:a:0",
-            *(
-                [
-                    "-vf",
-                    f"tpad=stop_mode=clone:stop_duration={tail}",
-                    "-af",
-                    f"apad=pad_dur={tail}",
-                    "-t",
-                    str(config["duration"]),
-                ]
-                if tail > 0
-                else []
-            ),
             "-c:v",
-            "libx264",
+            "h264_nvenc",
+            "-preset",
+            "p4",
+            "-rc",
+            "vbr",
+            "-cq",
+            "23",
+            "-b:v",
+            "0",
             "-pix_fmt",
             "yuv420p",
             "-c:a",
@@ -167,22 +200,28 @@ def render(config):
             "-movflags",
             "+faststart",
             "-y",
-            str(directory / "video.mp4"),
-        ],
-        stdout=subprocess.PIPE,
-        text=True,
-    ) as video_process:
-        assert video_process.stdout
-        for line in video_process.stdout:
-            key, _, value = line.strip().partition("=")
-            if key == "out_time_us":
-                try:
-                    seconds = int(value) / 1_000_000
-                except ValueError:
-                    continue
-                progress(duration + min(seconds, duration), "Кодирование видео")
-        if video_process.wait():
-            raise ValueError("Video rendering failed")
+            str(destination),
+        ]
+    )
+    if copied:
+        progress(total, "Видео скопировано без перекодирования")
+    else:
+        with subprocess.Popen(
+            video_command,
+            stdout=subprocess.PIPE,
+            text=True,
+        ) as video_process:
+            assert video_process.stdout
+            for line in video_process.stdout:
+                key, _, value = line.strip().partition("=")
+                if key == "out_time_us":
+                    try:
+                        seconds = int(value) / 1_000_000
+                    except ValueError:
+                        continue
+                    progress(duration + min(seconds, duration), "Кодирование видео")
+            if video_process.wait():
+                raise ValueError("Video rendering failed")
     stage(
         "rendering",
         state="completed",
@@ -207,7 +246,9 @@ def main():
             return
         if sys.argv[1] == "fit":
             speed = config["speed"]
-            if not 1 <= speed <= 1.15:
+            from .dubbing import MAX_SPEECH_SPEED
+
+            if not 1 <= speed <= MAX_SPEECH_SPEED:
                 raise ValueError("Unsupported speech speed")
             for clip in config["clips"]:
                 destination = str(Path(clip["path"]).with_suffix(".fitted.wav"))
@@ -230,6 +271,36 @@ def main():
                 with wave.open(destination, "rb") as source:
                     duration = source.getnframes() / source.getframerate()
                 emit(kind="synthesized", id=clip["id"], path=destination, duration=duration)
+            emit(kind="done")
+            return
+        if sys.argv[1] == "speaker_samples":
+            for candidate in config["candidates"]:
+                sample_destination = Path(candidate["path"])
+                sample_destination.parent.mkdir(parents=True, exist_ok=True)
+                duration = min(30, candidate["end"] - candidate["start"])
+                subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-v",
+                        "error",
+                        "-ss",
+                        str(candidate["start"]),
+                        "-t",
+                        str(duration),
+                        "-i",
+                        config["audio_path"],
+                        "-ac",
+                        "1",
+                        "-ar",
+                        "24000",
+                        "-c:a",
+                        "pcm_s16le",
+                        "-y",
+                        str(sample_destination),
+                    ],
+                    check=True,
+                )
+                emit(kind="speaker_sample", id=candidate["id"], path=str(sample_destination))
             emit(kind="done")
             return
         if sys.argv[1] == "render":

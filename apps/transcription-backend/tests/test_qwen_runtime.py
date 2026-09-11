@@ -2,11 +2,14 @@ import subprocess
 import venv
 from pathlib import Path
 
+import pytest
+
 from transcription.config import load_settings
 from transcription.voiceover import Voiceovers
 
 
-def test_qwen_interpreter_keeps_virtualenv_when_loading_and_launching(tmp_path, monkeypatch):
+@pytest.mark.parametrize("engine", ["qwen", "chatterbox", "cosyvoice"])
+def test_tts_interpreter_keeps_virtualenv_when_loading_and_launching(tmp_path, monkeypatch, engine):
     environment = tmp_path / "tts-env"
     venv.EnvBuilder(with_pip=False, symlinks=True).create(environment)
     python = environment / "bin" / "python"
@@ -14,8 +17,8 @@ def test_qwen_interpreter_keeps_virtualenv_when_loading_and_launching(tmp_path, 
         [str(python), "-c", "import sysconfig; print(sysconfig.get_path('purelib'))"], text=True
     ).strip()
     (Path(site) / "qwen_runtime_marker.py").write_text("READY = True\n")
-    monkeypatch.setenv("TRANSCRIPTION_QWEN_PYTHON", str(python))
-    monkeypatch.setenv("TRANSCRIPTION_TTS_ENGINE", "qwen")
+    monkeypatch.setenv(f"TRANSCRIPTION_{engine.upper()}_PYTHON", str(python))
+    monkeypatch.setenv("TRANSCRIPTION_TTS_ENGINE", engine)
     monkeypatch.setenv("TRANSCRIPTION_DATA_DIR", str(tmp_path / "data"))
     settings = load_settings()
     service = Voiceovers(settings)

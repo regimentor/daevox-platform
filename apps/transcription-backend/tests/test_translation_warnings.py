@@ -1,103 +1,67 @@
-import io
 import json
+
+import pytest
 
 from transcription.voice_worker import translate
 
 
-def test_audit_rejection_keeps_text_and_warns(monkeypatch):
-    replies = iter(
-        [
-            {"translations": [{"id": "a", "text": "Что?", "candidates": ["Что?"]}]},
-            {"approved": []},
-        ]
-    )
-    monkeypatch.setattr(
-        "transcription.voice_worker.urlopen",
-        lambda *a, **kw: io.BytesIO(
-            json.dumps({"choices": [{"message": {"content": json.dumps(next(replies))}}]}).encode()
-        ),
-    )
+@pytest.mark.parametrize("engine", ["silero", "qwen", "chatterbox", "cosyvoice"])
+@pytest.mark.parametrize("text", ["Пять агентов.", "Do not translate", "Нет."])
+def test_any_nonempty_result_is_accepted_without_audit(monkeypatch, engine, text):
+    calls = []
     events = []
-    monkeypatch.setattr("transcription.voice_worker.emit", lambda **event: events.append(event))
-    translate(
-        {
-            "llm_model": "test",
-            "llm_base_url": "http://test",
-            "tts_engine": "qwen",
-            "phrases": [{"id": "a", "text": "What?"}],
-        }
-    )
-    result = [event for event in events if event["kind"] == "translation"][-1]
-    assert result["text"] == "Что?"
-    assert result["status"] == "warning"
-    assert result["warnings"]
 
-
-def test_number_and_term_mismatch_keeps_candidate(monkeypatch):
-    reply = {"translations": [{"id": "a", "text": "Пять агентов.", "candidates": []}]}
-    monkeypatch.setattr(
-        "transcription.voice_worker.urlopen",
-        lambda *a, **kw: io.BytesIO(
-            json.dumps({"choices": [{"message": {"content": json.dumps(reply)}}]}).encode()
-        ),
-    )
-    events = []
-    monkeypatch.setattr("transcription.voice_worker.emit", lambda **event: events.append(event))
-    translate(
-        {
-            "llm_model": "test",
-            "llm_base_url": "http://test",
-            "tts_engine": "silero",
-            "phrases": [{"id": "a", "text": "10 agents."}],
-        }
-    )
-    result = [event for event in events if event["kind"] == "translation"][-1]
-    assert result["text"] == "Пять агентов."
-    assert result["warnings"]
-
-
-def test_equivalent_number_formats_are_allowed():
-    from transcription.dubbing import translation_warnings
-
-    assert not translation_warnings("10,000 agents, 2.5 seconds", "10 000 агентов, 2,5 секунды", [])
-
-
-def test_unavailable_audit_preserves_translation(monkeypatch):
-    replies = iter(
-        [
-            {
-                "choices": [
-                    {
-                        "message": {
-                            "content": json.dumps(
-                                {"translations": [{"id": "a", "text": "Привет."}]}
-                            )
-                        }
+    def request(config, body, purpose):
+        calls.append(purpose)
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "translations": [
+                                    {"id": "a", "text": text, "candidates": ["Другой вариант."]}
+                                ]
+                            }
+                        )
                     }
-                ]
-            },
-            {"choices": []},
-        ]
-    )
-    monkeypatch.setattr(
-        "transcription.voice_worker.urlopen",
-        lambda *a, **kw: io.BytesIO(json.dumps(next(replies)).encode()),
-    )
-    events = []
+                }
+            ]
+        }
+
+    monkeypatch.setattr("transcription.voice_worker.request_llm", request)
     monkeypatch.setattr("transcription.voice_worker.emit", lambda **event: events.append(event))
     translate(
         {
             "llm_model": "test",
-            "llm_base_url": "http://test",
-            "tts_engine": "qwen",
-            "phrases": [{"id": "a", "text": "Hello."}],
+            "tts_engine": engine,
+            "phrases": [{"id": "a", "text": "Rust needs 10 GPU cores."}],
         }
     )
-    result = [event for event in events if event["kind"] == "translation"][-1]
-    assert result["text"] == "Привет."
-    assert result["warnings"][0]["code"] == "audit_unavailable"
-    assert any(event.get("event") == "llm.request" for event in events)
-    assert any(event.get("event") == "llm.response" for event in events)
+    result = next(e for e in events if e["kind"] == "translation")
+    assert calls == ["translation"]
+    assert result["text"] == text
+    assert result["status"] == "translated"
+    assert result["warnings"] == []
+    assert result["candidate_warnings"] == {}
+
+
+@pytest.mark.parametrize("items", [[], [{"id": "a", "text": "   "}], [{"id": "a", "text": None}]])
+def test_missing_result_is_retried_then_failed(monkeypatch, items):
+    calls = []
+    events = []
+
+    def request(config, body, purpose):
+        calls.append(purpose)
+        return {"choices": [{"message": {"content": json.dumps({"translations": items})}}]}
+
+    monkeypatch.setattr("transcription.voice_worker.request_llm", request)
+    monkeypatch.setattr("transcription.voice_worker.emit", lambda **event: events.append(event))
+    translate({"llm_model": "test", "phrases": [{"id": "a", "text": "Hello."}]})
+    result = next(e for e in events if e["kind"] == "translation")
+    assert calls == ["translation"] * 3
+    assert result["status"] == "failed"
+    assert result["warnings"][0]["code"] == "no_translation"
 
 
 def test_initial_translation_does_not_receive_a_speaking_time_limit(monkeypatch):
@@ -142,4 +106,5 @@ def test_initial_translation_does_not_receive_a_speaking_time_limit(monkeypatch)
     payload = json.loads(captured[-1]["messages"][-1]["content"])[0]
     assert payload["original"] == source
     assert payload["available_seconds"] == 1
-    assert "return the complete translation unchanged" in captured[-1]["messages"][0]["content"]
+    assert "shortest faithful formulation" in captured[-1]["messages"][0]["content"]
+    assert "materially more compact" in captured[-1]["messages"][0]["content"]

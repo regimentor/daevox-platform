@@ -6,12 +6,18 @@ dependencies = ["fastapi>=0.135,<1", "uvicorn>=0.35,<1", "pydantic-settings>=2.1
 
 [project.optional-dependencies]
 gpu = [
-  "faster-whisper==1.2.1", "ctranslate2==4.8.2", "pyannote.audio==4.0.7",
-  "torch==2.11.0", "torchaudio==2.11.0", "torchcodec==0.16.0",
+  "faster-whisper==1.2.1",
+  "ctranslate2==4.8.2",
+  "pyannote.audio==4.0.7",
+  "torch==2.11.0",
+  "torchaudio==2.11.0",
+  "torchcodec==0.16.0",
   "nvidia-cublas-cu12==12.8.4.1",
   "yt-dlp[default]==2026.8.19",
   "gigaam @ git+https://github.com/salute-developers/GigaAM.git@7447938d791c4f3e643386ee22c33777004293a5",
-  "huggingface-hub>=1.0,<2", "soundfile>=0.13,<1",
+  "huggingface-hub>=1.0,<2",
+  "soundfile>=0.13,<1",
+  "demucs==4.0.1",
 ]
 
 [dependency-groups]
