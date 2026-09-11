@@ -79,7 +79,13 @@ export interface Voiceover {
       finished_at?: number;
     }
   >;
-  dubbing?: { phrase_id?: string; step?: string };
+  dubbing?: {
+    phrase_id?: string;
+    step?: string;
+    active_phrase_ids?: string[];
+    concurrency?: number;
+    queue_mode?: string;
+  };
 }
 export const statuses: Record<string, string> = {
   awaiting_upload: 'Ожидание видео',

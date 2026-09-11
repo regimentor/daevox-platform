@@ -9,34 +9,42 @@ import traceback
 from pathlib import Path
 
 
-def main():
-    config = json.loads(sys.stdin.readline())
-    events = sys.stdout
-    sys.stdout = sys.stderr
+def synthesize(config, events, models):
 
     def emit(**event):
         print(json.dumps(event), file=events, flush=True)
 
     try:
-        devices = subprocess.check_output(
-            ["nvidia-smi", "--query-gpu=uuid,name", "--format=csv,noheader"], text=True
+        signature = tuple(
+            config[key] for key in ("tts_gpu", "cosyvoice_source_path", "cosyvoice_model_path")
         )
-        matches = [
-            line.split(",", 1)[0].strip()
-            for line in devices.splitlines()
-            if config["tts_gpu"] in [part.strip() for part in line.split(",", 1)]
-        ]
-        if len(matches) != 1:
-            raise ValueError("GPU selection must identify one device")
-        os.environ["CUDA_VISIBLE_DEVICES"] = matches[0]
+        if models and models[0] != signature:
+            raise ValueError("A model session cannot change GPU or model")
+        if not models:
+            devices = subprocess.check_output(
+                ["nvidia-smi", "--query-gpu=uuid,name", "--format=csv,noheader"], text=True
+            )
+            matches = [
+                line.split(",", 1)[0].strip()
+                for line in devices.splitlines()
+                if config["tts_gpu"] in [part.strip() for part in line.split(",", 1)]
+            ]
+            if len(matches) != 1:
+                raise ValueError("GPU selection must identify one device")
+            os.environ["CUDA_VISIBLE_DEVICES"] = matches[0]
+            import torch
+
+            source = Path(config["cosyvoice_source_path"])
+            sys.path[:0] = [str(source), str(source / "third_party" / "Matcha-TTS")]
+            from cosyvoice.cli.cosyvoice import CosyVoice3
+
+            model = CosyVoice3(config["cosyvoice_model_path"], fp16=True)
+            models.extend([signature, model])
         import soundfile as sf
         import torch
 
+        model = models[1]
         source = Path(config["cosyvoice_source_path"])
-        sys.path[:0] = [str(source), str(source / "third_party" / "Matcha-TTS")]
-        from cosyvoice.cli.cosyvoice import CosyVoice3
-
-        model = CosyVoice3(config["cosyvoice_model_path"], fp16=True)
         voices = config.get("cosyvoice_voices") or {
             "demo": str(source / "asset" / "cross_lingual_prompt.wav")
         }
@@ -104,6 +112,16 @@ def main():
             )
         emit(kind="error", code=type(error).__name__)
         sys.exit(1)
+
+
+def main():
+    events = sys.stdout
+    sys.stdout = sys.stderr
+    models: list = []
+    for line in sys.stdin:
+        synthesize(json.loads(line), events, models)
+        if "serve" not in sys.argv[1:]:
+            break
 
 
 if __name__ == "__main__":

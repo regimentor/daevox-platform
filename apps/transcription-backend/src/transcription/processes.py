@@ -18,6 +18,15 @@ class WorkerFailure(Exception):
         self.message = message
 
 
+def worker_environment():
+    environment = os.environ.copy()
+    libraries = sorted((Path(sysconfig.get_paths()["purelib"]) / "nvidia").glob("*/lib"))
+    environment["LD_LIBRARY_PATH"] = ":".join(
+        [*(str(path) for path in libraries), environment.get("LD_LIBRARY_PATH", "")]
+    )
+    return environment
+
+
 async def run_worker(command: list[str], role: str, config: dict, receive: Callable[[dict], None]):
     log = config.get("diagnostic_path")
     run_id = uuid4().hex
@@ -29,11 +38,7 @@ async def run_worker(command: list[str], role: str, config: dict, receive: Calla
         )
 
     journal("worker.start", command=command, config=config)
-    environment = os.environ.copy()
-    libraries = sorted((Path(sysconfig.get_paths()["purelib"]) / "nvidia").glob("*/lib"))
-    environment["LD_LIBRARY_PATH"] = ":".join(
-        [*(str(path) for path in libraries), environment.get("LD_LIBRARY_PATH", "")]
-    )
+    environment = worker_environment()
     try:
         process = await asyncio.create_subprocess_exec(
             *command,

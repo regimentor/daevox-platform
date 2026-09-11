@@ -7,6 +7,8 @@ const steps: Record<string, string> = {
   pending: 'В очереди',
   translation: 'Перевод',
   synthesis: 'Синтез речи',
+  queued_synthesis: 'Ожидает синтеза',
+  waiting_fit: 'Ожидает подгонки',
   comparison: 'Сравнение длительности',
   fit: 'Подгонка ускорением',
   shorten: 'Сокращение перевода',
@@ -84,6 +86,9 @@ export function DubbingPanel({
           <span>
             {ready} из {record.transcript.length} фраз готовы
             {failed > 0 ? ` · ${failed} требуют внимания` : ''}
+            {active && record.dubbing?.active_phrase_ids?.length
+              ? ` · В работе: ${record.dubbing.active_phrase_ids.length}`
+              : ''}
           </span>
         </div>
         <button onClick={onVoices}>Голоса спикеров</button>

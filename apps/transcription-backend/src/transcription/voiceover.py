@@ -25,6 +25,7 @@ from .config import Settings
 from .diagnostics import append_event
 from .dubbing import MAX_SPEECH_SPEED, phrase_deadlines, semantic_windows
 from .models import StartRequest, Turn
+from .persistent_worker import PersistentWorker
 from .processes import WorkerFailure, run_worker
 
 
@@ -87,6 +88,7 @@ class VoiceoverSnapshot(BaseModel):
 
 class Voiceovers:
     def __init__(self, settings: Settings, worker_command: list[str] | None = None):
+        self.persistent_tts = settings.tts_engine == "cosyvoice" and worker_command is None
         self.settings = settings
         self.command = worker_command or [sys.executable, "-m", "transcription.worker"]
         self.translation_command = worker_command or [
@@ -433,7 +435,7 @@ class Voiceovers:
             self.uploads.discard(record_id)
         return record
 
-    async def phase(self, record, command, role, config, receive, *, stage_name=None):
+    async def phase(self, record, command, role, config, receive, *, stage_name=None, worker=None):
         name = stage_name or {
             "voiceover_preparation": "preparation",
             "tts": "synthesis",
@@ -502,8 +504,14 @@ class Voiceovers:
         self.save(record, kind="progress")
         state = "failed"
         try:
-            await run_worker(
-                command,
+
+            async def run(role, config, receive):
+                if worker is not None:
+                    await worker.run(role, config, receive)
+                else:
+                    await run_worker(command, role, config, receive)
+
+            await run(
                 role,
                 {
                     **config,
@@ -955,14 +963,34 @@ class Voiceovers:
 
         def update(translation, step, **values):
             translation.update(values, step=step)
-            record.dubbing = {"phrase_id": translation["id"], "step": step}
+            record.dubbing = {
+                "phrase_id": translation["id"],
+                "step": step,
+                "active_phrase_ids": [
+                    t["id"] for t in record.translations if t.get("status") == "processing"
+                ],
+                "queue_mode": "stages",
+            }
             record.stages["dubbing"]["completed_units"] = sum(
                 t.get("status") == "ready" for t in record.translations
             )
             record.revision += 1
             self.save(record, kind="progress")
 
+        tts_worker = PersistentWorker(self.tts_command) if self.persistent_tts else None
+        tts_lock = asyncio.Lock()
+        llm_lock = asyncio.Lock()
+        ready_for_synthesis: asyncio.Queue[int | None] = asyncio.Queue()
+        initial_results = [asyncio.get_running_loop().create_future() for _ in record.transcript]
+        producers: list[asyncio.Task] = []
+
         async def translate_one(phrase, translation, index, *, shorten=False, **timing):
+            async with llm_lock:
+                return await translate_unlocked(
+                    phrase, translation, index, shorten=shorten, **timing
+                )
+
+        async def translate_unlocked(phrase, translation, index, *, shorten=False, **timing):
             output = {}
 
             def receive(event):
@@ -992,6 +1020,12 @@ class Voiceovers:
             return output
 
         async def synthesize_one(phrase, translation):
+            update(translation, "queued_synthesis", status="processing")
+            async with tts_lock:
+                update(translation, "synthesis")
+                return await synthesize_unlocked(phrase, translation)
+
+        async def synthesize_unlocked(phrase, translation):
             speaker = phrase["speaker_id"] or "unknown"
             voice = translation.get("voice") or record.voice_assignments[speaker]
             reference = (
@@ -1043,7 +1077,12 @@ class Voiceovers:
                 if self.settings.tts_engine == "qwen":
                     rendered["instruction"] = self.settings.qwen_pace_instruction
                 await self.phase(
-                    record, self.tts_command, "tts", {**config, "phrases": [rendered]}, receive
+                    record,
+                    self.tts_command,
+                    "tts",
+                    {**config, "phrases": [rendered]},
+                    receive,
+                    worker=tts_worker,
                 )
                 if not clip:
                     return None
@@ -1076,7 +1115,55 @@ class Voiceovers:
                 )
             return result
 
+        async def translate_initial(index):
+            phrase = record.transcript[index]
+            translation = record.translations[index]
+            targeted = retry_id is None or retry_id == phrase["id"]
+            if not translation.get("text", "").strip() and targeted:
+                update(translation, "translation", status="processing", attempt=1)
+                result = await translate_one(phrase, translation, index)
+                text = result.get("text", "").strip()
+                translation.update(
+                    text=text,
+                    full_text=text,
+                    adapted_text=text,
+                    warnings=result.get("warnings", []),
+                    candidates=[text],
+                    candidate_warnings={},
+                )
+            update(translation, "queued_synthesis", status="processing", attempt=1)
+
+        async def translate_queue():
+            for index in range(len(record.transcript)):
+                await translate_initial(index)
+                ready_for_synthesis.put_nowait(index)
+            ready_for_synthesis.put_nowait(None)
+
+        async def synthesize_queue():
+            while (index := await ready_for_synthesis.get()) is not None:
+                phrase = record.transcript[index]
+                translation = record.translations[index]
+                raw = None
+                if translation.get("text", "").strip():
+                    raw = await synthesize_one(phrase, translation)
+                    if raw is not None:
+                        update(translation, "waiting_fit", measured_duration=raw["duration"])
+                initial_results[index].set_result(raw)
+
+        async def guarded(operation):
+            try:
+                await operation()
+            except Exception as error:  # noqa: BLE001 -- propagate producer failures to consumer
+                # Wake the ordered consumer even if an upstream stage fails on a later phrase.
+                for result in initial_results:
+                    if not result.done():
+                        result.set_exception(error)
+
         try:
+            producers = [
+                asyncio.create_task(guarded(operation))
+                for operation in (translate_queue, synthesize_queue)
+            ]
             placements = []
             playback_cursor = 0.0
             for index, (phrase, translation) in enumerate(
@@ -1091,18 +1178,7 @@ class Voiceovers:
                 translation["available_seconds"] = available
                 translation["lag_seconds"] = max(0.0, start - phrase["start"])
                 translation["deadline"] = deadline
-                if not translation.get("text", "").strip() and targeted:
-                    update(translation, "translation", status="processing", attempt=1)
-                    result = await translate_one(phrase, translation, index)
-                    text = result.get("text", "").strip()
-                    translation.update(
-                        text=text,
-                        full_text=text,
-                        adapted_text=text,
-                        warnings=result.get("warnings", []),
-                        candidates=[text],
-                        candidate_warnings={},
-                    )
+                initial_raw = await initial_results[index]
                 if not translation.get("text", "").strip():
                     update(translation, "failed", status="failed")
                     record.problems.append(
@@ -1118,7 +1194,7 @@ class Voiceovers:
                 best_key = None
                 for attempt in range(3 if targeted else 1):
                     update(translation, "synthesis", status="processing", attempt=attempt + 1)
-                    raw = await synthesize_one(phrase, translation)
+                    raw = initial_raw if attempt == 0 else await synthesize_one(phrase, translation)
                     if raw is None:
                         break
                     update(translation, "comparison", measured_duration=raw["duration"])
@@ -1211,6 +1287,8 @@ class Voiceovers:
                 placements.append({**best, "start": start})
                 playback_cursor = start + best["duration"]
                 update(translation, "ready", status="ready", warnings=[])
+            if tts_worker is not None:
+                await tts_worker.close()
             stage = record.stages["dubbing"]
             stage.update(
                 state="incomplete" if record.problems else "completed",
@@ -1270,6 +1348,16 @@ class Voiceovers:
                 (error.message if isinstance(error, WorkerFailure) else None)
                 or "Не удалось подготовить озвучку",
             )
+        finally:
+            for task in producers:
+                task.cancel()
+            await asyncio.gather(*producers, return_exceptions=True)
+            for result in initial_results:
+                if not result.done():
+                    result.cancel()
+            await asyncio.gather(*initial_results, return_exceptions=True)
+            if tts_worker is not None:
+                await tts_worker.close()
 
     def media(self, record_id: str, kind: str) -> Path:
         record = self.get(record_id)
