@@ -26,6 +26,7 @@ from .diagnostics import append_event
 from .dubbing import MAX_SPEECH_SPEED, phrase_deadlines, semantic_windows
 from .models import StartRequest, Turn
 from .persistent_worker import PersistentWorker
+from .preview import PreviewStream, preview_file
 from .processes import WorkerFailure, run_worker
 
 
@@ -71,6 +72,7 @@ class VoiceoverSnapshot(BaseModel):
     transcript: list = Field(default_factory=list)
     context: dict = Field(default_factory=dict)
     dubbing: dict = Field(default_factory=dict)
+    preview: dict = Field(default_factory=dict)
     speaker_samples: dict = Field(default_factory=dict)
     background: dict = Field(default_factory=lambda: {"mode": "speech_only", "reason": None})
     translations: list = Field(default_factory=list)
@@ -959,6 +961,51 @@ class Voiceovers:
             "started_at": time.time(),
             "elapsed_seconds": 0,
         }
+        generation = uuid4().hex
+        preview = (
+            PreviewStream(self.directory(record.id) / "preview" / generation, config)
+            if (self.directory(record.id) / "source").is_file()
+            else None
+        )
+        record.preview = {"generation": generation, "available_seconds": 0, "complete": False}
+        video_task = None
+        preview_monitor = None
+
+        def publish_preview():
+            if preview is None:
+                return
+            available = min(preview.available(), config["duration"])
+            changed = available != record.preview["available_seconds"]
+            record.preview["available_seconds"] = available
+            if (
+                available >= min(20, config["duration"])
+                and (self.directory(record.id) / "video.mp4").is_file()
+            ):
+                changed |= not bool(record.assets.get("video"))
+                record.assets = {
+                    "video": f"/trancription-api/voiceovers/{record.id}/media/video",
+                    "audio": f"/trancription-api/voiceovers/{record.id}/preview/{generation}/index.m3u8",
+                }
+            if changed:
+                record.revision += 1
+                self.save(record, kind="progress")
+
+        async def monitor_preview():
+            while True:
+                publish_preview()
+                await asyncio.sleep(0.5)
+
+        async def append_preview(index, placements, playback_cursor):
+            if preview is not None:
+                next_start = (
+                    record.transcript[index + 1]["start"]
+                    if index + 1 < len(record.transcript)
+                    else config["duration"]
+                )
+                await preview.append(
+                    min(config["duration"], max(next_start, playback_cursor)), placements
+                )
+
         deadlines = phrase_deadlines(record.transcript, record.duration or 0)
 
         def update(translation, step, **values):
@@ -1160,11 +1207,21 @@ class Voiceovers:
                         result.set_exception(error)
 
         try:
+            if preview is not None:
+                video_task = asyncio.create_task(
+                    run_worker(
+                        [sys.executable, "-m", "transcription.video_worker"],
+                        "preview_video",
+                        config,
+                        lambda event: None,
+                    )
+                )
+                preview_monitor = asyncio.create_task(monitor_preview())
             producers = [
                 asyncio.create_task(guarded(operation))
                 for operation in (translate_queue, synthesize_queue)
             ]
-            placements = []
+            placements: list[dict] = []
             playback_cursor = 0.0
             for index, (phrase, translation) in enumerate(
                 zip(record.transcript, record.translations)
@@ -1188,6 +1245,7 @@ class Voiceovers:
                             "reason": "translation_error",
                         }
                     )
+                    await append_preview(index, placements, playback_cursor)
                     continue
                 best = None
                 best_text = translation.get("adapted_text") or translation["text"]
@@ -1256,6 +1314,7 @@ class Voiceovers:
                             "reason": "synthesis_error",
                         }
                     )
+                    await append_preview(index, placements, playback_cursor)
                     continue
                 translation.update(text=best_text, adapted_text=best_text, audio_cache_key=best_key)
                 selected_attempt = translation["attempts"][translation["selected_attempt"] - 1]
@@ -1282,11 +1341,22 @@ class Voiceovers:
                         }
                     )
                     update(translation, "conflict", status="timing_conflict")
+                    await append_preview(index, placements, playback_cursor)
                     continue
                 translation.update(playback_start=start, playback_end=start + best["duration"])
                 placements.append({**best, "start": start})
                 playback_cursor = start + best["duration"]
                 update(translation, "ready", status="ready", warnings=[])
+                await append_preview(index, placements, playback_cursor)
+            if preview is not None:
+                await preview.finish()
+                assert video_task is not None
+                await video_task
+                publish_preview()
+                record.preview["complete"] = True
+            if preview_monitor is not None:
+                preview_monitor.cancel()
+                await asyncio.gather(preview_monitor, return_exceptions=True)
             if tts_worker is not None:
                 await tts_worker.close()
             stage = record.stages["dubbing"]
@@ -1322,6 +1392,7 @@ class Voiceovers:
                     "translation.m4a",
                     "processing.jsonl",
                     "clips",
+                    "preview",
                     "speaker-samples",
                     "audio.wav",
                     "background.wav",
@@ -1349,6 +1420,12 @@ class Voiceovers:
                 or "Не удалось подготовить озвучку",
             )
         finally:
+            for task in (video_task, preview_monitor):
+                if task is not None:
+                    task.cancel()
+                    await asyncio.gather(task, return_exceptions=True)
+            if preview is not None:
+                await preview.close()
             for task in producers:
                 task.cancel()
             await asyncio.gather(*producers, return_exceptions=True)
@@ -1361,9 +1438,27 @@ class Voiceovers:
 
     def media(self, record_id: str, kind: str) -> Path:
         record = self.get(record_id)
-        if record.status not in {"completed", "incomplete"} or kind not in {"video", "audio"}:
+        early_video = kind == "video" and bool(record.assets.get("video"))
+        if (record.status not in {"completed", "incomplete"} and not early_video) or kind not in {
+            "video",
+            "audio",
+        }:
             raise HTTPException(404, "Медиа недоступно")
         return self.directory(record_id) / ("video.mp4" if kind == "video" else "translation.m4a")
+
+    def preview_asset(self, record_id: str, generation: str, name: str) -> Path:
+        import re
+
+        self.get(record_id)
+        if not re.fullmatch(r"[a-f0-9]{32}", generation):
+            raise HTTPException(404, "Просмотр недоступен")
+        try:
+            path = preview_file(self.directory(record_id) / "preview" / generation, name)
+        except ValueError:
+            raise HTTPException(404, "Просмотр недоступен") from None
+        if not path.is_file():
+            raise HTTPException(404, "Просмотр недоступен")
+        return path
 
     def phrase_audio(self, record_id: str, phrase_id: str) -> Path:
         record = self.get(record_id)

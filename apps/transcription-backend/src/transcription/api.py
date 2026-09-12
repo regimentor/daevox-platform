@@ -108,6 +108,20 @@ def create_app(
             check_available()
         return voiceovers.retry_phrase(record_id, phrase_id, body)
 
+    @app.api_route(
+        prefix + "/voiceovers/{record_id}/preview/{generation}/{name}", methods=["GET", "HEAD"]
+    )
+    async def voiceover_preview(record_id: str, generation: str, name: str):
+        path = voiceovers.preview_asset(record_id, generation, name)
+        playlist = name.endswith(".m3u8")
+        return FileResponse(
+            path,
+            media_type="application/vnd.apple.mpegurl" if playlist else "video/mp2t",
+            headers={
+                "Cache-Control": "no-store" if playlist else "private, max-age=31536000, immutable"
+            },
+        )
+
     @app.api_route(prefix + "/voiceovers/{record_id}/media/{kind}", methods=["GET", "HEAD"])
     async def voiceover_media(record_id: str, kind: str):
         return FileResponse(voiceovers.media(record_id, kind))

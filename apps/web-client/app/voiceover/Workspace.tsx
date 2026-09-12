@@ -766,7 +766,7 @@ export function VoiceoverWorkspace(props: Props) {
                       Скачать видео с оригинальной дорожкой
                     </a>
                   )}
-                  {record.assets.audio && (
+                  {record.assets.audio && !record.assets.audio.endsWith('.m3u8') && (
                     <a href={record.assets.audio} download>
                       Скачать переведённую аудиодорожку
                     </a>

@@ -1,3 +1,4 @@
+import Hls from 'hls.js';
 import { TranslationText } from './TranslationText';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Drawer, Paper, Stack, Text } from '@mantine/core';
@@ -17,6 +18,9 @@ export function Player({
   const shell = useRef<HTMLDivElement>(null);
   const transcriptContainer = useRef<HTMLDivElement>(null);
   const [time, setTime] = useState(0);
+  const [audioSource] = useState(record.assets.audio);
+  const streaming = Boolean(audioSource?.endsWith('.m3u8'));
+  const [waiting, setWaiting] = useState(false);
   const [original, setOriginal] = useState(1);
   const [translation, setTranslation] = useState(1);
   const [onlyOriginal, setOnlyOriginal] = useState(false);
@@ -49,7 +53,19 @@ export function Player({
     async function alignAndPlay() {
       if (!desired.current || starting.current) return;
       const [master, follower] = tracks();
+      const preview = current.current.preview;
+      if (
+        streaming &&
+        !levels.current.onlyOriginal &&
+        !preview?.complete &&
+        master.currentTime >= (preview?.available_seconds ?? 0) - 0.2
+      ) {
+        hold();
+        setWaiting(true);
+        return;
+      }
       if (master.seeking || master.readyState < 3) return;
+      setWaiting(false);
       starting.current = true;
       try {
         const starts: Promise<void>[] = [];
@@ -74,9 +90,12 @@ export function Player({
         starting.current = false;
       }
     }
-    const waiting = (event: Event) => {
+    const mediaWaiting = (event: Event) => {
       const [master, follower] = tracks();
-      if (event.target === master) follower.pause();
+      if (event.target === master) {
+        follower.pause();
+        if (desired.current) setWaiting(true);
+      }
     };
     resume.current = () => {
       void alignAndPlay();
@@ -86,6 +105,11 @@ export function Player({
     };
     const end = (event: Event) => {
       if (event.target !== tracks()[0]) return;
+      if (streaming && !current.current.preview?.complete) {
+        hold();
+        setWaiting(true);
+        return;
+      }
       desired.current = false;
       setPlaying(false);
       hold();
@@ -100,8 +124,8 @@ export function Player({
     };
     for (const media of [v, a]) {
       media.addEventListener('error', mediaError);
-      media.addEventListener('waiting', waiting);
-      media.addEventListener('seeking', waiting);
+      media.addEventListener('waiting', mediaWaiting);
+      media.addEventListener('seeking', mediaWaiting);
       media.addEventListener('canplay', ready);
       media.addEventListener('seeked', ready);
     }
@@ -123,7 +147,7 @@ export function Player({
         setTime(master.currentTime);
         lastDisplayTime = master.currentTime;
       }
-      if (desired.current && (v.paused || a.paused)) void alignAndPlay();
+      if (desired.current && (streaming || v.paused || a.paused)) void alignAndPlay();
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -134,15 +158,47 @@ export function Player({
       cancelAnimationFrame(frame);
       for (const media of [v, a]) {
         media.removeEventListener('error', mediaError);
-        media.removeEventListener('waiting', waiting);
-        media.removeEventListener('seeking', waiting);
+        media.removeEventListener('waiting', mediaWaiting);
+        media.removeEventListener('seeking', mediaWaiting);
         media.removeEventListener('canplay', ready);
         media.removeEventListener('seeked', ready);
       }
       v.removeEventListener('ended', end);
       a.removeEventListener('ended', end);
     };
-  }, [record.assets.video, record.assets.audio]);
+  }, [record.assets.video, audioSource, streaming]);
+  useEffect(() => {
+    if (!streaming || !audioSource) return;
+    const media = audio.current!;
+    if (Hls.isSupported()) {
+      const hls = new Hls({
+        startPosition: 0,
+        maxBufferLength: 60,
+        backBufferLength: 30,
+        liveSyncDurationCount: 1e9,
+        liveMaxLatencyDurationCount: Infinity,
+        maxLiveSyncPlaybackRate: 1,
+        liveMaxUnchangedPlaylistRefresh: Infinity,
+      });
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) {
+          desired.current = false;
+          setPlaying(false);
+          video.current?.pause();
+          media.pause();
+          setError('Не удалось загрузить озвучку. Обновите страницу, чтобы повторить подключение.');
+        }
+      });
+      hls.loadSource(audioSource);
+      hls.attachMedia(media);
+      return () => hls.destroy();
+    }
+    if (media.canPlayType('application/vnd.apple.mpegurl')) media.src = audioSource;
+    else
+      setError(
+        'Этот браузер не поддерживает просмотр во время озвучки. Готовое видео будет доступно после обработки.',
+      );
+  }, [audioSource, streaming]);
   useEffect(() => {
     const v = video.current!,
       a = audio.current!;
@@ -193,7 +249,11 @@ export function Player({
   function seek(position: number) {
     const v = video.current!;
     const a = audio.current!;
-    position = Math.max(0, Math.min(position, mediaDuration || position));
+    const available =
+      streaming && !onlyOriginal && !record.preview?.complete
+        ? Math.max(0, (record.preview?.available_seconds ?? 0) - 0.3)
+        : mediaDuration;
+    position = Math.max(0, Math.min(position, available || (streaming ? 0 : position)));
     v.pause();
     a.pause();
     v.currentTime = position;
@@ -252,7 +312,17 @@ export function Player({
           )
         }
       />
-      <audio ref={audio} aria-label="Перевод" preload="auto" src={record.assets.audio} />
+      <audio
+        ref={audio}
+        aria-label="Перевод"
+        preload="auto"
+        src={streaming ? undefined : audioSource}
+      />
+      {waiting && playing && (
+        <div className="vo-player-waiting" role="status">
+          {streaming && !record.preview?.complete ? 'Готовим следующие фразы…' : 'Загрузка…'}
+        </div>
+      )}
       {!playing && (
         <button className="vo-center-play" aria-label="Начать просмотр" onClick={togglePlay}>
           <PlayerIcon name="play" />
@@ -273,6 +343,12 @@ export function Player({
           }}
           onChange={(event) => seek(Number(event.target.value))}
         />
+        {streaming && !record.preview?.complete && (
+          <div className="vo-preview-progress">
+            Озвучено {formatTime(record.preview?.available_seconds ?? 0)} из{' '}
+            {formatTime(mediaDuration)}
+          </div>
+        )}
         <div className="vo-player-toolbar">
           <button
             aria-label={playing ? 'Пауза' : 'Воспроизвести'}

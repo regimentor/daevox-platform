@@ -79,6 +79,7 @@ export interface Voiceover {
       finished_at?: number;
     }
   >;
+  preview?: { generation?: string; available_seconds: number; complete: boolean };
   dubbing?: {
     phrase_id?: string;
     step?: string;

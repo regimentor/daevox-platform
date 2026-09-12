@@ -11,18 +11,27 @@ from pathlib import Path
 from .worker import emit, prepare, stage
 
 
+class UnsupportedSource(ValueError):
+    """A source rejected by application policy, with a safe user-facing reason."""
+
+
 def acquire(config):
     import yt_dlp
 
+    rejection = None
+
     def public_recording(info, *, incomplete):
+        nonlocal rejection
         if info.get("is_live") or info.get("live_status") in {
             "is_live",
             "is_upcoming",
             "post_live",
         }:
-            return "Only finished recordings are supported"
-        if not incomplete and info.get("availability") != "public":
-            return "Only public recordings are supported"
+            rejection = "Поддерживаются только завершённые записи: трансляция ещё идёт, запланирована или обрабатывается YouTube."
+            return rejection
+        if not incomplete and info.get("availability") not in {None, "public"}:
+            rejection = "YouTube сообщил об ограниченном доступе к видео. Поддерживаются только общедоступные записи."
+            return rejection
         return None
 
     def progress(data):
@@ -51,7 +60,9 @@ def acquire(config):
             or info.get("_type") in {"playlist", "multi_video"}
             or public_recording(info, incomplete=False)
         ):
-            raise ValueError("Unsupported YouTube source")
+            raise UnsupportedSource(
+                rejection or "Источник не является отдельной доступной видеозаписью YouTube."
+            )
         shutil.move(downloader.prepare_filename(info), config["source_path"])
         if info.get("title"):
             emit(kind="source_metadata", title=info["title"])
@@ -148,7 +159,24 @@ def render(config):
     )
     subprocess.run(audio_command, check=True)
     progress(duration, "Кодирование видео")
-    destination = directory / "video.mp4"
+    prepare_video(config, progress)
+    stage(
+        "rendering",
+        state="completed",
+        completed_units=total,
+        total_units=total,
+        unit="seconds",
+        detail="Файлы собраны",
+    )
+
+
+def prepare_video(config, progress=lambda *_: None):
+    directory = Path(config["directory"])
+    if (directory / "video.mp4").is_file():
+        return
+    duration = float(config["duration"])
+    total = duration * 2
+    destination = directory / "video.pending.mp4"
     copy_command = [
         "ffmpeg",
         "-v",
@@ -222,20 +250,17 @@ def render(config):
                     progress(duration + min(seconds, duration), "Кодирование видео")
             if video_process.wait():
                 raise ValueError("Video rendering failed")
-    stage(
-        "rendering",
-        state="completed",
-        completed_units=total,
-        total_units=total,
-        unit="seconds",
-        detail="Файлы собраны",
-    )
+    destination.replace(directory / "video.mp4")
 
 
 def main():
     config = json.loads(sys.stdin.readline())
     sys.stdout = sys.stderr
     try:
+        if sys.argv[1] == "preview_video":
+            prepare_video(config)
+            emit(kind="done")
+            return
         if sys.argv[1] == "pauses":
             from .pause_processing import compress_pauses
 
@@ -342,7 +367,10 @@ def main():
                 stderr=str(getattr(error, "stderr", "") or ""),
                 stdout=str(getattr(error, "stdout", "") or ""),
             )
-        emit(kind="error", code="invalid_media")
+        if isinstance(error, UnsupportedSource):
+            emit(kind="error", code="unsupported_source", message=str(error))
+        else:
+            emit(kind="error", code="invalid_media")
         sys.exit(1)
 
 

@@ -1,6 +1,7 @@
 import { MantineProvider } from '@mantine/core';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
+import Hls from 'hls.js';
 import { Player } from './Player';
 import type { Voiceover } from './types';
 
@@ -21,7 +22,7 @@ const record: Voiceover = {
 };
 afterEach(() => vi.restoreAllMocks());
 
-async function setup() {
+async function setup(value = record) {
   let frame: FrameRequestCallback = vi.fn();
   vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
     frame = callback;
@@ -38,9 +39,9 @@ async function setup() {
     .mockImplementation(function (this: HTMLMediaElement) {
       Object.defineProperty(this, 'paused', { configurable: true, value: true });
     });
-  render(
+  const view = render(
     <MantineProvider>
-      <Player record={record} details={null} onDetails={vi.fn()} onRetryPhrase={vi.fn()} />
+      <Player record={value} details={null} onDetails={vi.fn()} onRetryPhrase={vi.fn()} />
     </MantineProvider>,
   );
   const video = screen.getByLabelText<HTMLVideoElement>('Видео');
@@ -52,6 +53,12 @@ async function setup() {
   });
   pause.mockClear();
   return {
+    update: (next: Voiceover) =>
+      view.rerender(
+        <MantineProvider>
+          <Player record={next} details={null} onDetails={vi.fn()} onRetryPhrase={vi.fn()} />
+        </MantineProvider>,
+      ),
     video,
     audio,
     pause,
@@ -140,4 +147,36 @@ it('requests fullscreen for the video and its controls and reflects external exi
   Object.defineProperty(document, 'fullscreenElement', { configurable: true, value: null });
   fireEvent(document, new Event('fullscreenchange'));
   expect(screen.getByRole('button', { name: 'Полный экран' })).toBeVisible();
+});
+
+it('waits at the prepared boundary, resumes on new segments, and keeps the stream after final assembly', async () => {
+  vi.spyOn(Hls, 'isSupported').mockReturnValue(false);
+  vi.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockReturnValue('probably');
+  const partial: Voiceover = {
+    ...record,
+    status: 'synthesizing',
+    assets: { video: '/video.mp4', audio: '/preview/index.m3u8' },
+    preview: { available_seconds: 20, complete: false },
+  };
+  const { video, audio, tick, update } = await setup(partial);
+  audio.currentTime = video.currentTime = 19.9;
+  await tick();
+  expect(audio.paused).toBe(true);
+  expect(video.paused).toBe(true);
+  expect(screen.getByRole('status')).toHaveTextContent('Готовим следующие фразы');
+  update({ ...partial, preview: { available_seconds: 32, complete: false } });
+  await tick();
+  expect(audio.paused).toBe(false);
+  expect(video.paused).toBe(false);
+  expect(audio.currentTime).toBe(19.9);
+  update({
+    ...partial,
+    status: 'completed',
+    assets: record.assets,
+    preview: { available_seconds: 60, complete: true },
+  });
+  await tick();
+  expect(audio.src).toContain('/preview/index.m3u8');
+  expect(audio.currentTime).toBe(19.9);
+  expect(audio.paused).toBe(false);
 });

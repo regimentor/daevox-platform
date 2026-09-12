@@ -1187,3 +1187,20 @@
   cursor: pointer;
   font-size: 12px;
 }
+
+.vo-player-waiting {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #000c;
+  color: white;
+  padding: 12px 18px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.vo-preview-progress {
+  color: #eee;
+  font-size: 11px;
+  margin-bottom: 3px;
+}
