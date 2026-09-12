@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     background_fallback: Literal["speech_only", "original_ducked"] = "speech_only"
     voiceover_max_lag: float = Field(default=2.0, ge=0, le=10)
     tts_engine: Literal["silero", "qwen", "chatterbox", "cosyvoice"] = "silero"
+    cosyvoice_workers: int = Field(default=2, ge=1, le=2)
     cosyvoice_python: str = "data/tts-options/cosyvoice-env/bin/python"
     cosyvoice_source_path: str = "data/tts-options/cosyvoice-source"
     cosyvoice_model_path: str = "data/tts-options/cosyvoice3"

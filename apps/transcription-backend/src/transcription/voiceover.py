@@ -1024,8 +1024,18 @@ class Voiceovers:
             record.revision += 1
             self.save(record, kind="progress")
 
-        tts_worker = PersistentWorker(self.tts_command) if self.persistent_tts else None
-        tts_lock = asyncio.Lock()
+        worker_count = (
+            self.settings.cosyvoice_workers if self.settings.tts_engine == "cosyvoice" else 1
+        )
+        tts_workers = [
+            PersistentWorker(self.tts_command) if self.persistent_tts else None
+            for _ in range(worker_count)
+        ]
+        tts_capacity = asyncio.Semaphore(worker_count)
+        free_workers: asyncio.Queue[int] = asyncio.Queue()
+        for slot in range(worker_count):
+            free_workers.put_nowait(slot)
+        cache_locks: dict[str, asyncio.Lock] = {}
         llm_lock = asyncio.Lock()
         ready_for_synthesis: asyncio.Queue[int | None] = asyncio.Queue()
         initial_results = [asyncio.get_running_loop().create_future() for _ in record.transcript]
@@ -1068,11 +1078,15 @@ class Voiceovers:
 
         async def synthesize_one(phrase, translation):
             update(translation, "queued_synthesis", status="processing")
-            async with tts_lock:
-                update(translation, "synthesis")
-                return await synthesize_unlocked(phrase, translation)
+            async with tts_capacity:
+                slot = free_workers.get_nowait()
+                try:
+                    update(translation, "synthesis", synthesizer=slot + 1)
+                    return await synthesize_unlocked(phrase, translation, slot)
+                finally:
+                    free_workers.put_nowait(slot)
 
-        async def synthesize_unlocked(phrase, translation):
+        async def synthesize_unlocked(phrase, translation, slot):
             speaker = phrase["speaker_id"] or "unknown"
             voice = translation.get("voice") or record.voice_assignments[speaker]
             reference = (
@@ -1103,47 +1117,50 @@ class Voiceovers:
                     ensure_ascii=False,
                 ).encode()
             ).hexdigest()
-            path = cache_directory / f"{key}.wav"
-            clip = {}
+            async with cache_locks.setdefault(key, asyncio.Lock()):
+                path = cache_directory / f"{key}.wav"
+                clip = {}
 
-            def receive(event):
-                if event["kind"] == "synthesized" and event["id"] == phrase["id"]:
-                    clip.update(event)
+                def receive(event):
+                    if event["kind"] == "synthesized" and event["id"] == phrase["id"]:
+                        clip.update(event)
 
-            if path.is_file():
-                with wave.open(str(path), "rb") as audio:
-                    clip.update(
-                        id=phrase["id"],
-                        path=str(path),
-                        duration=audio.getnframes() / audio.getframerate(),
+                if path.is_file():
+                    with wave.open(str(path), "rb") as audio:
+                        clip.update(
+                            id=phrase["id"],
+                            path=str(path),
+                            duration=audio.getnframes() / audio.getframerate(),
+                        )
+                else:
+                    rendered = {**translation, "text": text, "voice": voice}
+                    if reference:
+                        rendered["reference_path"] = reference
+                    if self.settings.tts_engine == "qwen":
+                        rendered["instruction"] = self.settings.qwen_pace_instruction
+                    await self.phase(
+                        record,
+                        self.tts_command,
+                        "tts",
+                        {**config, "phrases": [rendered]},
+                        receive,
+                        worker=tts_workers[slot],
+                        stage_name=f"synthesis_{slot + 1}" if worker_count > 1 else None,
                     )
-            else:
-                rendered = {**translation, "text": text, "voice": voice}
-                if reference:
-                    rendered["reference_path"] = reference
-                if self.settings.tts_engine == "qwen":
-                    rendered["instruction"] = self.settings.qwen_pace_instruction
-                await self.phase(
-                    record,
-                    self.tts_command,
-                    "tts",
-                    {**config, "phrases": [rendered]},
-                    receive,
-                    worker=tts_worker,
-                )
-                if not clip:
-                    return None
-                await self.phase(
-                    record,
-                    [sys.executable, "-m", "transcription.video_worker"],
-                    "pauses",
-                    {"clips": [dict(clip)]},
-                    receive,
-                )
-                await asyncio.to_thread(shutil.copyfile, clip["path"], path)
-                clip["path"] = str(path)
-            translation["audio_cache_key"] = key
-            return clip
+                    if not clip:
+                        return None
+                    await self.phase(
+                        record,
+                        [sys.executable, "-m", "transcription.video_worker"],
+                        "pauses",
+                        {"clips": [dict(clip)]},
+                        receive,
+                        stage_name=f"pauses_{slot + 1}" if worker_count > 1 else None,
+                    )
+                    await asyncio.to_thread(shutil.copyfile, clip["path"], path)
+                    clip["path"] = str(path)
+                translation["audio_cache_key"] = key
+                return clip
 
         async def fit_clip(clip, speed):
             result = dict(clip)
@@ -1184,7 +1201,8 @@ class Voiceovers:
             for index in range(len(record.transcript)):
                 await translate_initial(index)
                 ready_for_synthesis.put_nowait(index)
-            ready_for_synthesis.put_nowait(None)
+            for _ in range(worker_count):
+                ready_for_synthesis.put_nowait(None)
 
         async def synthesize_queue():
             while (index := await ready_for_synthesis.get()) is not None:
@@ -1219,7 +1237,7 @@ class Voiceovers:
                 preview_monitor = asyncio.create_task(monitor_preview())
             producers = [
                 asyncio.create_task(guarded(operation))
-                for operation in (translate_queue, synthesize_queue)
+                for operation in (translate_queue, *([synthesize_queue] * worker_count))
             ]
             placements: list[dict] = []
             playback_cursor = 0.0
@@ -1357,8 +1375,7 @@ class Voiceovers:
             if preview_monitor is not None:
                 preview_monitor.cancel()
                 await asyncio.gather(preview_monitor, return_exceptions=True)
-            if tts_worker is not None:
-                await tts_worker.close()
+            await asyncio.gather(*(worker.close() for worker in tts_workers if worker is not None))
             stage = record.stages["dubbing"]
             stage.update(
                 state="incomplete" if record.problems else "completed",
@@ -1433,8 +1450,7 @@ class Voiceovers:
                 if not result.done():
                     result.cancel()
             await asyncio.gather(*initial_results, return_exceptions=True)
-            if tts_worker is not None:
-                await tts_worker.close()
+            await asyncio.gather(*(worker.close() for worker in tts_workers if worker is not None))
 
     def media(self, record_id: str, kind: str) -> Path:
         record = self.get(record_id)

@@ -61,3 +61,6 @@ Status: resolved
 - [Неизвестная доступность YouTube](issues/15-youtube-unknown-availability.md):
   отсутствие `availability` больше не блокирует загрузку; причина явного отказа
   передаётся в интерфейс.
+
+- [Два синтезатора CosyVoice](issues/16-two-synthesizers.md): общий пул, отдельный
+  прогресс и сохранение порядка; контрольная точка — `2c69afe`.

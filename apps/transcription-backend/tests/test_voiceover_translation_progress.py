@@ -181,3 +181,74 @@ def test_stages_drain_all_phrases_while_next_stage_is_busy_and_cancel_cleanly(
         assert not [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
 
     asyncio.run(check())
+
+
+def test_two_synthesizers_finish_out_of_order_but_assemble_in_source_order(tmp_path, monkeypatch):
+    service = Voiceovers(
+        Settings(data_dir=tmp_path, tts_engine="cosyvoice", cosyvoice_workers=2),
+        worker_command=["fake"],
+    )
+    record = VoiceoverSnapshot(
+        id="two-workers",
+        created_at="2026-09-12T00:00:00Z",
+        source={"kind": "file"},
+        status="synthesizing",
+        duration=12,
+        transcript=[
+            {
+                "id": str(i),
+                "start": i * 4,
+                "end": i * 4 + 2,
+                "text": f"Phrase {i}",
+                "speaker_id": "one",
+            }
+            for i in range(3)
+        ],
+        voice_assignments={"one": "demo"},
+    )
+    service.records[record.id] = record
+    service.directory(record.id).mkdir(parents=True)
+
+    async def check():
+        second_finished = asyncio.Event()
+        active = 0
+        peak = 0
+        completed = []
+        placements = []
+
+        async def worker(command, role, config, receive):
+            nonlocal active, peak
+            if role == "render":
+                placements.extend(config["placements"])
+            elif role in {"translation", "tts"}:
+                phrase = config["phrases"][0]
+                if role == "translation":
+                    receive({"kind": "translation", "id": phrase["id"], "text": phrase["text"]})
+                    return
+                active += 1
+                peak = max(peak, active)
+                if phrase["id"] == "0":
+                    await asyncio.wait_for(second_finished.wait(), 2)
+                path = Path(config["directory"]) / f"{phrase['id']}.wav"
+                with wave.open(str(path), "wb") as audio:
+                    audio.setparams((1, 2, 24000, 0, "NONE", "not compressed"))
+                    audio.writeframes(b"\x01\x00" * 12000)
+                completed.append(phrase["id"])
+                receive(
+                    {"kind": "synthesized", "id": phrase["id"], "path": str(path), "duration": 0.5}
+                )
+                if phrase["id"] == "1":
+                    second_finished.set()
+                active -= 1
+
+        monkeypatch.setattr("transcription.voiceover.run_worker", worker)
+        await service.render(record)
+        assert record.status == "completed", record.error
+        assert peak == 2
+        assert completed.index("1") < completed.index("0")
+        assert [p["id"] for p in placements] == ["0", "1", "2"]
+        assert [p["start"] for p in placements] == [0, 4, 8]
+        assert record.stages["synthesis_1"]["state"] == "completed"
+        assert record.stages["synthesis_2"]["state"] == "completed"
+
+    asyncio.run(check())
