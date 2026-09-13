@@ -1,4 +1,7 @@
-# Локальное подключение Telegram
+# Telegram-секретарь: подключение, архив, саммари и автоответчик
+
+Node.js backend на `@daevox/framework` обслуживает страницу `/telegram`.
+Транскрибация и перевод видео работают в [отдельном FastAPI-сервисе](../transcription-backend/README.md).
 
 Backend слушает `127.0.0.1:3000`. Экран подключения работает без входа в Daevox.
 `GET /healthcheck` проверяет только доступность backend; отсутствие настроек Telegram не мешает
@@ -99,7 +102,7 @@ npm run verify -w @daevox/telegram-contract
 npm run verify -w @daevox/backend
 npm run verify -w @daevox/web-client
 npm exec -w @daevox/web-client -- playwright install chromium
-npm run test:e2e -w @daevox/web-client
+npm run test:e2e -w @daevox/web-client -- telegram.spec.ts auto-reply.spec.ts theme.spec.ts
 npm run verify -w @daevox/tdlib
 npm run lint
 npm run format:check
