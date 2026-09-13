@@ -1,0 +1,16 @@
+{
+  "name": "@daevox/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./client": "./generated/client.ts"
+  },
+  "scripts": {
+    "dev": "cargo run --locked --bin core",
+    "test": "cargo test --locked",
+    "check": "cargo fmt --check && cargo clippy --locked --all-targets -- -D warnings",
+    "verify": "npm run check && npm test",
+    "contract": "python3 tools/contract.py && python3 tools/generate-client.py && oxfmt --config ../../.oxfmtrc.json generated/client.ts resources/openapi.json"
+  }
+}

@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     event_history: int = Field(default=128, gt=0)
     asr_gpu: str = "NVIDIA GeForce RTX 4070 Ti"
     diarization_gpu: str = "NVIDIA GeForce RTX 4070 Ti"
-    llm_base_url: str = "http://127.0.0.1:8080/v1"
+    llm_base_url: str = "http://127.0.0.1:3188/v1"
     llm_model: str = ""
     tts_gpu: str = "NVIDIA GeForce RTX 4070 Ti"
     separation_model: str = "htdemucs"

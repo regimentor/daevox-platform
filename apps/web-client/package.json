@@ -18,9 +18,11 @@
     "typecheck": "npm run css:types && react-router typegen && tsc",
     "verify": "npm run typecheck && npm run test:coverage && npm run build && npm run storybook:build",
     "test:e2e:transcription": "playwright test --config playwright.transcription.config.ts",
-    "test:e2e:voiceover": "playwright test --config playwright.voiceover.config.ts"
+    "test:e2e:voiceover": "playwright test --config playwright.voiceover.config.ts",
+    "test:e2e:core": "playwright test --config playwright.core.config.ts"
   },
   "dependencies": {
+    "@daevox/core": "0.1.0",
     "@daevox/telegram-contract": "^0.0.0",
     "@mantine/core": "^9.5.2",
     "@mantine/hooks": "^9.5.2",

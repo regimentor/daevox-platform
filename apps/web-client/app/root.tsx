@@ -10,6 +10,7 @@ import {
   isRouteErrorResponse,
 } from 'react-router';
 
+import { CoreProvider } from './core/state';
 import { AppHeader } from './components/AppHeader';
 import classes from './root.module.css';
 
@@ -25,12 +26,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <MantineProvider defaultColorScheme="auto">
-          <AppShell header={{ height: 60 }} padding="md">
-            <AppShell.Header>
-              <AppHeader />
-            </AppShell.Header>
-            <AppShell.Main className={classes.main}>{children}</AppShell.Main>
-          </AppShell>
+          <CoreProvider>
+            <AppShell header={{ height: 60 }} padding="md">
+              <AppShell.Header>
+                <AppHeader />
+              </AppShell.Header>
+              <AppShell.Main className={classes.main}>{children}</AppShell.Main>
+            </AppShell>
+          </CoreProvider>
         </MantineProvider>
         <ScrollRestoration />
         <Scripts />
