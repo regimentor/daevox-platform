@@ -10,6 +10,8 @@ import {
 import { useMounted } from '@mantine/hooks';
 
 import classes from './AppHeader.module.css';
+import { DownloadStatus } from '../core/DownloadStatus';
+import { HeaderStatus } from '../core/HeaderStatus';
 
 export function AppHeader() {
   const computedColorScheme = useComputedColorScheme('light');
@@ -24,9 +26,14 @@ export function AppHeader() {
         Daevox
       </Text>
       <Group>
+        <Anchor href="/models">Модели LLM</Anchor>
         <Anchor href="/telegram">Telegram</Anchor>
         <Anchor href="/transcription">Транскрибация</Anchor>
         <Anchor href="/voiceover">Перевод видео</Anchor>
+      </Group>
+      <Group gap="xs" wrap="nowrap">
+        <DownloadStatus />
+        <HeaderStatus />
       </Group>
       <ActionIcon
         aria-label={`Switch to ${nextColorScheme} theme`}

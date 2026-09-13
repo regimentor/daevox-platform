@@ -59,7 +59,7 @@ export function signed(body: string, author: string, limit: number) {
 }
 export async function generateReply(input: ReplyModelInput, signal: AbortSignal): Promise<string> {
   const client = new OpenAI({
-    baseURL: process.env.LLAMA_BASE_URL ?? 'http://127.0.0.1:8080/v1',
+    baseURL: process.env.LLAMA_BASE_URL ?? 'http://127.0.0.1:3188/v1',
     apiKey: process.env.LLAMA_API_KEY ?? 'local-llama',
     timeout: 180000,
     maxRetries: 0,

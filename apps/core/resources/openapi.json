@@ -1,0 +1,3288 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Daevox core management",
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "/core"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["status"]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runtime": {
+      "get": {
+        "operationId": "runtime",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeSnapshot"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings": {
+      "get": {
+        "operationId": "settings",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settings"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "saveSettings",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settings"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Settings"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/presets": {
+      "get": {
+        "operationId": "presets",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresetCatalog"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/preset-files": {
+      "post": {
+        "operationId": "createSource",
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresetSource"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSource"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/preset-files/{id}": {
+      "get": {
+        "operationId": "source",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresetSource"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "put": {
+        "operationId": "saveSource",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresetSource"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveSource"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteSource",
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runtime/switch": {
+      "post": {
+        "operationId": "switchPreset",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwitchRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/operations": {
+      "get": {
+        "operationId": "operations",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "operations": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Operation"
+                      }
+                    },
+                    "cursor": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["operations", "cursor"]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/operations/{id}": {
+      "get": {
+        "operationId": "operation",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/operations/{id}/cancel": {
+      "post": {
+        "operationId": "cancelOperation",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ]
+      }
+    },
+    "/operations/{id}/force": {
+      "post": {
+        "operationId": "forceOperation",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ]
+      }
+    },
+    "/builds": {
+      "get": {
+        "operationId": "builds",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "builds": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Build"
+                      }
+                    }
+                  },
+                  "required": ["builds"]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createBuild",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuildRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/builds/{id}/apply": {
+      "post": {
+        "operationId": "applyBuild",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ]
+      }
+    },
+    "/builds/{id}": {
+      "delete": {
+        "operationId": "deleteBuild",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ]
+      }
+    },
+    "/recovery/{id}/stop": {
+      "post": {
+        "operationId": "stopRecovery",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ]
+      }
+    },
+    "/hub/models": {
+      "get": {
+        "operationId": "hubModels",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubModels"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/hub/files": {
+      "get": {
+        "operationId": "hubFiles",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubFiles"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "repo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/model-sets": {
+      "get": {
+        "operationId": "modelSets",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "model_sets": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ModelSet"
+                      }
+                    }
+                  },
+                  "required": ["model_sets"]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/model-sets/{id}/references": {
+      "get": {
+        "operationId": "modelReferences",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelReferences"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/model-sets/{id}": {
+      "delete": {
+        "operationId": "deleteModelSet",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/downloads": {
+      "post": {
+        "operationId": "download",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DownloadRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/downloads/{id}/pause": {
+      "post": {
+        "operationId": "pauseDownload",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ]
+      }
+    },
+    "/downloads/{id}/resume": {
+      "post": {
+        "operationId": "resumeDownload",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ]
+      }
+    },
+    "/downloads/{id}/cancel": {
+      "post": {
+        "operationId": "cancelDownload",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ]
+      }
+    },
+    "/downloads/{id}/restart-file": {
+      "post": {
+        "operationId": "restartFile",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Accepted"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestartFileRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "operationId": "metrics",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "samples": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MetricSample"
+                      }
+                    }
+                  },
+                  "required": ["samples"]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/logs": {
+      "get": {
+        "operationId": "logs",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Logs"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/logs/{id}/download": {
+      "get": {
+        "operationId": "downloadLog",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/events": {
+      "get": {
+        "operationId": "events",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "operationId": "openapi",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "default": {
+            "description": "Management error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CoreError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "details": {}
+        },
+        "required": ["code", "message", "retryable", "details"]
+      },
+      "ManagementError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/CoreError"
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "required": ["error", "request_id"]
+      },
+      "Instance": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "model_set_id": {
+            "type": "string"
+          },
+          "preset_id": {
+            "type": "string"
+          },
+          "applied_preset_revision": {
+            "type": "string"
+          },
+          "build_id": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ready_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "model_set_id",
+          "preset_id",
+          "applied_preset_revision",
+          "build_id",
+          "started_at",
+          "ready_at",
+          "status"
+        ]
+      },
+      "Recovery": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "pid": {
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "allowed_actions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["id", "reason", "allowed_actions"]
+      },
+      "RuntimeSnapshot": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "empty",
+              "ready",
+              "waiting",
+              "unloading",
+              "loading",
+              "error",
+              "recovery_required"
+            ]
+          },
+          "active_instance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Instance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SwitchRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "current_operation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "current_build_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_selected_preset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "inflight_requests": {
+            "type": "integer"
+          },
+          "recovery": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Recovery"
+            }
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoreError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "session_id",
+          "state",
+          "active_instance",
+          "target",
+          "current_operation_id",
+          "current_build_id",
+          "last_selected_preset_id",
+          "inflight_requests",
+          "recovery",
+          "revision"
+        ]
+      },
+      "Settings": {
+        "type": "object",
+        "properties": {
+          "drain_timeout_ms": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "compiler_jobs": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "revision": {
+            "type": "string"
+          }
+        },
+        "required": ["drain_timeout_ms", "compiler_jobs", "revision"]
+      },
+      "Progress": {
+        "type": "object",
+        "properties": {
+          "bytes_done": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bytes_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bytes_per_second": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": ["bytes_done", "bytes_total", "bytes_per_second", "percent", "file_id"]
+      },
+      "Operation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "build",
+              "build_apply",
+              "runtime_switch",
+              "download",
+              "build_delete",
+              "model_set_delete",
+              "recovery"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "paused",
+              "succeeded",
+              "failed",
+              "cancelled",
+              "interrupted"
+            ]
+          },
+          "phase": {
+            "type": "string"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Progress"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoreError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "allowed_actions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cancel_requested": {
+            "type": "boolean"
+          },
+          "pause_requested": {
+            "type": "boolean"
+          },
+          "queued_at": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "status",
+          "phase",
+          "resource_id",
+          "created_at",
+          "updated_at",
+          "progress",
+          "error",
+          "allowed_actions"
+        ]
+      },
+      "Accepted": {
+        "type": "object",
+        "properties": {
+          "operation_id": {
+            "type": "string"
+          },
+          "model_set_id": {
+            "type": "string"
+          }
+        },
+        "required": ["operation_id"]
+      },
+      "Diagnostic": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["error", "warning"]
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": ["severity", "code", "message", "line", "key"]
+      },
+      "PresetSource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "diagnostics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            }
+          }
+        },
+        "required": ["id", "name", "revision", "text", "diagnostics"]
+      },
+      "Preset": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "source_file_id": {
+            "type": "string"
+          },
+          "model_set_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "saved_revision": {
+            "type": "string"
+          },
+          "applied_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "can_launch": {
+            "type": "boolean"
+          },
+          "diagnostics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Diagnostic"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "source_file_id",
+          "model_set_id",
+          "saved_revision",
+          "applied_revision",
+          "can_launch",
+          "diagnostics"
+        ]
+      },
+      "PresetCatalog": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PresetSource"
+            }
+          },
+          "presets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Preset"
+            }
+          },
+          "revision": {
+            "type": "string"
+          }
+        },
+        "required": ["files", "presets", "revision"]
+      },
+      "ModelFile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["weights", "shard", "projector"]
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "downloaded_bytes": {
+            "type": "integer"
+          },
+          "availability": {
+            "type": "string",
+            "enum": ["downloading", "available", "missing", "failed"]
+          },
+          "local_path": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "shared": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "role",
+          "size_bytes",
+          "downloaded_bytes",
+          "availability",
+          "local_path",
+          "url"
+        ]
+      },
+      "ModelSet": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "repo_id": {
+            "type": "string"
+          },
+          "commit": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelFile"
+            }
+          },
+          "availability": {
+            "type": "string",
+            "enum": ["downloading", "available", "missing", "failed"]
+          },
+          "download_operation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preset_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "repo_id",
+          "commit",
+          "files",
+          "availability",
+          "download_operation_id",
+          "preset_ids"
+        ]
+      },
+      "ModelReferences": {
+        "type": "object",
+        "properties": {
+          "model_set_id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "preset_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "file_id": {
+                  "type": "string"
+                },
+                "shared_with": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "will_delete": {
+                  "type": "boolean"
+                }
+              },
+              "required": ["file_id", "shared_with", "will_delete"]
+            }
+          }
+        },
+        "required": ["model_set_id", "revision", "preset_ids", "files"]
+      },
+      "Build": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "profile": {
+            "type": "string",
+            "enum": ["cuda", "cpu"]
+          },
+          "jobs": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["building", "ready", "failed", "cancelled", "interrupted"]
+          },
+          "checks": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "router_health": {
+                    "type": "boolean"
+                  },
+                  "devices": {
+                    "type": "string"
+                  },
+                  "inference": {
+                    "type": "string",
+                    "enum": ["not_checked", "passed", "failed"]
+                  },
+                  "driver_version": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "driver_compatibility": {
+                    "type": "string",
+                    "enum": ["passed", "failed"]
+                  },
+                  "compatibility_error": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": ["router_health", "devices", "inference"]
+              },
+              {
+                "type": "array",
+                "items": {}
+              }
+            ]
+          },
+          "current": {
+            "type": "boolean"
+          },
+          "previous": {
+            "type": "boolean"
+          },
+          "commit": {
+            "type": "string"
+          },
+          "fingerprint": {
+            "type": "string"
+          },
+          "configuration": {
+            "type": "object",
+            "properties": {
+              "commit": {
+                "type": "string"
+              },
+              "profile": {
+                "type": "string"
+              },
+              "cmake": {
+                "type": "string"
+              },
+              "compiler": {
+                "type": "string"
+              },
+              "cache": {
+                "type": "string"
+              },
+              "devices": {
+                "type": "string"
+              }
+            },
+            "required": ["commit", "profile", "cmake", "compiler", "cache", "devices"]
+          }
+        },
+        "required": ["id", "profile", "jobs", "status", "checks", "current", "previous"]
+      },
+      "MetricValue": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unit": {
+            "type": "string"
+          },
+          "availability": {
+            "type": "string",
+            "enum": ["available", "unsupported", "error"]
+          },
+          "sampled_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_success_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": ["value", "unit", "availability", "sampled_at", "last_success_at", "reason"]
+      },
+      "GpuSample": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "uuid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pci": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nvml_index": {
+            "type": "integer"
+          },
+          "cuda_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "utilisation": {
+            "$ref": "#/components/schemas/MetricValue"
+          },
+          "vram_used": {
+            "$ref": "#/components/schemas/MetricValue"
+          },
+          "vram_total": {
+            "$ref": "#/components/schemas/MetricValue"
+          },
+          "temperature": {
+            "$ref": "#/components/schemas/MetricValue"
+          },
+          "power": {
+            "$ref": "#/components/schemas/MetricValue"
+          },
+          "fan": {
+            "$ref": "#/components/schemas/MetricValue"
+          }
+        },
+        "required": [
+          "id",
+          "uuid",
+          "pci",
+          "nvml_index",
+          "cuda_index",
+          "name",
+          "utilisation",
+          "vram_used",
+          "vram_total",
+          "temperature",
+          "power",
+          "fan"
+        ]
+      },
+      "RequestMetric": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string"
+          },
+          "instance_id": {
+            "type": "string"
+          },
+          "preset_id": {
+            "type": "string"
+          },
+          "applied_revision": {
+            "type": "string"
+          },
+          "build_id": {
+            "type": "string"
+          },
+          "ttft_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "duration_ms": {
+            "type": "number"
+          },
+          "tokens_per_second": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prompt_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "completion_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["succeeded", "failed", "cancelled"]
+          }
+        },
+        "required": [
+          "request_id",
+          "instance_id",
+          "preset_id",
+          "applied_revision",
+          "build_id",
+          "ttft_ms",
+          "duration_ms",
+          "tokens_per_second",
+          "prompt_tokens",
+          "completion_tokens",
+          "source",
+          "timestamp",
+          "status"
+        ]
+      },
+      "InferenceMetrics": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "integer"
+          },
+          "failed": {
+            "type": "integer"
+          },
+          "cancelled": {
+            "type": "integer"
+          },
+          "prompt_tokens": {
+            "type": "integer"
+          },
+          "completion_tokens": {
+            "type": "integer"
+          },
+          "last_request": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RequestMetric"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "succeeded",
+          "failed",
+          "cancelled",
+          "prompt_tokens",
+          "completion_tokens",
+          "last_request"
+        ]
+      },
+      "ProcessMetric": {
+        "type": "object",
+        "properties": {
+          "pid": {
+            "type": "integer"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["core", "owned"]
+          },
+          "cpu": {
+            "$ref": "#/components/schemas/MetricValue"
+          },
+          "ram": {
+            "$ref": "#/components/schemas/MetricValue"
+          },
+          "gpu_memory": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "gpu_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "memory": {
+                  "$ref": "#/components/schemas/MetricValue"
+                }
+              },
+              "required": ["gpu_id", "memory"]
+            }
+          }
+        },
+        "required": ["pid", "role", "cpu", "ram", "gpu_memory"]
+      },
+      "MetricSample": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "processes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProcessMetric"
+            }
+          },
+          "inference": {
+            "$ref": "#/components/schemas/InferenceMetrics"
+          },
+          "cpu": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "$ref": "#/components/schemas/MetricValue"
+              },
+              "logical": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "usage": {
+                      "$ref": "#/components/schemas/MetricValue"
+                    },
+                    "frequency": {
+                      "$ref": "#/components/schemas/MetricValue"
+                    }
+                  },
+                  "required": ["name", "usage", "frequency"]
+                }
+              },
+              "temperatures": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "temperature": {
+                      "$ref": "#/components/schemas/MetricValue"
+                    }
+                  },
+                  "required": ["name", "temperature"]
+                }
+              }
+            },
+            "required": ["total", "logical", "temperatures"]
+          },
+          "ram": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "$ref": "#/components/schemas/MetricValue"
+              },
+              "used": {
+                "$ref": "#/components/schemas/MetricValue"
+              },
+              "swap_total": {
+                "$ref": "#/components/schemas/MetricValue"
+              },
+              "swap_used": {
+                "$ref": "#/components/schemas/MetricValue"
+              }
+            },
+            "required": ["total", "used", "swap_total", "swap_used"]
+          },
+          "gpus": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GpuSample"
+            }
+          },
+          "gpu_availability": {
+            "type": "string",
+            "enum": ["available", "unsupported", "error"]
+          }
+        },
+        "required": [
+          "session_id",
+          "timestamp",
+          "processes",
+          "inference",
+          "cpu",
+          "ram",
+          "gpus",
+          "gpu_availability"
+        ]
+      },
+      "LogEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "stream": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "build_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "instance_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "dropped_before": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "stream",
+          "timestamp",
+          "level",
+          "build_id",
+          "operation_id",
+          "instance_id",
+          "message",
+          "truncated",
+          "dropped_before"
+        ]
+      },
+      "Logs": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogEntry"
+            }
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "size_bytes": {
+                  "type": "integer"
+                }
+              },
+              "required": ["id", "size_bytes"]
+            }
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "gap": {
+            "type": "boolean"
+          }
+        },
+        "required": ["entries", "segments", "cursor", "gap"]
+      },
+      "EventSnapshot": {
+        "type": "object",
+        "properties": {
+          "runtime": {
+            "$ref": "#/components/schemas/RuntimeSnapshot"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/Settings"
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Operation"
+            }
+          },
+          "catalog_revisions": {
+            "type": "object",
+            "properties": {
+              "presets": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "builds": {
+                "type": "string"
+              },
+              "model_sets": {
+                "type": "string"
+              }
+            },
+            "required": ["presets", "builds", "model_sets"]
+          }
+        },
+        "required": ["runtime", "settings", "operations", "catalog_revisions"]
+      },
+      "CatalogRevisions": {
+        "type": "object",
+        "properties": {
+          "presets": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "builds": {
+            "type": "string"
+          },
+          "model_sets": {
+            "type": "string"
+          }
+        },
+        "required": ["presets", "builds", "model_sets"]
+      },
+      "EventEnvelope": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["snapshot"]
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/EventSnapshot"
+              }
+            },
+            "required": ["session_id", "seq", "type", "timestamp", "payload"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["runtime.changed"]
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/RuntimeSnapshot"
+              }
+            },
+            "required": ["session_id", "seq", "type", "timestamp", "payload"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["operation.changed"]
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "payload": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            },
+            "required": ["session_id", "seq", "type", "timestamp", "payload"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["catalog.changed"]
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "payload": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Settings"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CatalogRevisions"
+                  }
+                ]
+              }
+            },
+            "required": ["session_id", "seq", "type", "timestamp", "payload"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["preset.changed"]
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "revision": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": ["revision"]
+              }
+            },
+            "required": ["session_id", "seq", "type", "timestamp", "payload"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["build.changed"]
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "revision": {
+                    "type": "string"
+                  }
+                },
+                "required": ["revision"]
+              }
+            },
+            "required": ["session_id", "seq", "type", "timestamp", "payload"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["metric.sample"]
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/MetricSample"
+              }
+            },
+            "required": ["session_id", "seq", "type", "timestamp", "payload"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["log.append"]
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/LogEntry"
+              }
+            },
+            "required": ["session_id", "seq", "type", "timestamp", "payload"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "session_id": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["gap"]
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "payload": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": ["reason"]
+              }
+            },
+            "required": ["session_id", "seq", "type", "timestamp", "payload"]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "SwitchRequest": {
+        "type": "object",
+        "properties": {
+          "preset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preset_revision": {
+            "type": "string"
+          }
+        },
+        "required": ["preset_id"]
+      },
+      "BuildRequest": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "type": "string",
+            "enum": ["cuda", "cpu"]
+          },
+          "jobs": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "clean": {
+            "type": "boolean"
+          }
+        },
+        "required": ["profile", "jobs"]
+      },
+      "CreateSource": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": ["name", "text"]
+      },
+      "SaveSource": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "base_revision": {
+            "type": "string"
+          },
+          "overwrite": {
+            "type": "boolean"
+          }
+        },
+        "required": ["text", "base_revision", "overwrite"]
+      },
+      "RevisionRequest": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "string"
+          }
+        },
+        "required": ["revision"]
+      },
+      "DownloadRequest": {
+        "type": "object",
+        "properties": {
+          "repo_id": {
+            "type": "string"
+          },
+          "commit": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string",
+                  "enum": ["weights", "shard", "projector"]
+                }
+              },
+              "required": ["path", "role"]
+            }
+          }
+        },
+        "required": ["repo_id", "commit", "files"]
+      },
+      "RestartFileRequest": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string"
+          }
+        },
+        "required": ["file_id"]
+      },
+      "HubModels": {
+        "type": "object",
+        "properties": {
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "downloads": {
+                  "type": "integer"
+                },
+                "likes": {
+                  "type": "integer"
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": ["id"]
+            }
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": ["models", "cursor"]
+      },
+      "HubFiles": {
+        "type": "object",
+        "properties": {
+          "repo_id": {
+            "type": "string"
+          },
+          "commit": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string",
+                  "enum": ["weights", "shard", "projector"]
+                },
+                "size_bytes": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": ["path", "role", "size_bytes"]
+            }
+          }
+        },
+        "required": ["repo_id", "commit", "files"]
+      }
+    }
+  }
+}

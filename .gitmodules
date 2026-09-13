@@ -1,3 +1,6 @@
 [submodule "lib/tdlib/vendor/td"]
 	path = lib/tdlib/vendor/td
 	url = https://github.com/tdlib/td.git
+[submodule "apps/core/vendor/llama.cpp"]
+	path = apps/core/vendor/llama.cpp
+	url = https://github.com/ggml-org/llama.cpp.git
